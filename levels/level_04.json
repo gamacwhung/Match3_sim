@@ -1,0 +1,23 @@
+{
+  "name": "關卡 4 - 階梯紙箱",
+  "description": "紙箱集中在右側和下方，呈階梯狀",
+  "rows": 10,
+  "cols": 9,
+  "num_colors": 4,
+  "max_steps": 27,
+  "goals": {
+    "Crt1": 39
+  },
+  "board": [
+    [null, null, null, null, null, null, null, null, "Crt1"],
+    [null, null, null, null, null, null, null, "Crt1", "Crt1"],
+    [null, null, null, null, null, null, "Crt1", "Crt1", "Crt1"],
+    [null, null, null, null, null, "Crt1", "Crt1", "Crt1", "Crt1"],
+    [null, null, null, null, "Crt1", "Crt1", "Crt1", "Crt1", "Crt1"],
+    [null, null, null, "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1"],
+    ["Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1"],
+    ["Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1"],
+    [null, null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null, null]
+  ]
+}

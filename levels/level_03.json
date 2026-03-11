@@ -1,0 +1,24 @@
+{
+  "name": "關卡 3 - 高難度挑戰",
+  "description": "消除各種障礙物",
+  "rows": 10,
+  "cols": 9,
+  "num_colors": 4,
+  "max_steps": 30,
+  "goals": {
+    "Crt2": 8,
+    "SalmonCan": 4
+  },
+  "board": [
+    ["Grn", "Red", "Blu", "Crt2", "Red", "Crt2", "Grn", "Blu", "Yel"],
+    ["Grn", "Yel", "SalmonCan", "Blu", "Red", "Blu", "SalmonCan", "Red", "Blu"],
+    ["Yel", "Blu", "Red", "Crt2", "Blu", "Crt2", "Blu", "Grn", "Yel"],
+    ["Blu", "Red", "Blu", "Grn", "Blu", "Yel", "Grn", "Yel", "Grn"],
+    ["Yel", "Red", "Yel", "Grn", "Red", "Red", "Grn", "Yel", "Grn"],
+    ["Grn", "Blu", "Red", "Yel", "Grn", "Yel", "Blu", "Grn", "Red"],
+    ["Grn", "Blu", "Blu", "Red", "Yel", "Red", "Grn", "Red", "Red"],
+    ["Yel", "Crt2", "Blu", "Crt2", "Red", "Crt2", "Blu", "Crt2", "Blu"],
+    ["Yel", "Blu", "SalmonCan", "Yel", "Blu", "Grn", "SalmonCan", "Red", "Blu"],
+    ["Grn", "Blu", "Grn", "Red", "Red", "Yel", "Yel", "Blu", "Grn"]
+  ]
+}

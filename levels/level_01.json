@@ -1,0 +1,23 @@
+{
+  "name": "關卡 1 - 紙箱消除",
+  "description": "消除 45 個紙箱",
+  "rows": 10,
+  "cols": 9,
+  "num_colors": 4,
+  "max_steps": 35,
+  "goals": {
+    "Crt1": 45
+  },
+  "board": [
+    ["Grn", "Red", "Blu", "Red", "Red", "Grn", "Grn", "Blu", "Yel"],
+    ["Grn", "Yel", "Yel", "Blu", "Red", "Blu", "Grn", "Red", "Blu"],
+    ["Yel", "Blu", "Red", "Blu", "Blu", "Yel", "Blu", "Grn", "Yel"],
+    ["Blu", "Red", "Blu", "Grn", "Blu", "Yel", "Grn", "Yel", "Grn"],
+    ["Yel", "Red", "Yel", "Grn", "Red", "Red", "Grn", "Yel", "Grn"],
+    ["Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1"],
+    ["Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1"],
+    ["Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1"],
+    ["Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1"],
+    ["Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1"]
+  ]
+}

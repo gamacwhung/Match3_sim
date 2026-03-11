@@ -1,0 +1,23 @@
+{
+  "name": "關卡 5 - 散佈紙箱",
+  "description": "紙箱散佈在盤面各處",
+  "rows": 10,
+  "cols": 9,
+  "num_colors": 4,
+  "max_steps": 30,
+  "goals": {
+    "Crt1": 26
+  },
+  "board": [
+    ["Crt1", null, "Crt1", null, "Crt1", null, "Crt1", null, "Crt1"],
+    [null, null, null, null, null, null, null, null, null],
+    ["Crt1", null, "Crt1", null, null, null, "Crt1", null, "Crt1"],
+    [null, null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null, null],
+    ["Crt1", null, "Crt1", null, null, null, "Crt1", null, "Crt1"],
+    [null, null, null, null, null, null, null, null, null],
+    ["Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1", "Crt1"],
+    [null, "Crt1", null, "Crt1", null, "Crt1", null, "Crt1", null]
+  ]
+}
