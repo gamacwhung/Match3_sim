@@ -217,6 +217,7 @@ def main():
                     _new_game(os.path.join(levels_dir, selected_level))
                 else:
                     _new_game()
+                st.rerun()
         with col2:
             if st.button('🤖 AI 一步', use_container_width=True):
                 if st.session_state.env and not st.session_state.env.done:
@@ -228,10 +229,12 @@ def main():
                         msg = _do_step(action)
                         st.session_state.status_msg = f'AI: {_format_action(action)}  {msg}'
                     st.session_state.selected = None
+                    st.rerun()
 
         if st.button('🤖 AI 自動完成', use_container_width=True):
             if st.session_state.env and not st.session_state.env.done:
                 _ai_auto_play()
+                st.rerun()
 
         st.divider()
 

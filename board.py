@@ -381,6 +381,8 @@ class Board:
         b._next_instance_id = self._next_instance_id
         b.waterchiller_open_health = self.waterchiller_open_health
         b.beveragechiller_open_health = self.beveragechiller_open_health
+        b.manufacturer_produced = dict(self.manufacturer_produced)
+        b.generator_weights = self.generator_weights
         return b
 
     # ----- 狀態輸出 -----
