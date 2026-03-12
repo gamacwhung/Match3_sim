@@ -1,0 +1,11 @@
+# API 金鑰設定（不要上傳）
+config.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Streamlit
+.streamlit/secrets.toml
