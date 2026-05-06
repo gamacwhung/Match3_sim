@@ -24,9 +24,9 @@ from level_generator.ai_generator import (
 from level_generator.validator import validate_level
 from level_generator.sim_runner import run_simulation_batch
 from level_generator.render_helpers import (
-    render_board_preview_html, _make_btn_label,
     format_eliminated, make_move_log_entry, render_move_log,
 )
+from match3_board_component import match3_board
 
 st.set_page_config(
     page_title='AI 關卡生成器',
@@ -224,19 +224,16 @@ def _render_play_ui(env: Match3Env):
         render_move_log(st.session_state.gen_move_log, goals_req)
         return
 
-    # 棋盤按鈕
-    for r in range(env.board.rows):
-        cols = st.columns(env.board.cols)
-        for c in range(env.board.cols):
-            cell = env.board.get_cell(r, c)
-            is_sel = selected == (r, c)
-            label = _make_btn_label(cell, is_sel)
-            if is_sel:
-                label = f'[{label}]'
-            with cols[c]:
-                if st.button(label, key=f'gen_play_{r}_{c}', use_container_width=True):
-                    _handle_play_click(r, c)
-                    st.rerun()
+    # 棋盤（自訂 Streamlit Component；M8 美術圖）
+    click = match3_board(
+        env, mode='play', selected=selected, cell_size=56, key='gen_play_board'
+    )
+    if click and click.get('type') == 'click':
+        last_ts = st.session_state.get('gen_play_last_ts')
+        if click.get('ts') != last_ts:
+            st.session_state.gen_play_last_ts = click.get('ts')
+            _handle_play_click(int(click['r']), int(click['c']))
+            st.rerun()
 
     # 步驟記錄（棋盤下方）
     render_move_log(st.session_state.gen_move_log, goals_req)
@@ -590,14 +587,11 @@ def main():
                             st.error(f'重置失敗：{e}')
 
             if play_env is None:
-                # 靜態預覽
+                # 靜態預覽（與試玩共用 Component，只是 mode='preview'）
                 try:
                     env = _load_env_from_dict(lvl)
-                    html = render_board_preview_html(env)
-                    st.components.v1.html(
-                        f'<div style="overflow-x:auto;">{html}</div>',
-                        height=env.board.rows * 58 + 30, scrolling=True,
-                    )
+                    match3_board(env, mode='preview', cell_size=56,
+                                 key='gen_preview_board')
                 except Exception as e:
                     st.error(f'盤面預覽失敗：{e}')
             else:
