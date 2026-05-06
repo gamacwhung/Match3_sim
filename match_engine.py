@@ -347,11 +347,16 @@ def resolve(board: Board, track_goals=True, goals_current=None, goals_required=N
     """
     total_eliminated = {}
     total_powerups = []
+    chains = []  # 每條連鎖的細節
 
     while True:
         match_groups = find_matches(board)
         if not match_groups:
             break
+
+        # 快照：連鎖前的 eliminated 狀態
+        _elim_snap = {k: v for k, v in total_eliminated.items()}
+        _pup_snap_len = len(total_powerups)
 
         # 收集本輪所有要消除的座標和要生成的道具
         to_clear = set()          # 中層要清空的座標
@@ -489,6 +494,23 @@ def resolve(board: Board, track_goals=True, goals_current=None, goals_required=N
                                track_goals, goals_current, goals_required,
                                total_eliminated)
 
+        # 記錄此連鎖的結果（快照對比）
+        chain_elim = {}
+        for k, v in total_eliminated.items():
+            diff = v - _elim_snap.get(k, 0)
+            if diff > 0:
+                chain_elim[k] = diff
+        chain_pups = total_powerups[_pup_snap_len:]
+        chains.append({
+            'chain': len(chains) + 1,
+            'matches': [
+                {'color': mg.color, 'count': len(mg.positions), 'pattern': mg.pattern}
+                for mg in match_groups
+            ],
+            'eliminated': chain_elim,
+            'powerups_created': [(pid, pos) for pid, pos in chain_pups],
+        })
+
         # 重力 + 填充
         board.apply_gravity()
         board.fill_top()
@@ -496,6 +518,7 @@ def resolve(board: Board, track_goals=True, goals_current=None, goals_required=N
     return {
         'eliminated': total_eliminated,
         'powerups_created': total_powerups,
+        'chains': chains,
     }
 
 

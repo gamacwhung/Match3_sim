@@ -92,6 +92,7 @@ class Match3Env:
 
         reward = 0
         info = {}
+        all_chains = []  # 收集所有連鎖細節
 
         # 快照：記錄動作前的盤面狀態（用於目標追蹤）
         self.board.manufacturer_produced = {}  # 重置製造機計數
@@ -118,7 +119,7 @@ class Match3Env:
                 )
                 self.board.apply_gravity()
                 self.board.fill_top()
-                match_engine.resolve(self.board)
+                all_chains.extend(match_engine.resolve(self.board).get('chains', []))
                 self.steps_taken += 1
 
             # 紙風車 + 元素
@@ -133,7 +134,7 @@ class Match3Env:
                 )
                 self.board.apply_gravity()
                 self.board.fill_top()
-                match_engine.resolve(self.board)
+                all_chains.extend(match_engine.resolve(self.board).get('chains', []))
                 self.steps_taken += 1
 
             # 道具 + 非道具：道具在新位置啟動
@@ -157,7 +158,7 @@ class Match3Env:
                     )
                 self.board.apply_gravity()
                 self.board.fill_top()
-                match_engine.resolve(self.board)
+                all_chains.extend(match_engine.resolve(self.board).get('chains', []))
                 self.steps_taken += 1
 
             else:
@@ -169,7 +170,7 @@ class Match3Env:
                     self.board.swap(r1, c1, r2, c2)
                     return self._get_state(), -1, False, {'msg': 'no match'}
 
-                match_engine.resolve(self.board)
+                all_chains.extend(match_engine.resolve(self.board).get('chains', []))
                 self.steps_taken += 1
 
         elif action_type == 'activate':
@@ -184,7 +185,7 @@ class Match3Env:
             )
             self.board.apply_gravity()
             self.board.fill_top()
-            match_engine.resolve(self.board)
+            all_chains.extend(match_engine.resolve(self.board).get('chains', []))
             self.steps_taken += 1
 
         else:
@@ -202,6 +203,7 @@ class Match3Env:
                 self.goals_current[tile_id] = self.goals_current.get(tile_id, 0) + count
         reward = sum(count * (5 if is_obstacle(tid) else 1) for tid, count in eliminated.items())
         info['eliminated'] = eliminated
+        info['chains'] = all_chains
 
         # 檢查遊戲結束條件
         if self.goals_met():

@@ -24,7 +24,8 @@ from level_generator.ai_generator import (
 from level_generator.validator import validate_level
 from level_generator.sim_runner import run_simulation_batch
 from level_generator.render_helpers import (
-    render_board_preview_html, _make_btn_label, _cell_html,
+    render_board_preview_html, _make_btn_label,
+    format_eliminated, make_move_log_entry, render_move_log,
 )
 
 st.set_page_config(
@@ -76,6 +77,7 @@ def _init_state():
         'gen_play_env': None,
         'gen_play_selected': None,
         'gen_play_status': '',
+        'gen_move_log': [],       # 每步事件記錄
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -90,6 +92,7 @@ def _set_level(level_dict: dict):
     st.session_state.gen_play_env = None
     st.session_state.gen_play_selected = None
     st.session_state.gen_play_status = ''
+    st.session_state.gen_move_log = []
     st.session_state.gen_json_version += 1
 
 
@@ -99,6 +102,7 @@ def _clear_conversation():
     st.session_state.gen_sim_results = None
     st.session_state.gen_validation = None
     st.session_state.gen_play_env = None
+    st.session_state.gen_move_log = []
     st.session_state.gen_json_version += 1
 
 
@@ -160,11 +164,19 @@ def _handle_play_click(r: int, c: int):
             if tile and is_powerup(tile.tile_id):
                 cell = env.board.get_cell(sr, sc)
                 if not cell.is_locked() and not cell.has_mud():
+                    goals_before = dict(env.goals_current)
                     _, _, _, info = env.step({'type': 'activate', 'pos': (sr, sc)})
-                    st.session_state.gen_play_status = f'啟動  {info.get("msg","")}'
+                    st.session_state.gen_move_log.insert(0, make_move_log_entry(
+                        f'啟動 ({sr},{sc})', info, goals_before,
+                        env.goals_current, env.goals_required, env.steps_taken))
+                    st.session_state.gen_play_status = f'啟動 ({sr},{sc})  {info.get("msg","")}'
             st.session_state.gen_play_selected = None
         elif abs(sr - r) + abs(sc - c) == 1:
+            goals_before = dict(env.goals_current)
             _, _, _, info = env.step({'type': 'swap', 'pos1': (sr, sc), 'pos2': (r, c)})
+            st.session_state.gen_move_log.insert(0, make_move_log_entry(
+                f'交換 ({sr},{sc})↔({r},{c})', info, goals_before,
+                env.goals_current, env.goals_required, env.steps_taken))
             st.session_state.gen_play_status = f'交換 ({sr},{sc})↔({r},{c})  {info.get("msg","")}'
             st.session_state.gen_play_selected = None
         else:
@@ -176,16 +188,17 @@ def _render_play_ui(env: Match3Env):
     """互動盤面（按鈕版）"""
     selected = st.session_state.gen_play_selected
 
-    # 目標進度
-    goals = env.goals_required
-    progress = getattr(env, 'goals_progress', {})
-    if goals:
+    # 目標進度（用 goals_current 才是正確屬性）
+    goals_req = env.goals_required
+    goals_cur = env.goals_current
+    if goals_req:
         parts = []
-        for tid, req in goals.items():
-            done_cnt = progress.get(tid, 0)
-            remaining = max(0, req - done_cnt)
-            parts.append(f'`{tid}` {remaining}/{req}')
-        st.markdown('**目標剩餘：** ' + '  '.join(parts))
+        for tid, req in goals_req.items():
+            done = goals_cur.get(tid, 0)
+            remaining = max(0, req - done)
+            bar = '█' * min(done, req) + '░' * remaining
+            parts.append(f'`{tid}` {done}/{req} {bar}')
+        st.markdown('**目標進度：** ' + '  '.join(parts))
 
     # 狀態列
     steps_left = env.max_steps - env.steps_taken
@@ -194,16 +207,21 @@ def _render_play_ui(env: Match3Env):
         st.metric('剩餘步數', steps_left)
     with col_s2:
         if env.done:
-            win = getattr(env, 'win', None)
-            if win:
+            if getattr(env, 'win', False):
                 st.success('🎉 通關！')
             else:
-                st.error('💀 失敗')
+                st.error('💀 步數用完')
     with col_s3:
-        if st.session_state.gen_play_status:
-            st.caption(st.session_state.gen_play_status)
+        # 最後一步消除摘要
+        log = st.session_state.gen_move_log
+        if log:
+            last = log[0]
+            st.caption(format_eliminated(last['eliminated'], goals_req))
+            if last.get('shuffled'):
+                st.caption('🔀 已自動洗牌')
 
     if env.done:
+        render_move_log(st.session_state.gen_move_log, goals_req)
         return
 
     # 棋盤按鈕
@@ -219,6 +237,9 @@ def _render_play_ui(env: Match3Env):
                 if st.button(label, key=f'gen_play_{r}_{c}', use_container_width=True):
                     _handle_play_click(r, c)
                     st.rerun()
+
+    # 步驟記錄（棋盤下方）
+    render_move_log(st.session_state.gen_move_log, goals_req)
 
 
 def _render_validation(v):

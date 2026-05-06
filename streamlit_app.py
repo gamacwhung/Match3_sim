@@ -15,7 +15,8 @@ from basic_agent import BasicAgent
 from tile_defs import is_element, is_powerup, is_obstacle, get_def
 from level_generator.render_helpers import (
     COLOR_MAP, OBSTACLE_COLOR, EMPTY_COLOR, PUDDLE_COLOR, ROPE_COLOR, MUD_COLOR,
-    POWERUP_SYMBOL, _get_tile_color, _is_light, _cell_html,
+    POWERUP_SYMBOL, _get_tile_color, _is_light, _cell_html, _make_btn_label,
+    format_eliminated, make_move_log_entry, render_move_log,
 )
 
 
@@ -29,6 +30,7 @@ def _init_state():
         st.session_state.selected = None
         st.session_state.status_msg = ''
         st.session_state.game_started = False
+        st.session_state.move_log = []
 
 
 def _new_game(level_file=None):
@@ -38,16 +40,17 @@ def _new_game(level_file=None):
         st.session_state.env = Match3Env(rows=10, cols=9, num_colors=4, max_steps=30)
     st.session_state.selected = None
     st.session_state.status_msg = ''
+    st.session_state.move_log = []
     st.session_state.game_started = True
 
 
 def _do_step(action):
     env = st.session_state.env
-    _, reward, done, info = env.step(action)
+    _, _, _, info = env.step(action)
     msg = info.get('msg', '')
     if info.get('shuffled'):
         msg += ' (已洗牌)'
-    return msg
+    return msg, info
 
 
 # ---------------------------------------------------------------------------
@@ -71,12 +74,20 @@ def _handle_click(r, c):
             if tile and is_powerup(tile.tile_id):
                 cell = env.board.get_cell(sr, sc)
                 if not cell.is_locked() and not cell.has_mud():
-                    msg = _do_step({'type': 'activate', 'pos': (sr, sc)})
+                    goals_before = dict(env.goals_current)
+                    msg, info = _do_step({'type': 'activate', 'pos': (sr, sc)})
+                    st.session_state.move_log.insert(0, make_move_log_entry(
+                        f'啟動 ({sr},{sc})', info, goals_before,
+                        env.goals_current, env.goals_required, env.steps_taken))
                     st.session_state.status_msg = f'啟動 ({sr},{sc})  {msg}'
             st.session_state.selected = None
         elif abs(sr - r) + abs(sc - c) == 1:
             # 相鄰 → 交換
-            msg = _do_step({'type': 'swap', 'pos1': (sr, sc), 'pos2': (r, c)})
+            goals_before = dict(env.goals_current)
+            msg, info = _do_step({'type': 'swap', 'pos1': (sr, sc), 'pos2': (r, c)})
+            st.session_state.move_log.insert(0, make_move_log_entry(
+                f'交換 ({sr},{sc})↔({r},{c})', info, goals_before,
+                env.goals_current, env.goals_required, env.steps_taken))
             st.session_state.status_msg = f'交換 ({sr},{sc})↔({r},{c})  {msg}'
             st.session_state.selected = None
         else:
@@ -124,12 +135,17 @@ def main():
         with col2:
             if st.button('🤖 AI 一步', use_container_width=True):
                 if st.session_state.env and not st.session_state.env.done:
-                    action = st.session_state.agent.choose_action(st.session_state.env)
+                    env_ai = st.session_state.env
+                    action = st.session_state.agent.choose_action(env_ai)
                     if action is None:
-                        st.session_state.env.board.shuffle()
+                        env_ai.board.shuffle()
                         st.session_state.status_msg = '無合法步驟，已洗牌'
                     else:
-                        msg = _do_step(action)
+                        goals_before = dict(env_ai.goals_current)
+                        msg, info = _do_step(action)
+                        st.session_state.move_log.insert(0, make_move_log_entry(
+                            f'AI:{_format_action(action)}', info, goals_before,
+                            env_ai.goals_current, env_ai.goals_required, env_ai.steps_taken))
                         st.session_state.status_msg = f'AI: {_format_action(action)}  {msg}'
                     st.session_state.selected = None
                     st.rerun()
@@ -177,9 +193,18 @@ def main():
     if env is None:
         return
 
-    # 狀態訊息
-    if st.session_state.status_msg:
-        st.info(st.session_state.status_msg)
+    # 狀態訊息 + 最後一步消除摘要
+    status_cols = st.columns([3, 4])
+    with status_cols[0]:
+        if st.session_state.status_msg:
+            st.info(st.session_state.status_msg)
+    with status_cols[1]:
+        log = st.session_state.move_log
+        if log:
+            last = log[0]
+            st.caption('上一步消除：' + format_eliminated(last['eliminated'], env.goals_required))
+            if last.get('shuffled'):
+                st.caption('🔀 已自動洗牌')
 
     board = env.board
     selected = st.session_state.selected
@@ -190,14 +215,9 @@ def main():
         for c in range(board.cols):
             with cols[c]:
                 cell = board.get_cell(r, c)
-                tile = cell.middle
                 is_sel = (selected == (r, c))
-
-                # 按鈕標籤
-                btn_label = _make_btn_label(cell, is_sel)
-
                 if st.button(
-                    btn_label,
+                    _make_btn_label(cell, is_sel),
                     key=f'cell_{r}_{c}',
                     use_container_width=True,
                     type='primary' if is_sel else 'secondary',
@@ -205,45 +225,8 @@ def main():
                     _handle_click(r, c)
                     st.rerun()
 
-
-def _make_btn_label(cell, is_sel):
-    """產生按鈕文字標籤"""
-    tile = cell.middle
-    parts = []
-
-    # 上層
-    if cell.upper:
-        uid = cell.upper.tile_id
-        if uid == 'Mud':
-            parts.append('🟤')
-        elif uid.startswith('Rope'):
-            parts.append(f'🪢{cell.upper.health}')
-
-    # 中層
-    if tile is None:
-        parts.append('·')
-    elif tile.tile_id in POWERUP_SYMBOL:
-        parts.append(POWERUP_SYMBOL[tile.tile_id])
-    else:
-        tid = tile.tile_id
-        symbol_map = {
-            'Red': '🔴', 'Grn': '🟢', 'Blu': '🔵',
-            'Yel': '🟡', 'Pur': '🟣', 'Brn': '🟤',
-        }
-        if tid in symbol_map:
-            parts.append(symbol_map[tid])
-        else:
-            # 障礙物
-            short = tid[:5] if len(tid) > 5 else tid
-            parts.append(short)
-            if tile.health > 1:
-                parts.append(f'×{tile.health}')
-
-    # 下層
-    if cell.bottom:
-        parts.append(f'💧{cell.bottom.health}')
-
-    return ''.join(parts)
+    # 步驟記錄
+    render_move_log(st.session_state.move_log, env.goals_required)
 
 
 def _format_action(action):
@@ -270,7 +253,11 @@ def _ai_auto_play():
         if action is None:
             env.board.shuffle()
             continue
-        _do_step(action)
+        goals_before = dict(env.goals_current)
+        msg, info = _do_step(action)
+        st.session_state.move_log.insert(0, make_move_log_entry(
+            f'AI:{_format_action(action)}', info, goals_before,
+            env.goals_current, env.goals_required, env.steps_taken))
 
     st.session_state.selected = None
     st.session_state.status_msg = '🎉 勝利！' if env.win else '💀 AI 自動完成 — 失敗'
