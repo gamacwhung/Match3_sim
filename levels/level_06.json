@@ -1,6 +1,6 @@
 {
   "name": "關卡 6 - 全水漥",
-  "description": "底層幾乎全是水漥，需要在上面產生連線才能消除，四個角落無水漥",
+  "description": "底層幾乎全是水漥，需要在上面產生連線才能消除，四個角落為盤面外（void）",
   "rows": 10,
   "cols": 9,
   "num_colors": 4,
@@ -10,6 +10,7 @@
   },
   "board": {
     "middle": [
+      ["void", null, null, null, null, null, null, null, "void"],
       [null, null, null, null, null, null, null, null, null],
       [null, null, null, null, null, null, null, null, null],
       [null, null, null, null, null, null, null, null, null],
@@ -18,20 +19,19 @@
       [null, null, null, null, null, null, null, null, null],
       [null, null, null, null, null, null, null, null, null],
       [null, null, null, null, null, null, null, null, null],
-      [null, null, null, null, null, null, null, null, null],
-      [null, null, null, null, null, null, null, null, null]
+      ["void", null, null, null, null, null, null, null, "void"]
     ],
     "bottom": [
-      [null,          "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", null],
-      ["Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
-      ["Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
-      ["Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
-      ["Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
-      ["Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
-      ["Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
-      ["Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
-      ["Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
-      [null,          "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", null]
+      [null,         "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", null],
+      ["Puddle_lv2","Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
+      ["Puddle_lv2","Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
+      ["Puddle_lv2","Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
+      ["Puddle_lv2","Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
+      ["Puddle_lv2","Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
+      ["Puddle_lv2","Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
+      ["Puddle_lv2","Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
+      ["Puddle_lv2","Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2"],
+      [null,        "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", "Puddle_lv2", null]
     ]
   }
 }

@@ -230,72 +230,86 @@ def find_matches(board: Board) -> list:
 
 def _classify_pattern(board, positions, color):
     """
-    根據座標集合判定消除模式和消除點。
+    根據已配對的座標集合判定消除模式和消除點。
 
-    優先級: FIVE_PLUS > L_T > BLOCK_2x2 > FOUR_H/FOUR_V > THREE
+    官方優先級 (設計文件):
+      紙風車(LtBl) > 炸彈(TNT) > 火箭(Soda) > 紙飛機(TrPr) > 三消
+    對應: FIVE_PLUS > L_T > FOUR_H/FOUR_V > BLOCK_2x2 > THREE
+
+    重要: 所有判定都僅在 `positions` 集合內進行,
+    避免「4連橫 + 旁邊有 1 個同色」被誤判成 L_T。
     """
-    # 找出所有橫/縱連續段
+    pos_set = set(positions)
+
+    # 找出每行/列在 positions 內的最長連續段
     rows_in = {}
     cols_in = {}
     for r, c in positions:
         rows_in.setdefault(r, []).append(c)
         cols_in.setdefault(c, []).append(r)
 
-    # 最長橫向段
     max_h_len = 0
     max_h_positions = []
     for r, cs in rows_in.items():
-        cs_sorted = sorted(cs)
-        segs = _find_consecutive_segments(cs_sorted)
-        for seg in segs:
+        for seg in _find_consecutive_segments(sorted(cs)):
             if len(seg) > max_h_len:
                 max_h_len = len(seg)
                 max_h_positions = [(r, c) for c in seg]
 
-    # 最長縱向段
     max_v_len = 0
     max_v_positions = []
     for c, rs in cols_in.items():
-        rs_sorted = sorted(rs)
-        segs = _find_consecutive_segments(rs_sorted)
-        for seg in segs:
+        for seg in _find_consecutive_segments(sorted(rs)):
             if len(seg) > max_v_len:
                 max_v_len = len(seg)
                 max_v_positions = [(r, c) for r in seg]
 
     # --- 5+ 連線 → LtBl ---
     if max_h_len >= 5 or max_v_len >= 5:
-        # pivot = 中間位置
         line = max_h_positions if max_h_len >= max_v_len else max_v_positions
         pivot = line[len(line) // 2]
         return 'FIVE_PLUS', pivot
 
-    # --- L/T 形: h≥2, v≥2, h+v-1 ≥ 5 ---
-    # 找交叉點
+    # --- L/T/+ 形 → TNT ---
+    # 在 positions 內找一個格子,該格 h_run≥3 且 v_run≥3
     for r, c in positions:
-        h_count, _ = _count_line_h(board, r, c, color)
-        v_count, _ = _count_line_v(board, r, c, color)
-        if h_count >= 2 and v_count >= 2 and (h_count + v_count - 1) >= 5:
+        h_run = 1
+        cc = c + 1
+        while (r, cc) in pos_set:
+            h_run += 1
+            cc += 1
+        cc = c - 1
+        while (r, cc) in pos_set:
+            h_run += 1
+            cc -= 1
+        v_run = 1
+        rr = r + 1
+        while (rr, c) in pos_set:
+            v_run += 1
+            rr += 1
+        rr = r - 1
+        while (rr, c) in pos_set:
+            v_run += 1
+            rr -= 1
+        if h_run >= 3 and v_run >= 3:
             return 'L_T', (r, c)
+
+    # --- 4 連橫/縱 → Soda ---
+    if max_h_len == 4:
+        pivot = max_h_positions[1]
+        return 'FOUR_H', pivot
+    if max_v_len == 4:
+        pivot = max_v_positions[1]
+        return 'FOUR_V', pivot
 
     # --- 2×2 方塊 → TrPr ---
     for r, c in positions:
         for dr in (0, -1):
             for dc in (0, -1):
                 tr, tc = r + dr, c + dc
-                if _check_2x2(board, tr, tc, color):
-                    # pivot = 四格的其中一個（通常取消除點，這裡取中心偏左上）
+                if (tr, tc) in pos_set and (tr, tc + 1) in pos_set \
+                        and (tr + 1, tc) in pos_set and (tr + 1, tc + 1) in pos_set:
                     return 'BLOCK_2x2', (tr, tc)
-
-    # --- 4 連 ---
-    if max_h_len == 4:
-        # 橫向 4 消 → 生成垂直火箭 (Soda90)
-        pivot = max_h_positions[1]  # 偏中間位置
-        return 'FOUR_H', pivot
-    if max_v_len == 4:
-        # 縱向 4 消 → 生成水平火箭 (Soda0d)
-        pivot = max_v_positions[1]
-        return 'FOUR_V', pivot
 
     # --- 3 連 ---
     if max_h_len >= max_v_len:

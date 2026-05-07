@@ -50,22 +50,78 @@ def _serialize_tile(tile):
     }
 
 
-def serialize_cell(cell):
+def serialize_cell(cell, *, anchor=False, span=1, covered=False):
+    """
+    anchor=True 表示此格是多格 instance 的左上角（要畫大圖）
+    covered=True 表示此格被同一 instance 的左上角的大圖蓋住（middle 不畫圖）
+    span 是邊長（2 = 2x2）
+    """
+    middle = _serialize_tile(cell.middle)
+    if middle and (anchor or covered):
+        if anchor:
+            middle['span'] = span
+        if covered:
+            middle['covered'] = True
     return {
-        'middle': _serialize_tile(cell.middle),
+        'middle': middle,
         'upper': _serialize_tile(cell.upper),
         'bottom': _serialize_tile(cell.bottom),
         'locked': cell.is_locked() if hasattr(cell, 'is_locked') else False,
         'mud': cell.has_mud() if hasattr(cell, 'has_mud') else False,
+        'void': bool(getattr(cell, 'is_void', False)),
     }
 
 
 def serialize_env(env):
-    """把 Match3Env 的盤面序列化成 board 2D list"""
-    return [
-        [serialize_cell(env.board.get_cell(r, c)) for c in range(env.board.cols)]
-        for r in range(env.board.rows)
-    ]
+    """把 Match3Env 的盤面序列化成 board 2D list（含 2x2 instance anchor 標記）"""
+    rows = env.board.rows
+    cols = env.board.cols
+
+    # Pass 1: 找每個 instance_id 的左上角
+    instance_anchors = {}
+    instance_cells = {}
+    for r in range(rows):
+        for c in range(cols):
+            cell = env.board.get_cell(r, c)
+            if cell.middle and cell.middle.instance_id:
+                iid = cell.middle.instance_id
+                instance_cells.setdefault(iid, []).append((r, c))
+                if iid not in instance_anchors:
+                    instance_anchors[iid] = (r, c)
+                else:
+                    ar, ac = instance_anchors[iid]
+                    if r < ar or (r == ar and c < ac):
+                        instance_anchors[iid] = (r, c)
+
+    # 推算 span 邊長（假設方形;非方形 fallback 1）
+    instance_span = {}
+    for iid, cells in instance_cells.items():
+        rs = sorted(set(r for r, _ in cells))
+        cs = sorted(set(c for _, c in cells))
+        if len(rs) == 2 and len(cs) == 2 and len(cells) == 4:
+            instance_span[iid] = 2
+        else:
+            instance_span[iid] = 1
+
+    # Pass 2: serialize
+    board = []
+    for r in range(rows):
+        row = []
+        for c in range(cols):
+            cell = env.board.get_cell(r, c)
+            anchor = covered = False
+            span = 1
+            if cell.middle and cell.middle.instance_id:
+                iid = cell.middle.instance_id
+                span = instance_span.get(iid, 1)
+                if span > 1:
+                    if instance_anchors[iid] == (r, c):
+                        anchor = True
+                    else:
+                        covered = True
+            row.append(serialize_cell(cell, anchor=anchor, span=span, covered=covered))
+        board.append(row)
+    return board
 
 
 def match3_board(env, *, mode='play', selected=None, cell_size=56, key=None):

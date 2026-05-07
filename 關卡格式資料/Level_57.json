@@ -1,0 +1,901 @@
+{
+  "Number": 57,
+  "Name": "Level_57",
+  "Colors": [
+    3,
+    2,
+    1,
+    4
+  ],
+  "Limits": [
+    {
+      "BoardId": 0,
+      "Limit": 0,
+      "Count": 25
+    }
+  ],
+  "Goals": [
+    {
+      "BoardId": 0,
+      "Goal": 13,
+      "Count": 32,
+      "IsFromSettings": false
+    },
+    {
+      "BoardId": 0,
+      "Goal": 17,
+      "Count": 12,
+      "IsFromSettings": false
+    },
+    {
+      "BoardId": 0,
+      "Goal": 26,
+      "Count": 42,
+      "IsFromSettings": false
+    }
+  ],
+  "Counts": [],
+  "Sets": [
+    {
+      "Name": "Set1",
+      "Elements": [
+        {
+          "Id": 3,
+          "CreateRatio": 1,
+          "Count": 0
+        },
+        {
+          "Id": 2,
+          "CreateRatio": 1,
+          "Count": 0
+        },
+        {
+          "Id": 1,
+          "CreateRatio": 1,
+          "Count": 0
+        },
+        {
+          "Id": 4,
+          "CreateRatio": 1,
+          "Count": 0
+        }
+      ],
+      "CanFall": true,
+      "CreateRatio": 1,
+      "TargetFills": [
+        64,
+        85,
+        86,
+        87,
+        88,
+        89
+      ],
+      "MaxItemCounts": []
+    }
+  ],
+  "Predefined": [],
+  "Grid": {
+    "Items": [
+      12,
+      12,
+      12,
+      12,
+      93,
+      93,
+      93,
+      93,
+      93,
+      12,
+      12,
+      12,
+      93,
+      93,
+      93,
+      93,
+      93,
+      93,
+      12,
+      45,
+      34,
+      93,
+      93,
+      93,
+      93,
+      93,
+      93,
+      12,
+      43,
+      40,
+      93,
+      93,
+      93,
+      93,
+      93,
+      93,
+      45,
+      34,
+      93,
+      93,
+      93,
+      93,
+      15,
+      15,
+      15,
+      43,
+      40,
+      93,
+      93,
+      93,
+      93,
+      15,
+      15,
+      15,
+      12,
+      45,
+      34,
+      93,
+      93,
+      93,
+      15,
+      15,
+      15,
+      12,
+      43,
+      40,
+      93,
+      93,
+      93,
+      15,
+      15,
+      15,
+      12,
+      12,
+      12,
+      93,
+      93,
+      93,
+      15,
+      15,
+      15,
+      12,
+      12,
+      12,
+      12,
+      93,
+      93,
+      15,
+      15,
+      15
+    ],
+    "Cells": [
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 1,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 0,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 1,
+        "Puddle": 2,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 1,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 1,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 1,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      },
+      {
+        "FillType": 1,
+        "Puddle": 0,
+        "Mud": 0,
+        "Curtain": 0,
+        "PurpleGrass": 0,
+        "Rope": 0
+      }
+    ],
+    "Width": 9,
+    "Height": 10
+  },
+  "Paths": [],
+  "Collected": [],
+  "Groups": [],
+  "Drills": [],
+  "LightbulbColorOrder": [],
+  "PouchConfig": null
+}

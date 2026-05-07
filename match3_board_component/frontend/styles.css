@@ -14,10 +14,16 @@ html, body {
 
 .board {
   display: inline-block;
-  background: #2a2a2a;
+  background: #1f1f1f;
   padding: 6px;
   border-radius: 10px;
   user-select: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* 預覽模式：用 TPE 美術背景；試玩模式維持深色純色（清楚易辨） */
+.board.preview {
+  background: #2a2a2a url('assets/board_bg.png') center / cover no-repeat;
 }
 
 .row {
@@ -28,7 +34,7 @@ html, body {
 
 .cell {
   position: relative;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.08);
   border: 2px solid transparent;
   border-radius: 6px;
   overflow: visible;
@@ -36,8 +42,14 @@ html, body {
 }
 
 .cell.empty {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px dashed rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.cell.void {
+  background: transparent;
+  border: none;
+  pointer-events: none;
 }
 
 .cell.clickable {
@@ -66,7 +78,12 @@ html, body {
 .layer.middle { z-index: 2; }
 .layer.upper  { z-index: 3; opacity: 0.92; }
 
-.layer.rotate90 { transform: rotate(90deg); }
+/* 跨多格的大圖（2x2 chiller / pool） */
+.layer.middle.span {
+  width: auto;
+  height: auto;
+  z-index: 4;   /* 蓋過鄰格 */
+}
 
 /* CSS fallback：找不到圖時顯示彩色色塊 + 文字 */
 .fallback {

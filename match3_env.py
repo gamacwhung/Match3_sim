@@ -315,21 +315,26 @@ class Match3Env:
         }
 
     def _snapshot_goals(self):
-        """快照盤面上所有目標相關物件的數量"""
+        """
+        快照盤面上所有目標相關物件的數量。
+
+        多格物件（chiller / pool）依 instance_id 去重 — 1 個 instance 算 1 個物件,
+        不論占了 4 格,以符合官方「1 個冰箱 = 1 個目標單位」的語意。
+        """
         counts = {}
+        seen_instances = set()
         for r in range(self.board.rows):
             for c in range(self.board.cols):
-                # 中層
-                tile = self.board.get_middle(r, c)
-                if tile:
-                    counts[tile.tile_id] = counts.get(tile.tile_id, 0) + 1
-                # 上層
                 cell = self.board.get_cell(r, c)
-                if cell.upper:
-                    counts[cell.upper.tile_id] = counts.get(cell.upper.tile_id, 0) + 1
-                # 下層
-                if cell.bottom:
-                    counts[cell.bottom.tile_id] = counts.get(cell.bottom.tile_id, 0) + 1
+                for tile in (cell.middle, cell.upper, cell.bottom):
+                    if not tile:
+                        continue
+                    if tile.instance_id is not None:
+                        key = (tile.tile_id, tile.instance_id)
+                        if key in seen_instances:
+                            continue
+                        seen_instances.add(key)
+                    counts[tile.tile_id] = counts.get(tile.tile_id, 0) + 1
         return counts
 
     def _diff_snapshots(self, before, after):
@@ -425,16 +430,16 @@ class Match3Env:
                 raw_id = row_data[c]
                 if raw_id is None:
                     continue
+                if raw_id == 'void':
+                    self.board.get_cell(r, c).is_void = True
+                    continue
                 tile = self._make_tile(raw_id, instance_map)
                 if tile and not is_element(tile.tile_id):
                     # 只放障礙物/道具，元素由隨機填充
                     self.board.set_middle(r, c, tile)
 
-        # 隨機填充元素到空格
-        for r in range(rows):
-            for c in range(cols):
-                if self.board.get_middle(r, c) is None:
-                    self.board.set_middle(r, c, self.board.random_element())
+        # 隨機填充元素到空格（void 格不填）
+        self.board.fill_random()
 
         # 消除初始三連
         self.board.remove_initial_matches()
@@ -443,12 +448,15 @@ class Match3Env:
         """新格式：dict 包含 middle / upper / bottom（中層元素隨機生成）"""
         instance_map = {}
 
-        # middle（只載入非元素物件）
+        # middle（只載入非元素物件；"void" 標記為盤面外）
         middle_data = board_dict.get('middle')
         if middle_data:
             for r in range(min(rows, len(middle_data))):
                 for c in range(min(cols, len(middle_data[r]))):
                     raw_id = middle_data[r][c]
+                    if raw_id == 'void':
+                        self.board.get_cell(r, c).is_void = True
+                        continue
                     if raw_id:
                         tile = self._make_tile(raw_id, instance_map)
                         if tile and not is_element(tile.tile_id):
@@ -460,7 +468,7 @@ class Match3Env:
             for r in range(min(rows, len(upper_data))):
                 for c in range(min(cols, len(upper_data[r]))):
                     raw_id = upper_data[r][c]
-                    if raw_id:
+                    if raw_id and raw_id != 'void':
                         tile = self._make_tile(raw_id, instance_map)
                         if tile:
                             self.board.get_cell(r, c).upper = tile
@@ -471,16 +479,13 @@ class Match3Env:
             for r in range(min(rows, len(bottom_data))):
                 for c in range(min(cols, len(bottom_data[r]))):
                     raw_id = bottom_data[r][c]
-                    if raw_id:
+                    if raw_id and raw_id != 'void':
                         tile = self._make_tile(raw_id, instance_map)
                         if tile:
                             self.board.get_cell(r, c).bottom = tile
 
-        # 隨機填充元素到空格
-        for r in range(rows):
-            for c in range(cols):
-                if self.board.get_middle(r, c) is None:
-                    self.board.set_middle(r, c, self.board.random_element())
+        # 隨機填充元素到空格（void 格不填）
+        self.board.fill_random()
 
         # 消除初始三連
         self.board.remove_initial_matches()

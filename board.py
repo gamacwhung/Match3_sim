@@ -53,16 +53,17 @@ class Tile:
 # Cell — 盤面上的一格
 # ---------------------------------------------------------------------------
 class Cell:
-    __slots__ = ('upper', 'middle', 'bottom')
+    __slots__ = ('upper', 'middle', 'bottom', 'is_void')
 
     def __init__(self):
         self.upper = None   # Tile | None  (Rope, Mud)
         self.middle = None  # Tile | None  (Element, Powerup, Obstacle)
         self.bottom = None  # Tile | None  (Puddle)
+        self.is_void = False  # True = 不存在的格（盤面外）
 
     def is_empty(self):
         """中層為空（可以掉落新物件進來）"""
-        return self.middle is None
+        return self.middle is None and not self.is_void
 
     def is_locked(self):
         """被上層物件鎖住（繩索），不可交換"""
@@ -76,6 +77,8 @@ class Cell:
 
     def get_display(self):
         """取得顯示用字串"""
+        if self.is_void:
+            return '////'
         parts = []
         if self.upper:
             parts.append(f'[{self.upper}]')
@@ -92,6 +95,7 @@ class Cell:
         c.upper = self.upper.copy() if self.upper else None
         c.middle = self.middle.copy() if self.middle else None
         c.bottom = self.bottom.copy() if self.bottom else None
+        c.is_void = self.is_void
         return c
 
 
@@ -153,11 +157,14 @@ class Board:
     # ----- 初始化（隨機填滿，無初始三連） -----
 
     def fill_random(self):
-        """用隨機元素填滿所有空的中層格子"""
+        """用隨機元素填滿所有空的中層格子（void 格不填）"""
         for r in range(self.rows):
             for c in range(self.cols):
-                if self.grid[r][c].middle is None:
-                    self.grid[r][c].middle = self.random_element()
+                cell = self.grid[r][c]
+                if cell.is_void:
+                    continue
+                if cell.middle is None:
+                    cell.middle = self.random_element()
 
     def remove_initial_matches(self):
         """移除初始盤面的三連和 2x2 方塊（反覆替換直到沒有）"""
@@ -205,20 +212,26 @@ class Board:
     # ----- 重力 -----
 
     def _column_drop(self, c):
-        """單列直落一輪（從下往上），回傳是否有移動。"""
+        """單列直落一輪（從下往上），回傳是否有移動。void 格視為實心,擋落。"""
         grid = self.grid
         rows = self.rows
         moved = False
         for r in range(rows - 2, -1, -1):
-            tile = grid[r][c].middle
+            cell = grid[r][c]
+            if cell.is_void:
+                continue
+            tile = cell.middle
             if tile is None:
                 continue
             defn = tile._defn
             if defn is None or defn['movement'] != 'movable':
                 continue
-            if grid[r + 1][c].middle is None:
-                grid[r + 1][c].middle = tile
-                grid[r][c].middle = None
+            below = grid[r + 1][c]
+            if below.is_void:
+                continue
+            if below.middle is None:
+                below.middle = tile
+                cell.middle = None
                 moved = True
         return moved
 
@@ -249,22 +262,28 @@ class Board:
                 left_moved = False
                 for r in range(rows - 2, -1, -1):
                     for c in range(cols):
-                        tile = grid[r][c].middle
+                        cell = grid[r][c]
+                        if cell.is_void:
+                            continue
+                        tile = cell.middle
                         if tile is None:
                             continue
                         defn = tile._defn
                         if defn is None or defn['movement'] != 'movable':
                             continue
-                        if grid[r + 1][c].middle is None:
+                        below = grid[r + 1][c]
+                        if below.is_void or below.middle is None:
                             continue
-                        if c > 0 and grid[r + 1][c - 1].middle is None:
-                            grid[r + 1][c - 1].middle = tile
-                            grid[r][c].middle = None
-                            # 落到 c-1 後立即直落該列
-                            while self._column_drop(c - 1):
-                                pass
-                            left_moved = True
-                            overall_moved = True
+                        if c > 0:
+                            below_left = grid[r + 1][c - 1]
+                            if not below_left.is_void and below_left.middle is None:
+                                below_left.middle = tile
+                                cell.middle = None
+                                # 落到 c-1 後立即直落該列
+                                while self._column_drop(c - 1):
+                                    pass
+                                left_moved = True
+                                overall_moved = True
 
             # Phase 3: 右斜落（重複直到無右斜可落）
             right_moved = True
@@ -272,31 +291,39 @@ class Board:
                 right_moved = False
                 for r in range(rows - 2, -1, -1):
                     for c in range(cols):
-                        tile = grid[r][c].middle
+                        cell = grid[r][c]
+                        if cell.is_void:
+                            continue
+                        tile = cell.middle
                         if tile is None:
                             continue
                         defn = tile._defn
                         if defn is None or defn['movement'] != 'movable':
                             continue
-                        if grid[r + 1][c].middle is None:
+                        below = grid[r + 1][c]
+                        if below.is_void or below.middle is None:
                             continue
-                        if c < cols - 1 and grid[r + 1][c + 1].middle is None:
-                            grid[r + 1][c + 1].middle = tile
-                            grid[r][c].middle = None
-                            while self._column_drop(c + 1):
-                                pass
-                            right_moved = True
-                            overall_moved = True
+                        if c < cols - 1:
+                            below_right = grid[r + 1][c + 1]
+                            if not below_right.is_void and below_right.middle is None:
+                                below_right.middle = tile
+                                cell.middle = None
+                                while self._column_drop(c + 1):
+                                    pass
+                                right_moved = True
+                                overall_moved = True
 
     def fill_top(self):
-        """填充頂部空格"""
+        """填充頂部空格（void 格略過,但不結束往下找）"""
         for c in range(self.cols):
             for r in range(self.rows):
-                if self.grid[r][c].middle is None:
-                    # 檢查這格是否被固定物件佔著（不該填充）
-                    self.grid[r][c].middle = self.random_element()
+                cell = self.grid[r][c]
+                if cell.is_void:
+                    continue
+                if cell.middle is None:
+                    cell.middle = self.random_element()
                 else:
-                    break  # 遇到非空就停（空格只在頂部連續出現）
+                    break  # 遇到非空非 void 就停
 
     # ----- 交換 -----
 
@@ -314,6 +341,9 @@ class Board:
         if abs(r1-r2) + abs(c1-c2) != 1:
             return False
         cell1, cell2 = self.grid[r1][c1], self.grid[r2][c2]
+        # void 格（盤面外）不可交換
+        if cell1.is_void or cell2.is_void:
+            return False
         # 被繩索鎖住或泥巴覆蓋不可交換
         if cell1.is_locked() or cell2.is_locked():
             return False

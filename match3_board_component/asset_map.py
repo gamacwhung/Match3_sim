@@ -20,7 +20,8 @@ ASSET_SOURCES = {
 
     # ---- 道具 ----
     'Soda0d': '盤內道具013-018/013-014_汽水瓶火箭/SodaRocket.png',
-    # Soda90 = SodaRocket 旋轉 90 度。共用同一張，frontend 端 CSS rotate
+    # Soda90 共用同一張 source；build_assets.py 會旋轉 90 度後覆寫成 Soda90.png
+    'Soda90': '盤內道具013-018/013-014_汽水瓶火箭/SodaRocket.png',
     'TNT': '盤內道具013-018/016_氣球炸彈/BlnTNT.png',
     'TrPr': '盤內道具013-018/015_三葉圓盤迴旋鏢/TriPropeller.png',
     'LtBl': '盤內道具013-018/017_七彩光球/LightBall.png',
@@ -90,24 +91,43 @@ CSS_FALLBACK = {
 def resolve_image_key(tile_id, hp=1):
     """
     把 (tile_id, hp) 轉換為 frontend/assets/ 下對應的 asset_key。
+    多血量物件依「目前血量」選對應 lv 圖（例如 Crt3 剩 1 血 → Crt1 圖）。
     回傳 None 表示沒有對應圖（component 會走 CSS fallback）。
     """
     if tile_id is None:
         return None
 
-    # BeverageChiller_open 依 hp 顯示不同等級
-    if tile_id == 'BeverageChiller_open':
-        lv = max(1, min(4, hp or 1))
-        return f'BeverageChiller_open_lv{lv}'
+    cur_hp = max(1, hp or 1)
 
-    # Puddle lv3+ 退到 lv2 圖
+    # 紙箱 Crt1~4：圖隨血量變化
+    if tile_id.startswith('Crt'):
+        lv = min(4, cur_hp)
+        return f'Crt{lv}'
+
+    # 水漥 Puddle：圖隨血量變化（最多 lv2）
     if tile_id.startswith('Puddle_lv'):
-        try:
-            lv = int(tile_id.split('lv')[-1])
-            if lv > 2:
-                return 'Puddle_lv2'
-        except ValueError:
-            pass
+        lv = min(2, cur_hp)
+        return f'Puddle_lv{lv}'
+
+    # 充氣游泳池 Pool：圖隨血量變化（最多 lv5）
+    if tile_id.startswith('Pool_lv'):
+        lv = min(5, cur_hp)
+        return f'Pool_lv{lv}'
+
+    # 繩索 Rope_lv1/lv2：圖隨血量變化
+    if tile_id.startswith('Rope_lv'):
+        lv = min(2, cur_hp)
+        return f'Rope_lv{lv}'
+
+    # 交通錐 TrafficCone_lv1/lv2：圖隨血量變化
+    if tile_id.startswith('TrafficCone_lv'):
+        lv = min(2, cur_hp)
+        return f'TrafficCone_lv{lv}'
+
+    # 飲料櫃開門狀態：依 hp 顯示 lv1~lv4
+    if tile_id == 'BeverageChiller_open':
+        lv = max(1, min(4, cur_hp))
+        return f'BeverageChiller_open_lv{lv}'
 
     # 直接查表
     if tile_id in ASSET_SOURCES:

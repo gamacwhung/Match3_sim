@@ -4,10 +4,16 @@ AI 關卡生成器 — Streamlit 頁面
 
 import sys
 import os
+import re
 import json
 import random
 import tempfile
 import pathlib
+
+
+def _natural_key(s):
+    """讓 level_2 排在 level_10 前面（人類自然順序）"""
+    return [int(p) if p.isdigit() else p.lower() for p in re.split(r'(\d+)', s)]
 
 _ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(_ROOT))
@@ -26,6 +32,7 @@ from level_generator.sim_runner import run_simulation_batch
 from level_generator.render_helpers import (
     format_eliminated, make_move_log_entry, render_move_log,
 )
+from level_generator.official_format import official_to_ours, ours_to_official
 from match3_board_component import match3_board
 
 st.set_page_config(
@@ -94,6 +101,8 @@ def _set_level(level_dict: dict):
     st.session_state.gen_play_status = ''
     st.session_state.gen_move_log = []
     st.session_state.gen_json_version += 1
+    # 匯入警告只屬於最近一次 import,任何 _set_level 都先清掉
+    st.session_state.pop('import_warnings', None)
 
 
 def _clear_conversation():
@@ -390,7 +399,8 @@ def main():
         st.subheader('載入現有關卡')
         levels_dir = _ROOT / 'levels'
         level_files = sorted(
-            f for f in os.listdir(levels_dir) if f.endswith('.json')
+            (f for f in os.listdir(levels_dir) if f.endswith('.json')),
+            key=_natural_key,
         ) if levels_dir.is_dir() else []
         if level_files:
             selected_lvl = st.selectbox('選擇關卡', [''] + level_files)
@@ -402,6 +412,53 @@ def main():
                     st.rerun()
                 except Exception as e:
                     st.error(f'載入失敗：{e}')
+
+        st.divider()
+        st.subheader('📥 匯入官方關卡')
+        official_dir = _ROOT / '關卡格式資料'
+        official_files = sorted(
+            (f for f in os.listdir(official_dir) if f.endswith('.json')),
+            key=_natural_key,
+        ) if official_dir.is_dir() else []
+        def _import_and_play(level_dict, label):
+            """匯入後直接載入試玩 env,免得用戶還要切 tab + 按開始遊玩"""
+            ours, conv_warnings = official_to_ours(level_dict)
+            _set_level(ours)
+            try:
+                st.session_state.gen_play_env = _load_env_from_dict(ours)
+                st.session_state.gen_play_selected = None
+            except Exception as e:
+                st.warning(f'試玩 env 啟動失敗: {e}（仍可在預覽看盤面）')
+            if conv_warnings:
+                st.session_state['import_warnings'] = conv_warnings
+                st.warning(f'已匯入「{label}」並進入試玩,有 {len(conv_warnings)} 條備註')
+            else:
+                st.session_state.pop('import_warnings', None)
+                st.success(f'已完美匯入「{label}」並進入試玩,切到「📝 JSON + 預覽 & 遊玩」即可')
+
+        if official_files:
+            sel_off = st.selectbox(
+                '從 關卡格式資料/ 選一個', [''] + official_files,
+                key='official_picker',
+            )
+            if sel_off and st.button('匯入並試玩', use_container_width=True,
+                                     key='import_official_btn', type='primary'):
+                try:
+                    with open(official_dir / sel_off, 'r', encoding='utf-8') as f:
+                        _import_and_play(json.load(f), sel_off)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f'匯入失敗：{e}')
+
+        off_uploaded = st.file_uploader(
+            '或上傳官方 JSON', type=['json'], key='import_official_uploader',
+        )
+        if off_uploaded is not None:
+            try:
+                _import_and_play(json.load(off_uploaded), off_uploaded.name)
+                st.rerun()
+            except Exception as e:
+                st.error(f'匯入失敗：{e}')
 
     # ============================================================
     # 主區域：3 個 Tab
@@ -497,7 +554,7 @@ def main():
                 placeholder='{"rows": 10, "cols": 9, "max_steps": 30, "goals": {"Crt1": 20}, "board": null}',
             )
 
-            btn_a, btn_b, btn_c = st.columns(3)
+            btn_a, btn_b, btn_c, btn_d = st.columns(4)
             with btn_a:
                 if st.button('✅ 套用', use_container_width=True, type='primary'):
                     try:
@@ -522,6 +579,28 @@ def main():
             with btn_c:
                 if st.session_state.gen_level_json:
                     lvl = st.session_state.gen_level_json
+                    try:
+                        official, exp_warnings = ours_to_official(lvl)
+                        save_name = lvl.get('name', 'level').replace(' ', '_')
+                        st.download_button(
+                            '📤 下載官方格式',
+                            data=json.dumps(official, indent=2, ensure_ascii=False),
+                            file_name=f'{save_name}_official.json',
+                            mime='application/json',
+                            use_container_width=True,
+                            help=(
+                                '輸出為官方遊戲的關卡 JSON 格式（給遊戲程式或'
+                                '關卡編輯器用）'
+                                + (f'\n警告 {len(exp_warnings)} 條' if exp_warnings else '')
+                            ),
+                        )
+                    except Exception as e:
+                        st.button('📤 下載官方格式', use_container_width=True, disabled=True,
+                                  help=f'轉換失敗：{e}')
+
+            with btn_d:
+                if st.session_state.gen_level_json:
+                    lvl = st.session_state.gen_level_json
                     save_name = lvl.get('name', 'new_level').replace(' ', '_')
                     if st.button('💾 存到 levels/', use_container_width=True):
                         try:
@@ -540,6 +619,12 @@ def main():
             else:
                 lvl = st.session_state.gen_level_json
                 _render_validation(st.session_state.gen_validation)
+
+                imp_w = st.session_state.get('import_warnings')
+                if imp_w:
+                    with st.expander(f'📥 匯入警告（{len(imp_w)} 條）'):
+                        for w in imp_w:
+                            st.markdown(f'- 🟡 {w}')
 
                 st.divider()
                 info_cols = st.columns(4)

@@ -111,7 +111,7 @@ def _check_tile_names(d: dict, result: ValidationResult):
             if not isinstance(row, list):
                 continue
             for c, raw_id in enumerate(row):
-                if raw_id is None:
+                if raw_id is None or raw_id == 'void':
                     continue
                 tile_id = _parse_raw_id(raw_id)
                 defn = get_def(tile_id)
@@ -142,7 +142,7 @@ def _check_layer_assignments(d: dict, result: ValidationResult):
             if not isinstance(row, list):
                 continue
             for c, raw_id in enumerate(row):
-                if raw_id is None:
+                if raw_id is None or raw_id == 'void':
                     continue
                 tile_id = _parse_raw_id(raw_id)
                 defn = get_def(tile_id)
@@ -164,7 +164,7 @@ def _check_layer_assignments(d: dict, result: ValidationResult):
             if not isinstance(row, list):
                 continue
             for c, raw_id in enumerate(row):
-                if raw_id is None:
+                if raw_id is None or raw_id == 'void':
                     continue
                 tile_id = _parse_raw_id(raw_id)
                 defn = get_def(tile_id)
@@ -182,7 +182,7 @@ def _check_layer_assignments(d: dict, result: ValidationResult):
             if not isinstance(row, list):
                 continue
             for c, raw_id in enumerate(row):
-                if raw_id is None:
+                if raw_id is None or raw_id == 'void':
                     continue
                 tile_id = _parse_raw_id(raw_id)
                 defn = get_def(tile_id)
@@ -204,13 +204,19 @@ def _count_tiles_on_board(d: dict) -> dict:
     def _scan(layer_data):
         if not isinstance(layer_data, list):
             return
+        seen_instances = set()
         for row in layer_data:
             if not isinstance(row, list):
                 continue
             for raw_id in row:
-                if raw_id is None:
+                if raw_id is None or raw_id == 'void':
                     continue
                 tile_id = _parse_raw_id(raw_id)
+                # 2x2 multi-cell instances 按物件數計（4 格只算 1）
+                if '#' in raw_id:
+                    if raw_id in seen_instances:
+                        continue
+                    seen_instances.add(raw_id)
                 counts[tile_id] = counts.get(tile_id, 0) + 1
 
     if isinstance(board, list):

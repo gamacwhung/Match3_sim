@@ -55,9 +55,6 @@ function makeLayer(layerData, layerName) {
     img.src = imgUrl(layerData.image_key);
     img.alt = layerData.id || '';
     img.draggable = false;
-    if (layerData.id === 'Soda90') {
-      img.classList.add('rotate90');
-    }
     // 圖片載入失敗 → 改用 fallback
     img.onerror = () => {
       img.replaceWith(makeFallback(layerData));
@@ -82,6 +79,12 @@ function renderCell(cell, r, c, args) {
   div.style.width = `${args.cell_size}px`;
   div.style.height = `${args.cell_size}px`;
 
+  // void = 不存在的格 → 透明,不可點
+  if (cell.void) {
+    div.classList.add('void');
+    return div;
+  }
+
   const isSelected =
     args.selected && args.selected[0] === r && args.selected[1] === c;
   if (isSelected) div.classList.add('selected');
@@ -105,12 +108,25 @@ function renderCell(cell, r, c, args) {
 
   // middle 層
   if (cell.middle) {
-    div.appendChild(makeLayer(cell.middle, 'middle'));
-    if (cell.middle.hp && cell.middle.hp > 1) {
-      const hp = document.createElement('div');
-      hp.className = 'hp middle';
-      hp.textContent = cell.middle.hp;
-      div.appendChild(hp);
+    if (cell.middle.covered) {
+      // 被左上角 anchor 的大圖蓋住,不畫
+    } else {
+      const layer = makeLayer(cell.middle, 'middle');
+      const span = cell.middle.span || 1;
+      if (span > 1) {
+        // 大圖跨 span x span 格;cell_size 加上每格之間的 2px gap
+        const sizePx = span * args.cell_size + (span - 1) * 2;
+        layer.style.width = sizePx + 'px';
+        layer.style.height = sizePx + 'px';
+        layer.classList.add('span');
+      }
+      div.appendChild(layer);
+      if (cell.middle.hp && cell.middle.hp > 1) {
+        const hp = document.createElement('div');
+        hp.className = 'hp middle';
+        hp.textContent = cell.middle.hp;
+        div.appendChild(hp);
+      }
     }
   }
 
@@ -156,6 +172,9 @@ function render(args) {
 
   const board = document.createElement('div');
   board.className = 'board';
+  if (args.mode === 'preview') {
+    board.classList.add('preview');
+  }
 
   for (let r = 0; r < args.board.length; r++) {
     const row = document.createElement('div');
