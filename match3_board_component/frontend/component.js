@@ -79,7 +79,7 @@ function renderCell(cell, r, c, args) {
   div.style.width = `${args.cell_size}px`;
   div.style.height = `${args.cell_size}px`;
 
-  // void = 不存在的格 → 透明,不可點
+  // void = 盤面外的格,透明（保持 .grid 黑色底完整,不挖洞）
   if (cell.void) {
     div.classList.add('void');
     return div;
@@ -172,24 +172,25 @@ function render(args) {
 
   const board = document.createElement('div');
   board.className = 'board';
-  if (args.mode === 'preview') {
-    board.classList.add('preview');
-  }
 
+  // 內層格子區（黑色,明顯區隔可遊玩區域）
+  const grid = document.createElement('div');
+  grid.className = 'grid';
   for (let r = 0; r < args.board.length; r++) {
     const row = document.createElement('div');
     row.className = 'row';
     for (let c = 0; c < args.board[r].length; c++) {
       row.appendChild(renderCell(args.board[r][c], r, c, args));
     }
-    board.appendChild(row);
+    grid.appendChild(row);
   }
+  board.appendChild(grid);
   wrap.appendChild(board);
   root.appendChild(wrap);
 
-  // 設定 iframe 高度
+  // 設定 iframe 高度（cells 無間距;只算 board 18px padding + 上下緩衝）
   const rows = args.board.length;
-  const totalHeight = rows * (args.cell_size + 2) + 32;
+  const totalHeight = rows * args.cell_size + 60;
   Streamlit.setFrameHeight(totalHeight);
 }
 

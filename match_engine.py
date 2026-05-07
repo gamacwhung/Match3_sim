@@ -581,25 +581,79 @@ def _count_elimination(tile_id, total_eliminated):
 def _apply_damage_to_middle(board, r, c, damage):
     """
     對中層物件造成傷害，處理狀態轉換。
-    回傳 True 表示物件被消除（應 clear_middle），False 表示仍存活或轉換。
+
+    多格物件（instance_id）：HP 共享 — 找出同一 instance 的所有 cells,
+    一起扣血、一起轉換、一起消除。
+
+    回傳：
+      - True 表示物件被消除（caller 應將 (r, c) 加入 to_clear）
+      - 若是多格物件被消除,**所有同 instance 的 cells 都會被 clear_middle**;
+        這個 fn 的 (r, c) 仍回傳 True 由 caller 計入 to_clear。
+        其他 cells 也會被加入 board 的 to_clear (本 fn 內處理)。
     """
     tile = board.get_middle(r, c)
     if tile is None:
         return False
-
-    # 製造機（Stamp）：不受傷害，不會被消除
     if tile._cat == 'manufacturer':
         return False
 
+    iid = tile.instance_id
+    if iid is None:
+        # 單格物件:照舊
+        return _damage_single_cell(board, r, c, tile, damage)
+
+    # 多格物件:找出所有同 instance 的 cells
+    inst_cells = _find_instance_cells(board, iid)
+    if not inst_cells:
+        return _damage_single_cell(board, r, c, tile, damage)
+
+    # 扣血:全部 cells 的 tile.health 同步減 damage
+    for tr, tc in inst_cells:
+        t = board.get_middle(tr, tc)
+        if t is not None:
+            t.health -= damage
+
+    # 用第一個 cell 的狀態判斷
+    sample = board.get_middle(*inst_cells[0])
+    if sample is None or sample.health > 0:
+        return False
+
+    # 狀態轉換:全部 cells 一起換成新 tile (共用新 instance_id 保持綁定)
+    new_iid = board.new_instance_id()
+    if sample.tile_id == 'WaterChiller_closed':
+        open_hp = getattr(board, 'waterchiller_open_health', 3)
+        new_tile_id = f'WaterChiller_lv{open_hp}'
+        for tr, tc in inst_cells:
+            new_t = Tile(new_tile_id)
+            new_t.instance_id = new_iid
+            board.set_middle(tr, tc, new_t)
+        return False
+    if sample.tile_id == 'BeverageChiller_closed':
+        open_hp = getattr(board, 'beveragechiller_open_health', 4)
+        for tr, tc in inst_cells:
+            new_t = Tile('BeverageChiller_open')
+            new_t.health = open_hp
+            new_t.required_colors = sample.required_colors
+            new_t.instance_id = new_iid
+            board.set_middle(tr, tc, new_t)
+        return False
+
+    # 真的死透了:把同 instance 的其他 cells 也清掉,只回 True 讓 caller
+    # 將 (r, c) 加入 to_clear（其他 cells 已直接清掉,不會重複計目標）
+    for tr, tc in inst_cells:
+        if (tr, tc) != (r, c):
+            board.clear_middle(tr, tc)
+    return True
+
+
+def _damage_single_cell(board, r, c, tile, damage):
+    """單格物件扣血+狀態轉換（原本的邏輯）"""
     tile.health -= damage
     if tile.health <= 0:
-        # WaterChiller_closed → 開門
         if tile.tile_id == 'WaterChiller_closed':
             open_hp = getattr(board, 'waterchiller_open_health', 3)
-            new_tile = Tile(f'WaterChiller_lv{open_hp}')
-            board.set_middle(r, c, new_tile)
+            board.set_middle(r, c, Tile(f'WaterChiller_lv{open_hp}'))
             return False
-        # BeverageChiller_closed → 開門
         if tile.tile_id == 'BeverageChiller_closed':
             open_hp = getattr(board, 'beveragechiller_open_health', 4)
             new_tile = Tile('BeverageChiller_open')
@@ -607,8 +661,19 @@ def _apply_damage_to_middle(board, r, c, damage):
             new_tile.required_colors = tile.required_colors
             board.set_middle(r, c, new_tile)
             return False
-        return True  # 正常消除
-    return False  # 未消除
+        return True
+    return False
+
+
+def _find_instance_cells(board, instance_id):
+    """掃出所有 middle 層 instance_id 等於指定值的 cells"""
+    cells = []
+    for r in range(board.rows):
+        for c in range(board.cols):
+            t = board.get_middle(r, c)
+            if t is not None and t.instance_id == instance_id:
+                cells.append((r, c))
+    return cells
 
 
 # ===========================================================================

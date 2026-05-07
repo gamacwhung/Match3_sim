@@ -421,7 +421,7 @@ def main():
             key=_natural_key,
         ) if official_dir.is_dir() else []
         def _import_and_play(level_dict, label):
-            """匯入後直接載入試玩 env,免得用戶還要切 tab + 按開始遊玩"""
+            """匯入後直接載入試玩 env + 切到 JSON+遊玩 tab"""
             ours, conv_warnings = official_to_ours(level_dict)
             _set_level(ours)
             try:
@@ -429,12 +429,15 @@ def main():
                 st.session_state.gen_play_selected = None
             except Exception as e:
                 st.warning(f'試玩 env 啟動失敗: {e}（仍可在預覽看盤面）')
+            # 自動切到 JSON + 預覽 & 遊玩 分頁,並請求把畫面捲到試玩區
+            st.session_state.active_tab = '📝 JSON + 預覽 & 遊玩'
+            st.session_state.scroll_to_play = True
             if conv_warnings:
                 st.session_state['import_warnings'] = conv_warnings
-                st.warning(f'已匯入「{label}」並進入試玩,有 {len(conv_warnings)} 條備註')
+                st.toast(f'已匯入「{label}」,有 {len(conv_warnings)} 條備註')
             else:
                 st.session_state.pop('import_warnings', None)
-                st.success(f'已完美匯入「{label}」並進入試玩,切到「📝 JSON + 預覽 & 遊玩」即可')
+                st.toast(f'✅ 已匯入「{label}」並進入試玩')
 
         if official_files:
             sel_off = st.selectbox(
@@ -461,16 +464,23 @@ def main():
                 st.error(f'匯入失敗：{e}')
 
     # ============================================================
-    # 主區域：3 個 Tab
+    # 主區域：3 個 Tab（用 radio 而非 st.tabs,才能依 session_state
+    # 預設選定的 tab — 例如匯入後自動切到「JSON + 預覽 & 遊玩」）
     # ============================================================
-    tab_chat, tab_edit, tab_sim = st.tabs([
-        '💬 Chat & 生成', '📝 JSON + 預覽 & 遊玩', '🤖 模擬測試'
-    ])
+    TAB_CHAT = '💬 Chat & 生成'
+    TAB_EDIT = '📝 JSON + 預覽 & 遊玩'
+    TAB_SIM = '🤖 模擬測試'
+    if 'active_tab' not in st.session_state:
+        st.session_state.active_tab = TAB_CHAT
+    active_tab = st.radio(
+        '檢視', [TAB_CHAT, TAB_EDIT, TAB_SIM],
+        key='active_tab', horizontal=True, label_visibility='collapsed',
+    )
 
     # ----------------------------------------------------------
     # Tab 1: Chat & Generate
     # ----------------------------------------------------------
-    with tab_chat:
+    if active_tab == TAB_CHAT:
         st.markdown('輸入需求讓 AI 生成關卡，也可以對結果提出修改意見。')
 
         uploaded = st.file_uploader(
@@ -519,7 +529,7 @@ def main():
     # ----------------------------------------------------------
     # Tab 2: JSON 編輯 + 預覽 & 遊玩
     # ----------------------------------------------------------
-    with tab_edit:
+    if active_tab == TAB_EDIT:
         col_left, col_right = st.columns([1, 1])
 
         with col_left:
@@ -647,8 +657,28 @@ def main():
         # 盤面區：全寬，分靜態預覽和互動遊玩
         if st.session_state.gen_level_json:
             st.divider()
+            # 用一個固定 anchor 讓「匯入並試玩」可自動 scrollIntoView
+            st.markdown(
+                '<div id="play-anchor" style="scroll-margin-top:60px;"></div>',
+                unsafe_allow_html=True,
+            )
             lvl = st.session_state.gen_level_json
             play_env = st.session_state.gen_play_env
+
+            # 從 sidebar 匯入後切過來,自動把畫面捲到試玩區
+            if st.session_state.pop('scroll_to_play', False):
+                st.components.v1.html(
+                    """
+                    <script>
+                      const doc = window.parent.document;
+                      const anchor = doc.getElementById('play-anchor');
+                      if (anchor) {
+                          anchor.scrollIntoView({behavior:'smooth', block:'start'});
+                      }
+                    </script>
+                    """,
+                    height=0,
+                )
 
             play_ctrl_cols = st.columns([1, 1, 6])
             with play_ctrl_cols[0]:
@@ -686,7 +716,7 @@ def main():
     # ----------------------------------------------------------
     # Tab 3: Simulation Test
     # ----------------------------------------------------------
-    with tab_sim:
+    if active_tab == TAB_SIM:
         if not st.session_state.gen_level_json:
             st.info('請先生成或載入關卡再執行模擬測試。')
         else:

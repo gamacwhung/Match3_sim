@@ -12,44 +12,55 @@ html, body {
   padding: 8px;
 }
 
+/* 外層：TPE 木紋背景（兩種模式都用）
+ * 用 100% 100% 而非 cover,讓 void cell 能用同樣的縮放規則對齊
+ */
 .board {
   display: inline-block;
-  background: #1f1f1f;
-  padding: 6px;
-  border-radius: 10px;
+  background-color: #2a2a2a;
+  background-image: url('assets/board_bg.png');
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-position: 0 0;
+  padding: 18px;
+  border-radius: 14px;
   user-select: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
-/* 預覽模式：用 TPE 美術背景；試玩模式維持深色純色（清楚易辨） */
-.board.preview {
-  background: #2a2a2a url('assets/board_bg.png') center / cover no-repeat;
+/* .grid 不畫黑底 — 每個可玩 cell 自己的黑底會貼合在一起形成「跟著盤面形狀的框」 */
+.grid {
+  background: transparent;
+  padding: 0;
+  display: inline-block;
 }
 
+/* cells 之間無間隙,讓可玩區的黑底連成一片 */
 .row {
   display: flex;
-  gap: 2px;
+  gap: 0;
 }
-.row + .row { margin-top: 2px; }
+.row + .row { margin-top: 0; }
 
 .cell {
   position: relative;
-  background: rgba(255, 255, 255, 0.08);
-  border: 2px solid transparent;
-  border-radius: 6px;
+  background: #161616;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
   overflow: visible;
   flex: 0 0 auto;
 }
 
 .cell.empty {
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px dashed rgba(255, 255, 255, 0.2);
+  background: #1a1a1a;
 }
 
+/* void 格:盤面外,完全透明（顯示外層 TPE101 木紋）,黑框不延伸到這 */
 .cell.void {
   background: transparent;
   border: none;
   pointer-events: none;
+  box-shadow: none;
 }
 
 .cell.clickable {
