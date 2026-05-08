@@ -141,6 +141,29 @@ html, body {
   filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.9));
 }
 
+/* BC per-cell 瓶子（開門後顯示）:活著=彩色圓;死了=半透明空槽
+ * 位置在 cell 上半,對齊官方飲料櫃「瓶子在上、底座在下」的設計
+ */
+.bottle {
+  position: absolute;
+  width: 36%;
+  height: 50%;
+  top: 12%;
+  left: 32%;
+  border-radius: 50% 50% 30% 30%;   /* 上圓下方,像瓶子 */
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  z-index: 7;
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35),
+              inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+}
+.bottle.dead {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.3);
+  border-style: dashed;
+  box-shadow: none;
+}
+
 /* mud 視覺 */
 .mud-overlay {
   position: absolute;

@@ -42,6 +42,14 @@ const Streamlit = {
 // ===== 渲染 =====
 const POWERUP_IDS = new Set(['Soda0d', 'Soda90', 'TNT', 'TrPr', 'LtBl']);
 
+// 顏色名 → 16 進位（給 BC required_colors 徽章用）
+const COLOR_HEX = {
+  Red: '#FF4444', Grn: '#44BB44', Blu: '#4488FF',
+  Yel: '#FFCC00', Pur: '#AA44CC', Brn: '#886644',
+  Blue: '#4488FF', Green: '#44BB44', Yellow: '#FFCC00',
+  Purple: '#AA44CC', Orange: '#FF8800',
+};
+
 function imgUrl(key) {
   // 相對路徑會解析成 iframe 相對於 index.html 的位置
   return `assets/${encodeURIComponent(key)}.png`;
@@ -108,16 +116,13 @@ function renderCell(cell, r, c, args) {
 
   // middle 層
   if (cell.middle) {
-    if (cell.middle.covered) {
-      // 被左上角 anchor 的大圖蓋住,不畫
-    } else {
+    if (!cell.middle.covered) {
       const layer = makeLayer(cell.middle, 'middle');
       const span = cell.middle.span || 1;
       if (span > 1) {
-        // 大圖跨 span x span 格;cell_size 加上每格之間的 2px gap
-        const sizePx = span * args.cell_size + (span - 1) * 2;
-        layer.style.width = sizePx + 'px';
-        layer.style.height = sizePx + 'px';
+        // 大圖跨 span x span 格（cells 之間無 gap）
+        layer.style.width = (span * args.cell_size) + 'px';
+        layer.style.height = (span * args.cell_size) + 'px';
         layer.classList.add('span');
       }
       div.appendChild(layer);
@@ -127,6 +132,17 @@ function renderCell(cell, r, c, args) {
         hp.textContent = cell.middle.hp;
         div.appendChild(hp);
       }
+    }
+    // 飲料櫃 per-cell 瓶色 — 不論 anchor / covered 都要在「自己的格」上畫
+    if (cell.middle.bottle_color) {
+      const bottle = document.createElement('div');
+      bottle.className = 'bottle';
+      if (cell.middle.bottle_alive) {
+        bottle.style.background = COLOR_HEX[cell.middle.bottle_color] || '#888';
+      } else {
+        bottle.classList.add('dead');
+      }
+      div.appendChild(bottle);
     }
   }
 

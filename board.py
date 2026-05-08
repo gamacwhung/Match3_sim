@@ -20,7 +20,8 @@ from tile_defs import (
 # ---------------------------------------------------------------------------
 class Tile:
     __slots__ = ('tile_id', 'health', 'instance_id', 'color',
-                 'required_colors', '_defn', '_cat')
+                 'required_colors', 'bottle_color', 'bottle_alive',
+                 '_defn', '_cat')
 
     def __init__(self, tile_id: str, health: int = None, instance_id=None):
         self.tile_id = tile_id
@@ -30,7 +31,9 @@ class Tile:
         self.health = health if health is not None else (defn['health'] if defn else 1)
         self.instance_id = instance_id  # 多格物件去重
         self.color = get_color(tile_id) if defn else None
-        self.required_colors = None  # 飲料櫃開門時需要的顏色
+        self.required_colors = None      # 飲料櫃整體可消去的顏色集合（door 開門用）
+        self.bottle_color = None         # 飲料櫃此 cell 的瓶子顏色（per-cell）
+        self.bottle_alive = True         # 此 cell 瓶子是否還活著（飲料櫃用）
 
     def copy(self):
         t = Tile.__new__(Tile)
@@ -39,6 +42,8 @@ class Tile:
         t.instance_id = self.instance_id
         t.color = self.color
         t.required_colors = self.required_colors
+        t.bottle_color = self.bottle_color
+        t.bottle_alive = self.bottle_alive
         t._defn = self._defn
         t._cat = self._cat
         return t

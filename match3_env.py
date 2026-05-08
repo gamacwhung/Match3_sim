@@ -391,13 +391,24 @@ class Match3Env:
             # 舊格式: board 是 2D array → 視為 middle 層
             self._load_simple_board(board_data, rows, cols)
 
-        # 對所有 BeverageChiller 設定 required_colors
-        if self._beverage_colors:
-            for r in range(rows):
-                for c in range(cols):
-                    tile = self.board.get_middle(r, c)
-                    if tile and tile.tile_id.startswith('BeverageChiller'):
-                        tile.required_colors = list(self._beverage_colors)
+        # 對所有 BeverageChiller 設定 required_colors（整體 door 用）和 bottle_color（per-cell）
+        bottle_colors_layer = (
+            board_data.get('bottle_colors') if isinstance(board_data, dict) else None
+        )
+        for r in range(rows):
+            for c in range(cols):
+                tile = self.board.get_middle(r, c)
+                if not (tile and tile.tile_id.startswith('BeverageChiller')):
+                    continue
+                # per-cell bottle_color（若 JSON 有給）
+                if (bottle_colors_layer and r < len(bottle_colors_layer)
+                        and c < len(bottle_colors_layer[r])):
+                    bc = bottle_colors_layer[r][c]
+                    if bc:
+                        tile.bottle_color = bc
+                # 整體 required_colors（門開時用）
+                if self._beverage_colors:
+                    tile.required_colors = list(self._beverage_colors)
 
     def _parse_tile_id(self, raw_id):
         """解析 tile_id，處理 #N 實例標記（如 'Pool_lv3#1'）"""

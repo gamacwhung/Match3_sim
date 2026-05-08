@@ -124,10 +124,21 @@ def resolve_image_key(tile_id, hp=1):
         lv = min(2, cur_hp)
         return f'TrafficCone_lv{lv}'
 
-    # 飲料櫃開門狀態：依 hp 顯示 lv1~lv4
-    if tile_id == 'BeverageChiller_open':
+    # 飲料櫃：統一 HP 5,圖隨 hp 變
+    # HP=5 顯示 closed (lv5 圖), HP=4..1 顯示 open lv4..lv1
+    if tile_id == 'BeverageChiller_closed' or tile_id == 'BeverageChiller_open':
+        if cur_hp >= 5:
+            return 'BeverageChiller_closed'
         lv = max(1, min(4, cur_hp))
         return f'BeverageChiller_open_lv{lv}'
+
+    # 礦泉水櫃：HP 1~11 全部依 hp 顯示對應 lv 圖
+    # HP=11 顯示 closed (lv11.png), HP=10 顯示 lv10, ..., HP=1 顯示 lv1
+    if tile_id.startswith('WaterChiller'):
+        lv = max(1, min(11, cur_hp))
+        if lv == 11:
+            return 'WaterChiller_closed'   # closed asset = lv11 圖
+        return f'WaterChiller_lv{lv}'
 
     # 直接查表
     if tile_id in ASSET_SOURCES:

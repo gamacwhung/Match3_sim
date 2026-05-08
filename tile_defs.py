@@ -120,22 +120,25 @@ _reg('SalmonCan',
      can_inplace_elim=False)
 
 # ======================== 障礙物 — 礦泉水櫃 (WaterChiller) ========================
-# 關門狀態（單次消除打開）
+# 統一血量 11（關門=lv11 視為一個血量段）。每被打 1 次扣 1 血,圖隨 HP 變
+# (HP=11 顯示 closed/lv11 圖,HP=10 顯示 lv10,...,HP=1 顯示 lv1,HP=0 消除)。
 _reg('WaterChiller_closed',
-     health=1, elimination_type='single',
+     health=11, elimination_type='multi',
      can_adjacent_elim=True, can_prop_elim=True)
-# 開門狀態（多次消除，每格傷害都算）
+# 保留舊 lv1~lv10 tile_id 給已存在的關卡用 (legacy);新關卡都會用 closed
 for _lv in range(1, 11):
     _reg(f'WaterChiller_lv{_lv}',
          health=_lv, elimination_type='multi',
          can_adjacent_elim=True, can_prop_elim=True)
 
 # ======================== 障礙物 — 飲料櫃 (BeverageChiller) ========================
-# 關門狀態
+# 統一血量 5(關門=lv5)。每回合最多扣 1 血(single elim,不論幾格鄰邊),
+# HP=5 時任意色都能扣;HP<5 時只能匹配 required_colors 才能扣血。
+# 圖隨 HP 變:HP=5 顯示 closed/lv5 圖,HP=4..1 顯示 open lv4..lv1。
 _reg('BeverageChiller_closed',
-     health=1, elimination_type='single',
+     health=5, elimination_type='single',
      can_adjacent_elim=True, can_prop_elim=True)
-# 開門狀態（需要對應顏色）
+# 保留 _open tile_id 給舊關卡 fallback
 _reg('BeverageChiller_open',
      health=4, elimination_type='single',
      can_adjacent_elim=True, can_prop_elim=True)

@@ -450,12 +450,27 @@ def resolve(board: Board, track_goals=True, goals_current=None, goals_required=N
             if defn is None:
                 continue
 
-            # BeverageChiller_open 只能被匹配的顏色消除
-            if tile.tile_id == 'BeverageChiller_open' and tile.required_colors:
+            # 飲料櫃：4 個瓶子內部連通 — 對任一 cell 的鄰邊配色匹配
+            # 「整個 instance 裡任一活著的瓶色」就算有效, 然後殺那顆對應色的瓶
+            if tile.tile_id.startswith('BeverageChiller'):
                 colors_hitting = to_damage_colors.get((r, c), set())
-                matching = colors_hitting & set(tile.required_colors)
-                if not matching:
-                    continue  # 沒有匹配的顏色，跳過
+                alive = _bc_alive_bottle_colors(board, tile.instance_id)
+                if not alive:
+                    alive = set(tile.required_colors or [])
+                if tile.health >= 5:
+                    # 門關著:任一活著瓶色匹配 → 開門（不殺瓶）
+                    if alive and not (colors_hitting & alive):
+                        continue
+                    bc_kill_color = None
+                else:
+                    # 門開著:配色匹配某顆活著的瓶 → 殺那顆瓶
+                    matching = colors_hitting & alive
+                    if not matching:
+                        continue
+                    bc_kill_color = next(iter(matching))
+                # 將該次傷害「要殺哪色瓶」存到模組變數,給 _apply_damage_to_middle 用
+                if bc_kill_color is not None:
+                    _BC_KILL_COLOR[tile.instance_id] = bc_kill_color
 
             actual_dmg = dmg
             if defn['elimination_type'] == 'single':
@@ -607,7 +622,38 @@ def _apply_damage_to_middle(board, r, c, damage):
     if not inst_cells:
         return _damage_single_cell(board, r, c, tile, damage)
 
-    # 扣血:全部 cells 的 tile.health 同步減 damage
+    # 飲料櫃特殊邏輯:HP>4 開門 (不殺瓶);HP<=4 殺對應色的瓶（內部連通）
+    if tile.tile_id.startswith('BeverageChiller'):
+        if tile.health > 4:
+            # 開門步:全部 cells 同步扣血,不殺瓶
+            for tr, tc in inst_cells:
+                t = board.get_middle(tr, tc)
+                if t is not None:
+                    t.health -= damage
+            return False
+        # HP<=4:依 _BC_KILL_COLOR 找對應色瓶（鄰邊消除）；否則任意活著瓶（道具）
+        kill_color = _BC_KILL_COLOR.pop(iid, None)
+        target = _find_bc_bottle_to_drain(board, iid, kill_color)
+        if target is None:
+            return False
+        tr, tc = target
+        target_tile = board.get_middle(tr, tc)
+        if target_tile is not None:
+            target_tile.bottle_alive = False
+        for tr2, tc2 in inst_cells:
+            t = board.get_middle(tr2, tc2)
+            if t is not None:
+                t.health -= damage
+        sample = board.get_middle(*inst_cells[0])
+        if sample is None or sample.health > 0:
+            return False
+        # 全部瓶都死 → 清除整個 instance
+        for tr2, tc2 in inst_cells:
+            if (tr2, tc2) != (r, c):
+                board.clear_middle(tr2, tc2)
+        return True
+
+    # 一般多格物件(WaterChiller/Pool):全部 cells 同步扣血
     for tr, tc in inst_cells:
         t = board.get_middle(tr, tc)
         if t is not None:
@@ -618,25 +664,7 @@ def _apply_damage_to_middle(board, r, c, damage):
     if sample is None or sample.health > 0:
         return False
 
-    # 狀態轉換:全部 cells 一起換成新 tile (共用新 instance_id 保持綁定)
-    new_iid = board.new_instance_id()
-    if sample.tile_id == 'WaterChiller_closed':
-        open_hp = getattr(board, 'waterchiller_open_health', 3)
-        new_tile_id = f'WaterChiller_lv{open_hp}'
-        for tr, tc in inst_cells:
-            new_t = Tile(new_tile_id)
-            new_t.instance_id = new_iid
-            board.set_middle(tr, tc, new_t)
-        return False
-    if sample.tile_id == 'BeverageChiller_closed':
-        open_hp = getattr(board, 'beveragechiller_open_health', 4)
-        for tr, tc in inst_cells:
-            new_t = Tile('BeverageChiller_open')
-            new_t.health = open_hp
-            new_t.required_colors = sample.required_colors
-            new_t.instance_id = new_iid
-            board.set_middle(tr, tc, new_t)
-        return False
+    # WaterChiller / BeverageChiller 統一 HP（不轉換）,直接走死亡路線
 
     # 真的死透了:把同 instance 的其他 cells 也清掉,只回 True 讓 caller
     # 將 (r, c) 加入 to_clear（其他 cells 已直接清掉,不會重複計目標）
@@ -647,20 +675,9 @@ def _apply_damage_to_middle(board, r, c, damage):
 
 
 def _damage_single_cell(board, r, c, tile, damage):
-    """單格物件扣血+狀態轉換（原本的邏輯）"""
+    """單格物件扣血（chiller 已統一 HP,不再轉換 closed↔open）"""
     tile.health -= damage
     if tile.health <= 0:
-        if tile.tile_id == 'WaterChiller_closed':
-            open_hp = getattr(board, 'waterchiller_open_health', 3)
-            board.set_middle(r, c, Tile(f'WaterChiller_lv{open_hp}'))
-            return False
-        if tile.tile_id == 'BeverageChiller_closed':
-            open_hp = getattr(board, 'beveragechiller_open_health', 4)
-            new_tile = Tile('BeverageChiller_open')
-            new_tile.health = open_hp
-            new_tile.required_colors = tile.required_colors
-            board.set_middle(r, c, new_tile)
-            return False
         return True
     return False
 
@@ -674,6 +691,42 @@ def _find_instance_cells(board, instance_id):
             if t is not None and t.instance_id == instance_id:
                 cells.append((r, c))
     return cells
+
+
+# 模組變數:本次傷害計算要殺哪色瓶 {instance_id: color}
+# 由 resolve 設定,_apply_damage_to_middle 讀取。其他 caller (activate_powerup) 不設,
+# 飲料櫃就走「任意活著瓶」的 fallback 路徑（給道具消除用）
+_BC_KILL_COLOR = {}
+
+
+def _find_bc_bottle_to_drain(board, instance_id, kill_color=None):
+    """找一顆要被殺的活著瓶子。kill_color=None 表示任意（道具用）"""
+    for r in range(board.rows):
+        for c in range(board.cols):
+            t = board.get_middle(r, c)
+            if (t is not None and t.instance_id == instance_id
+                    and t.tile_id.startswith('BeverageChiller')
+                    and getattr(t, 'bottle_alive', True)
+                    and t.bottle_color):
+                if kill_color is None or t.bottle_color == kill_color:
+                    return (r, c)
+    return None
+
+
+def _bc_alive_bottle_colors(board, instance_id):
+    """飲料櫃 instance 裡所有「還活著」的瓶子顏色集合"""
+    colors = set()
+    if instance_id is None:
+        return colors
+    for r in range(board.rows):
+        for c in range(board.cols):
+            t = board.get_middle(r, c)
+            if (t is not None and t.instance_id == instance_id
+                    and t.tile_id.startswith('BeverageChiller')
+                    and getattr(t, 'bottle_alive', True)
+                    and t.bottle_color):
+                colors.add(t.bottle_color)
+    return colors
 
 
 # ===========================================================================
@@ -819,6 +872,18 @@ def activate_powerup(board: Board, r, c, goals_required=None,
 
     is_ltbl = (powerup_id == 'LtBl')
     target_set = set(targets)
+    # 飲料櫃:每次道具啟動只能扣 1 血,同 instance 在此次啟動內 dedup
+    bc_damaged_iids = set()
+
+    def _can_damage_bc(t):
+        if t is None or not t.tile_id.startswith('BeverageChiller'):
+            return True
+        if t.instance_id is None:
+            return True
+        if t.instance_id in bc_damaged_iids:
+            return False
+        bc_damaged_iids.add(t.instance_id)
+        return True
 
     for tr, tc in targets:
         # 非 LtBl 道具：消除目標格的上層（繩索）和下層（水漥）
@@ -849,24 +914,11 @@ def activate_powerup(board: Board, r, c, goals_required=None,
         elif is_element(t.tile_id) or is_obstacle(t.tile_id):
             defn = get_def(t.tile_id)
             if defn and defn.get('can_prop_elim', True):
-                if _apply_damage_to_middle(board, tr, tc, 1):
-                    board.clear_middle(tr, tc)
-        # 鄰邊消除（道具效果也觸發鄰邊消除）
-        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            nr, nc = tr + dr, tc + dc
-            if not board.in_bounds(nr, nc):
-                continue
-            if (nr, nc) in target_set:
-                continue
-            neighbor = board.get_middle(nr, nc)
-            if neighbor is None:
-                continue
-            if neighbor._cat == 'manufacturer':
-                board.manufacturer_produced[neighbor.tile_id] = \
-                    board.manufacturer_produced.get(neighbor.tile_id, 0) + 1
-            elif can_adjacent_elim(neighbor.tile_id):
-                if _apply_damage_to_middle(board, nr, nc, 1):
-                    board.clear_middle(nr, nc)
+                if _can_damage_bc(t):
+                    if _apply_damage_to_middle(board, tr, tc, 1):
+                        board.clear_middle(tr, tc)
+        # 道具不會觸發鄰邊消除 — 道具效果只作用在 target_set 內的格,
+        # 邊上的障礙物若不在 target 範圍,不會被影響(對所有障礙物都一樣)
 
     # 連鎖觸發
     _process_powerup_chain(board, triggered, set(),
@@ -909,19 +961,7 @@ def _trpr_fly_phase(board, src_r, src_c, goals_required,
                 if tile.tile_id in goals_required_dict:
                     goals_current[tile.tile_id] = goals_current.get(tile.tile_id, 0) + 1
             board.clear_middle(fr, fc)
-    # 飛行打擊的鄰邊消除
-    for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-        nr, nc = fr + dr, fc + dc
-        if board.in_bounds(nr, nc):
-            neighbor = board.get_middle(nr, nc)
-            if neighbor is None:
-                continue
-            if neighbor._cat == 'manufacturer':
-                board.manufacturer_produced[neighbor.tile_id] = \
-                    board.manufacturer_produced.get(neighbor.tile_id, 0) + 1
-            elif can_adjacent_elim(neighbor.tile_id):
-                if _apply_damage_to_middle(board, nr, nc, 1):
-                    board.clear_middle(nr, nc)
+    # 道具不會觸發鄰邊消除（飛行打擊的目標格直接命中,不傳鄰邊）
 
 
 def _process_powerup_chain(board, triggered_list, already_cleared,
@@ -1158,14 +1198,7 @@ def _combine_ltbl_element(board, lr, lc, er, ec, element_color,
             tile = board.get_middle(r, c)
             if tile and is_element(tile.tile_id) and tile.color == element_color:
                 board.clear_middle(r, c)
-                # 鄰邊消除
-                for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                    nr, nc = r + dr, c + dc
-                    if board.in_bounds(nr, nc):
-                        neighbor = board.get_middle(nr, nc)
-                        if neighbor and can_adjacent_elim(neighbor.tile_id):
-                            if _apply_damage_to_middle(board, nr, nc, 1):
-                                board.clear_middle(nr, nc)
+                # 道具不會觸發鄰邊消除
     return True
 
 

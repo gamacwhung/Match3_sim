@@ -113,14 +113,14 @@ SILENT_OFFICIAL_IDS = {
     16, 17, 18,   # Match1/2/3（同色填充提示,我們無此機制）
 }
 
-# BeverageChiller corner ID → 顏色
+# BeverageChiller corner ID → 顏色（短名,對齊元素 tile_id Red/Grn/Blu/Yel/Pur/Brn）
 BEV_CHILLER_CORNER_COLOR = {
-    33: 'Blue', 34: 'Blue', 35: 'Blue', 36: 'Blue',
-    37: 'Green', 38: 'Green', 39: 'Green', 40: 'Green',
+    33: 'Blu', 34: 'Blu', 35: 'Blu', 36: 'Blu',
+    37: 'Grn', 38: 'Grn', 39: 'Grn', 40: 'Grn',
     41: 'Red', 42: 'Red', 43: 'Red', 44: 'Red',
-    45: 'Yellow', 46: 'Yellow', 47: 'Yellow', 48: 'Yellow',
-    49: 'Purple', 50: 'Purple', 51: 'Purple', 52: 'Purple',
-    53: 'Orange', 54: 'Orange', 55: 'Orange', 56: 'Orange',
+    45: 'Yel', 46: 'Yel', 47: 'Yel', 48: 'Yel',
+    49: 'Pur', 50: 'Pur', 51: 'Pur', 52: 'Pur',
+    53: 'Brn', 54: 'Brn', 55: 'Brn', 56: 'Brn',  # Orange→Brn (我們沒橘色)
 }
 WATER_CHILLER_CORNERS = {27, 28, 29, 30}
 POOL_CORNERS = {61, 62, 63, 64}
@@ -196,6 +196,7 @@ def official_to_ours(official: dict) -> tuple[dict, list[str]]:
     middle = [[None] * W for _ in range(H)]
     upper = [[None] * W for _ in range(H)]
     bottom = [[None] * W for _ in range(H)]
+    bottle_colors_layer = [[None] * W for _ in range(H)]   # 每格 BC 的瓶子顏色
 
     used = set()        # 已被 2x2 占用的 idx
     instance_id = 0
@@ -223,19 +224,26 @@ def official_to_ours(official: dict) -> tuple[dict, list[str]]:
                 tile_id = 'Pool_lv1'
             elif kind == 'bev':
                 tile_id = 'BeverageChiller_closed'
-                # 收集 4 個角的顏色（可能不同色）
-                for i in (i_bl, i_br, i_tl, i_tr):
-                    color = BEV_CHILLER_CORNER_COLOR.get(items[i])
-                    if color:
-                        beverage_colors.add(color)
             else:
                 continue
             instance_id += 1
             tagged = f'{tile_id}#{instance_id}'
-            for (xx, yy) in [(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)]:
+            # 4 角 (xx, yy, idx) 對應 (BL=0, BR=1, TL=2, TR=3)
+            corner_positions = [
+                (x, y, i_bl), (x + 1, y, i_br),
+                (x, y + 1, i_tl), (x + 1, y + 1, i_tr),
+            ]
+            for xx, yy, idx in corner_positions:
                 r = y_to_row(yy, H)
                 middle[r][xx] = tagged
                 used.add(xy_to_idx(xx, yy, W))
+                # per-cell 瓶色（只對 BC）— 視覺左右 mirror,對齊官方畫面
+                if kind == 'bev':
+                    color = BEV_CHILLER_CORNER_COLOR.get(items[idx])
+                    if color:
+                        mirror_xx = (x + 1) if xx == x else x
+                        bottle_colors_layer[r][mirror_xx] = color
+                        beverage_colors.add(color)
 
     # 2) 單格 items
     hole_count = 0
@@ -336,13 +344,10 @@ def official_to_ours(official: dict) -> tuple[dict, list[str]]:
             'bottom': bottom,
         },
     }
+    if any(any(c) for c in bottle_colors_layer):
+        out['board']['bottle_colors'] = bottle_colors_layer
     if beverage_colors:
         out['beverage_colors'] = sorted(beverage_colors)
-        if len(beverage_colors) > 1:
-            warnings.append(
-                f'盤上有多種飲料櫃顏色 {sorted(beverage_colors)} — '
-                f'我們的 simulator 採全域 beverage_colors,所有飲料櫃都需要這幾色'
-            )
     return out, warnings
 
 

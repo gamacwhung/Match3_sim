@@ -40,7 +40,7 @@ def _serialize_tile(tile):
     if tile is None:
         return None
     image_key = resolve_image_key(tile.tile_id, tile.health)
-    return {
+    data = {
         'id': tile.tile_id,
         'hp': tile.health,
         'image_key': image_key if image_key in ASSET_SOURCES else None,
@@ -48,6 +48,13 @@ def _serialize_tile(tile):
         'css_label': tile.tile_id[:4],
         'is_obstacle': _is_obstacle_id(tile.tile_id),
     }
+    # 飲料櫃 per-cell 瓶色（開門後才顯示）
+    if tile.tile_id.startswith('BeverageChiller'):
+        bc = getattr(tile, 'bottle_color', None)
+        if bc and tile.health < 5:
+            data['bottle_color'] = bc
+            data['bottle_alive'] = bool(getattr(tile, 'bottle_alive', True))
+    return data
 
 
 def serialize_cell(cell, *, anchor=False, span=1, covered=False):
