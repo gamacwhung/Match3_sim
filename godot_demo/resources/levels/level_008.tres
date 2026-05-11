@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+level_id = 8
+grid_width = 9
+grid_height = 9
+max_moves = 22
+num_colors = 6
+star_thresholds = Array[int]([2000, 3500, 5000])
+objectives = Array[Dictionary]([{"type": "clear_jelly", "target": 10, "current": 0}])
+obstacle_data = Array[Dictionary]([{"pos": [2, 2], "type": "jelly", "hp": 1}, {"pos": [4, 2], "type": "jelly", "hp": 1}, {"pos": [6, 2], "type": "jelly", "hp": 1}, {"pos": [3, 4], "type": "jelly", "hp": 2}, {"pos": [5, 4], "type": "jelly", "hp": 2}, {"pos": [2, 6], "type": "jelly", "hp": 1}, {"pos": [4, 6], "type": "jelly", "hp": 2}, {"pos": [6, 6], "type": "jelly", "hp": 1}, {"pos": [3, 5], "type": "jelly", "hp": 1}, {"pos": [5, 5], "type": "jelly", "hp": 1}])
+blocked_cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(8, 0), Vector2i(7, 0), Vector2i(8, 1)])

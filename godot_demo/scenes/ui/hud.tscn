@@ -1,0 +1,48 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
+
+[node name="HUD" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_hud")
+
+[node name="TopBar" type="VBoxContainer" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 10.0
+offset_right = -10.0
+offset_bottom = 140.0
+grow_horizontal = 2
+
+[node name="ScoreBar" type="ProgressBar" parent="TopBar"]
+custom_minimum_size = Vector2(0, 25)
+layout_mode = 2
+max_value = 5000.0
+show_percentage = false
+
+[node name="Star1" type="Node2D" parent="TopBar/ScoreBar"]
+position = Vector2(75, 12)
+
+[node name="Star2" type="Node2D" parent="TopBar/ScoreBar"]
+position = Vector2(315, 12)
+
+[node name="Star3" type="Node2D" parent="TopBar/ScoreBar"]
+position = Vector2(615, 12)
+
+[node name="ScoreLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "Score: 0"
+horizontal_alignment = 1
+
+[node name="MovesLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Moves: 30"
+horizontal_alignment = 1
+
+[node name="ObjectiveLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Objective"
+horizontal_alignment = 1

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+level_id = 4
+grid_width = 9
+grid_height = 9
+max_moves = 28
+num_colors = 6
+star_thresholds = Array[int]([1000, 2000, 3000])
+objectives = Array[Dictionary]([{"type": "collect", "color": 4, "target": 30, "current": 0}])
+obstacle_data = Array[Dictionary]([])
+blocked_cells = Array[Vector2i]([])

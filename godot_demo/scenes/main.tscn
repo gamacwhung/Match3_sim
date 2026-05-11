@@ -1,0 +1,42 @@
+[gd_scene format=3 uid="uid://ca21a2quc0mum"]
+
+[ext_resource type="Script" uid="uid://d1qigexspd1xm" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Shader" uid="uid://cb51bq1ma6xcv" path="res://shaders/background.gdshader" id="2_bg_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bg"]
+shader = ExtResource("2_bg_shader")
+shader_parameter/color_top = Color(0.15, 0.08, 0.3, 1)
+shader_parameter/color_bottom = Color(0.05, 0.02, 0.12, 1)
+shader_parameter/wave_speed = 0.3
+shader_parameter/wave_amplitude = 0.02
+
+[node name="Main" type="Control" unique_id=958813776]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="BGRect" type="ColorRect" parent="." unique_id=2097262929]
+material = SubResource("ShaderMaterial_bg")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.1, 0.06, 0.18, 1)
+
+[node name="SceneContainer" type="Control" parent="." unique_id=436553901]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 1.0
+offset_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

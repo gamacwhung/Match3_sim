@@ -1,0 +1,20 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/board/game_board.gd" id="1_board"]
+[ext_resource type="Script" path="res://scripts/board/board_bg.gd" id="2_bg"]
+[ext_resource type="Script" path="res://scripts/board/board_filler.gd" id="3_filler"]
+[ext_resource type="Script" path="res://scripts/effects/effect_spawner.gd" id="4_effects"]
+
+[node name="GameBoard" type="Node2D"]
+script = ExtResource("1_board")
+
+[node name="BoardBG" type="Node2D" parent="."]
+script = ExtResource("2_bg")
+
+[node name="CandyContainer" type="Node2D" parent="."]
+
+[node name="BoardFiller" type="Node" parent="."]
+script = ExtResource("3_filler")
+
+[node name="EffectSpawner" type="Node2D" parent="."]
+script = ExtResource("4_effects")
