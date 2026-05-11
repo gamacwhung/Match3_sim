@@ -15,7 +15,7 @@ import pathlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_GUIDE_PATH = pathlib.Path(__file__).parent.parent / 'level_design_guide.md'
+_GUIDE_PATH = pathlib.Path(__file__).parent.parent / 'docs' / 'level_design_guide.md'
 
 DEFAULT_MODEL = 'gpt-5.4-2026-03-05'
 

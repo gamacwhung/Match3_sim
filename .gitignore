@@ -11,9 +11,9 @@ __pycache__/
 .streamlit/secrets.toml
 streamlit_demo.log
 
-# 本機美術原始檔(已商定不 commit)
+# 本機美術原始檔 / 設計文件(不 commit;放 docs/design/ 統一管理)
 M8/
-TPE101_Smooth.png
+docs/design/
 xlsx_media/
 
 # Playwright audit 暫存 + 手動 screenshot 一律不 commit

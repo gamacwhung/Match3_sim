@@ -526,7 +526,7 @@ def main():
             prompt_text = build_system_prompt(params)
             st.text_area('System Prompt', value=prompt_text, height=400,
                          disabled=True, label_visibility='collapsed')
-            st.caption(f'共 {len(prompt_text)} 字元，包含 level_design_guide.md 全文 + 當前參數。')
+            st.caption(f'共 {len(prompt_text)} 字元，包含 docs/level_design_guide.md 全文 + 當前參數。')
 
     # ----------------------------------------------------------
     # Tab 2: JSON 編輯 + 預覽 & 遊玩
