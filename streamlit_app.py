@@ -108,8 +108,8 @@ st.set_page_config(page_title='三消模擬器', layout='wide', page_icon='🎮'
 def main():
     _init_state()
 
-    st.title('🎮 三消模擬器')
-
+    # 主標題只在「未開始遊戲」時隱藏 / 「已開始」時不顯示;
+    # 改由 _render 不同分支自行管,避免重複出現
     # ---- 側邊欄 ----
     with st.sidebar:
         st.header('設定')
@@ -186,7 +186,33 @@ def main():
 
     # ---- 主區域：盤面 ----
     if not st.session_state.game_started:
-        st.info('👈 請在左側選擇關卡，然後點擊「新遊戲」開始')
+        # Demo 入口 — 主推 Demo 頁,主頁這邊只是內部測試用
+        st.markdown(
+            """
+            <div style="text-align:center; padding: 60px 20px 30px 20px;">
+              <h1 style="margin: 0; font-size: 3em;">🎮 三消模擬器</h1>
+              <p style="color:#666; margin-top: 12px; font-size: 1.2em;">
+                AI 關卡生成 × 即時試玩 × 難度模擬
+              </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        cta_cols = st.columns([1, 2, 1])
+        with cta_cols[1]:
+            if st.button('🎬  進入 Demo 模式', use_container_width=True,
+                         type='primary', key='cta_demo'):
+                st.switch_page('pages/3_Demo.py')
+            if st.button('🎲  AI 關卡生成器(完整工具)', use_container_width=True,
+                         key='cta_gen'):
+                st.switch_page('pages/2_Level_Generator.py')
+
+        st.markdown('---')
+        with st.expander('🛠️ 開發者測試模式(舊按鈕版盤面)', expanded=False):
+            st.caption(
+                '此處為內部測試介面。Demo / 對外展示請使用「Demo 模式」頁。'
+                '在左側 sidebar 選擇關卡並點「新遊戲」開始。'
+            )
         return
 
     env = st.session_state.env

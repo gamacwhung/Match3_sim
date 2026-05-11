@@ -471,7 +471,9 @@ def main():
     TAB_EDIT = '📝 JSON + 預覽 & 遊玩'
     TAB_SIM = '🤖 模擬測試'
     if 'active_tab' not in st.session_state:
-        st.session_state.active_tab = TAB_CHAT
+        # 預設打開「JSON + 預覽 & 遊玩」— demo / 一般使用者一打開就能看到關卡
+        # (Chat & 生成 是進階用戶才會主動切過去)
+        st.session_state.active_tab = TAB_EDIT
     active_tab = st.radio(
         '檢視', [TAB_CHAT, TAB_EDIT, TAB_SIM],
         key='active_tab', horizontal=True, label_visibility='collapsed',
