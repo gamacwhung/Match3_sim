@@ -9,3 +9,45 @@ __pycache__/
 
 # Streamlit
 .streamlit/secrets.toml
+streamlit_demo.log
+
+# 本機美術原始檔(已商定不 commit)
+M8/
+TPE101_Smooth.png
+xlsx_media/
+
+# Playwright audit 暫存 + 手動 screenshot 一律不 commit
+.playwright-mcp/
+audit_*.png
+audit_*.md
+demo_intro*.png
+demo_play*.png
+demo_advanced*.png
+demo_godot_*.png
+demo_iframe*.png
+home_*.png
+godot_*.png
+godot_web_*.png
+godot_visual_*.png
+godot_after_*.png
+godot_fresh*.png
+godot_new_*.png
+godot_loaded*.png
+streamlit_iframe*.png
+qa_summary.html
+
+# Godot editor cache + web build output
+godot_demo/.godot/
+godot_demo/web/
+# 避免 Godot Editor export dialog 不小心輸出到 godot_demo/ 根目錄(檔名變 "Match3 Demo.*")
+godot_demo/Match3 Demo*
+godot_demo/index.html
+godot_demo/index.pck
+godot_demo/index.wasm
+godot_demo/index.js
+godot_demo/.demo_logs/
+.demo_logs/
+
+# AI 自動測試報表(JSON)
+ai_test_reports/
+*.ai_report.json
