@@ -38,7 +38,7 @@
 
 ### 1. AI 關卡生成器 — 用 LLM 出關卡
 
-- **頁面**:`pages/2_Level_Generator.py`(`localhost:8501/Level_Generator`)
+- **頁面**:`pages/4_Level_Generator.py`(`localhost:8501/Level_Generator`)
 - **支援模型**:Claude Sonnet 4 / Opus 4 / GPT-4o / GPT-5(Vertex AI 也可接)
 - **輸入**:自然語言 + 參數(行列、難度、障礙物選擇)
 - **輸出**:符合 `levels/*.json` 格式的關卡 JSON,直接可玩
@@ -60,7 +60,7 @@
 
 ### 3. AI 自動測試 — 取代人工 QA
 
-- **頁面**:`pages/4_AI_Auto_Test.py`(`localhost:8501/AI_Auto_Test`)
+- **頁面**:`pages/3_AI_Auto_Test.py`(`localhost:8501/AI_Auto_Test`)
 - **CLI**:`python scripts/ai_auto_test.py LEVEL_JSON --runs 50`
 - **核心**:`scripts/ai_player.py`(score-based heuristic,仿 `../match3_AI` 策略)
 - **效能**:< 100ms / 場,50 場 < 10 秒

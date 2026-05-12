@@ -99,7 +99,12 @@ def _handle_click(r, c):
 # ---------------------------------------------------------------------------
 # set_page_config 必須在 module 最頂層呼叫（multi-page 模式相容）
 # ---------------------------------------------------------------------------
-st.set_page_config(page_title='三消模擬器', layout='wide', page_icon='🎮')
+st.set_page_config(
+    page_title='Match3 Sim — Google Cloud Day Demo',
+    layout='wide',
+    page_icon='🎮',
+    initial_sidebar_state='collapsed',
+)
 
 
 # ---------------------------------------------------------------------------
@@ -184,35 +189,9 @@ def main():
             '4. 點擊不相鄰格子重新選取'
         )
 
-    # ---- 主區域：盤面 ----
+    # ---- 主區域:首頁 hero(未開始遊戲時)----
     if not st.session_state.game_started:
-        # Demo 入口 — 主推 Demo 頁,主頁這邊只是內部測試用
-        st.markdown(
-            """
-            <div style="text-align:center; padding: 60px 20px 30px 20px;">
-              <h1 style="margin: 0; font-size: 3em;">🎮 三消模擬器</h1>
-              <p style="color:#666; margin-top: 12px; font-size: 1.2em;">
-                AI 關卡生成 × 即時試玩 × 難度模擬
-              </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        cta_cols = st.columns([1, 2, 1])
-        with cta_cols[1]:
-            if st.button('🎬  進入 Demo 模式', use_container_width=True,
-                         type='primary', key='cta_demo'):
-                st.switch_page('pages/3_Demo.py')
-            if st.button('🎲  AI 關卡生成器(完整工具)', use_container_width=True,
-                         key='cta_gen'):
-                st.switch_page('pages/2_Level_Generator.py')
-
-        st.markdown('---')
-        with st.expander('🛠️ 開發者測試模式(舊按鈕版盤面)', expanded=False):
-            st.caption(
-                '此處為內部測試介面。Demo / 對外展示請使用「Demo 模式」頁。'
-                '在左側 sidebar 選擇關卡並點「新遊戲」開始。'
-            )
+        _render_landing()
         return
 
     env = st.session_state.env
@@ -253,6 +232,94 @@ def main():
 
     # 步驟記錄
     render_move_log(st.session_state.move_log, env.goals_required)
+
+
+def _render_landing() -> None:
+    """首頁 hero:三大模組大卡片 + 開發者入口收進 expander。"""
+    # Hero
+    st.markdown(
+        '''
+        <div style="text-align:center; padding: 50px 16px 28px 16px;">
+          <h1 style="margin:0; font-size: 3.2em; letter-spacing: -1px;">
+            🎮 Match3 Sim
+          </h1>
+          <p style="color:#666; margin-top: 10px; font-size: 1.25em;">
+            AI-Native 三消遊戲開發 Pipeline ── 為 Google Cloud Day 準備的全套示範
+          </p>
+          <p style="color:#999; margin-top: 4px; font-size: 0.95em;">
+            生成 → 模擬 → 自動測試,三大模組串成 demo
+          </p>
+        </div>
+        ''',
+        unsafe_allow_html=True,
+    )
+
+    # 三大卡片
+    cards = [
+        {
+            'icon': '🎨',
+            'title': 'Godot 美術版',
+            'desc': 'Godot 4 web build,M8 美術 + 100 關。雲端版任何人都看得到。',
+            'badge': '主視覺',
+            'page': 'pages/2_Godot_Visual.py',
+        },
+        {
+            'icon': '🤖',
+            'title': 'AI 自動測試',
+            'desc': 'Heuristic agent 對任一關跑 N 次 → 勝率/平均步數/卡關率報表。',
+            'badge': '核心賣點',
+            'page': 'pages/3_AI_Auto_Test.py',
+        },
+        {
+            'icon': '🎲',
+            'title': 'AI 關卡生成器',
+            'desc': 'Claude / GPT 自然語言出關卡,5~10 秒一關,輸出 JSON 立即可玩。',
+            'badge': 'AI 應用',
+            'page': 'pages/4_Level_Generator.py',
+        },
+    ]
+
+    card_cols = st.columns(3, gap='medium')
+    for i, card in enumerate(cards):
+        with card_cols[i]:
+            st.markdown(
+                f'''
+                <div style="border:1px solid #e6e6e6; border-radius:14px; padding:24px 20px;
+                            background:#fafafa; height:100%;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-size:2.4em;">{card["icon"]}</div>
+                    <div style="font-size:0.72em; color:#fff; background:#ff4b4b;
+                                padding:3px 10px; border-radius:10px;">{card["badge"]}</div>
+                  </div>
+                  <h3 style="margin:14px 0 6px 0;">{card["title"]}</h3>
+                  <p style="color:#666; min-height:54px; margin:0 0 14px 0; font-size:0.92em;">
+                    {card["desc"]}
+                  </p>
+                </div>
+                ''',
+                unsafe_allow_html=True,
+            )
+            if st.button('開啟 →', key=f'cta_{i}', use_container_width=True, type='primary'):
+                st.switch_page(card['page'])
+
+    # 次要 CTA
+    st.markdown('<div style="height:30px"></div>', unsafe_allow_html=True)
+    sec_cols = st.columns([1, 2, 1])
+    with sec_cols[1]:
+        if st.button('🎬 看完整 demo 流程(step-by-step)', use_container_width=True):
+            st.switch_page('pages/1_Demo.py')
+
+    # 開發者區
+    st.markdown('---')
+    with st.expander('🛠️ 開發者測試介面(按鈕版盤面 — 內部 debug 用)', expanded=False):
+        st.caption(
+            '此處是 Python 引擎的原生按鈕版盤面,純粹給開發者 debug 用。'
+            '左側 sidebar 選關 → 「新遊戲」開始。Demo / 對外展示請走上面的「Godot 美術版」。'
+        )
+        if st.button('開啟 sidebar 進入測試模式', key='dev_enter'):
+            st.session_state.game_started = False
+            # 提示用戶展開 sidebar
+            st.info('請展開左上角 sidebar(>>),選關卡並按「新遊戲」')
 
 
 def _format_action(action):

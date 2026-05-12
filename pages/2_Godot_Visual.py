@@ -166,34 +166,29 @@ components.iframe(
     height=int(st.session_state.godot_height),
     scrolling=False,
 )
-st.caption(f'iframe URL: `{_iframe_url}` — 重 export Godot 後按上面「🔁 強制重載」清 cache')
+# 頁底 caption + 公開分享連結
+_cap_cols = st.columns([3, 2])
+with _cap_cols[0]:
+    st.caption(f'iframe: `{_iframe_url}`')
+with _cap_cols[1]:
+    if not _is_local_backend:
+        st.caption(
+            f'🌍 公開連結:`{st.session_state.godot_url}` — 任何人都看得到'
+        )
 
 
 # ===========================================================================
-# 頁底:Demo 操作說明 + 重 export 提醒
+# 頁底:操作說明
 # ===========================================================================
 
 st.markdown('---')
-
-guide_cols = st.columns([2, 1])
-with guide_cols[0]:
-    st.markdown(
-        '''
-        ### 操作說明
-        - **選關**:打開後出現關卡列表,點任一關開始
-        - **遊戲中切換關卡**:右上「☰ 選關」浮動按鈕
-        - **swipe / drag**:相鄰元素互換
-        - **double-tap 道具**:直接啟動道具效果(TNT / Soda / 紙飛機 / 光球)
-        '''
-    )
-with guide_cols[1]:
-    st.markdown(
-        '''
-        ### 看到 Row Match 主選單?
-        表示 `web/index.pck` 還是 yuehpo 原版 export。
-        到 Godot Editor `Project → Export...` → Web → **確認 Main Scene 是
-        `res://scenes/demo_main.tscn`** → 點 Export Project。
-
-        重 export 後**不用重啟 Streamlit**,只要 Ctrl+Shift+R 重整本頁。
-        '''
-    )
+st.markdown(
+    '''
+    #### 玩法
+    - **滑動**(swipe / drag):相鄰元素互換,形成 3 連以上消除
+    - **滑動到道具**:把 TNT / Soda / 紙飛機 滑過去 → 直接觸發,不需形成 match
+    - **道具 + 道具滑動**:組合大招(雙 TNT 7×7、TNT+Soda 大十字、彩球清同色)
+    - **連點同顆道具**:第二下直接施放(原地觸發)
+    - **目標**:左上 HUD 顯示要消除的障礙物;在步數內清完即過關
+    '''
+)

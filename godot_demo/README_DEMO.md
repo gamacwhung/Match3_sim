@@ -22,7 +22,7 @@
 - 道具 sprite(Soda/TNT/LtBl)只在「特殊糖果生成」時顯示,JSON 裡寫的 `Soda0d` 等暫時被忽略
 - yuehpo 原本的 main_menu / world_map 流程仍保留(只是 demo_main 不走那條),可以日後切回去
 
-**Streamlit fallback**:不論 Godot 是否 export 成功,Streamlit 的 `pages/3_Demo.py` 都已經能 demo,不會卡住。
+**Streamlit fallback**:不論 Godot 是否 export 成功,Streamlit 的 `pages/1_Demo.py` 都已經能 demo,不會卡住。
 
 ---
 
@@ -134,7 +134,7 @@ Demo 時 3 個瀏覽器 tab:
 
 ## 六、嵌進 Streamlit Demo 頁
 
-`pages/3_Demo.py` 的「進階模式」區有兩種嵌入模式可選:
+`pages/1_Demo.py` 的「進階模式」區有兩種嵌入模式可選:
 
 1. **🪟 直接嵌在頁內(iframe)** — 預設,Streamlit 內直接看到 Godot
 2. **🔗 在新分頁打開** — 備案,若 iframe 出問題用這個
