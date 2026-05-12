@@ -37,6 +37,9 @@ jobs:
           EOF
 
       - uses: actions/configure-pages@v5
+        with:
+          # 自動啟用 GitHub Pages(repo Settings 不用手動開)
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
