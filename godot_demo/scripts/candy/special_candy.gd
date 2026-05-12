@@ -17,10 +17,11 @@ static func get_striped_v_targets(pos: Vector2i, grid_height: int) -> Array[Vect
 			targets.append(Vector2i(pos.x, y))
 	return targets
 
+## TNT 爆炸範圍:5x5(以 pos 為中心,半徑 2)
 static func get_wrapped_targets(pos: Vector2i, grid_width: int, grid_height: int) -> Array[Vector2i]:
 	var targets: Array[Vector2i] = []
-	for dx in range(-1, 2):
-		for dy in range(-1, 2):
+	for dx in range(-2, 3):
+		for dy in range(-2, 3):
 			if dx == 0 and dy == 0:
 				continue
 			var tp = Vector2i(pos.x + dx, pos.y + dy)
@@ -38,10 +39,11 @@ static func get_cross_targets(pos: Vector2i, grid_width: int, grid_height: int) 
 			targets.append(Vector2i(pos.x, y))
 	return targets
 
+## TNT + TNT 雙重爆炸範圍:7x7(以 pos 為中心,半徑 3)
 static func get_big_wrapped_targets(pos: Vector2i, grid_width: int, grid_height: int) -> Array[Vector2i]:
 	var targets: Array[Vector2i] = []
-	for dx in range(-2, 3):
-		for dy in range(-2, 3):
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
 			if dx == 0 and dy == 0:
 				continue
 			var tp = Vector2i(pos.x + dx, pos.y + dy)

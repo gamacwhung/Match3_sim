@@ -50,9 +50,10 @@ BACKEND_OPTIONS = {
     'GitHub Pages (公開,任何人都看得到)': 'https://gamacwhung.github.io/Match3_sim/',
 }
 
-# Session state
+# Session state — 預設 GitHub Pages,雲端 demo 即開即看
+# (本機 demo 時切到 localhost 那一個 radio,需先跑 start_demo.ps1)
 if 'godot_backend' not in st.session_state:
-    st.session_state.godot_backend = '本機 (localhost:8765)'
+    st.session_state.godot_backend = 'GitHub Pages (公開,任何人都看得到)'
 if 'godot_url' not in st.session_state:
     st.session_state.godot_url = BACKEND_OPTIONS[st.session_state.godot_backend]
 if 'godot_height' not in st.session_state:

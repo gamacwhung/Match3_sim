@@ -31,8 +31,7 @@ window/handheld/orientation=1
 
 [gui]
 
-; 移除 theme/default_font — 原本指向 res://resources/fonts/NotoSans-Regular.ttf
-; godot_demo 沒帶 fonts,Godot 會用內建字型,demo 用途已足夠
+theme/default_font="res://resources/fonts/NotoSans-Regular.ttf"
 
 [physics]
 

@@ -263,6 +263,28 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 
 	var matches = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
 	if matches.size() == 0:
+		# 沒形成 match。但如果有一邊是 special candy(STRIPED/WRAPPED),
+		# 把它滑過去其實是有意義的施放動作 — 直接觸發那顆 special。
+		# 這是 Candy Crush 設計慣例:special+normal swap → 觸發 special。
+		var a_special = candy_a.candy_type != CandyScript.CandyType.NORMAL
+		var b_special = candy_b.candy_type != CandyScript.CandyType.NORMAL
+		if a_special or b_special:
+			var trigger_candy = candy_a if a_special else candy_b
+			var trigger_pos = trigger_candy.grid_pos
+			GameManager.use_move()
+			cascade_level = 0
+			AudioManager.play_special_trigger_sound()
+			_trigger_special_candy(trigger_candy)
+			_trigger_obstacle_adjacent(trigger_pos)
+			effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(trigger_pos), trigger_candy.candy_color)
+			filler.remove_candy_at(trigger_pos)
+			trigger_candy.animate_destroy()
+			candies_destroyed.emit(1, trigger_candy.candy_color)
+			await get_tree().create_timer(0.3).timeout
+			await _cascade_loop()
+			_post_turn_check()
+			return
+		# 兩邊都是 normal candy 又沒 match → 真的無效,換回去
 		AudioManager.play_swap_back_sound()
 		filler.set_candy_at(pos_a, candy_a)
 		filler.set_candy_at(pos_b, candy_b)
