@@ -320,7 +320,8 @@ func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript) -> void
 	AudioManager.play_special_trigger_sound()
 
 	if other.candy_type == CandyScript.CandyType.COLOR_BOMB:
-		# COLOR_BOMB + COLOR_BOMB: destroy everything
+		# COLOR_BOMB + COLOR_BOMB: 整盤全消(走 _explode_cells,任何 special 也會 chain
+		# — 雖然全盤都會被消,chain 沒視覺差異,但邏輯一致)
 		var to_destroy: Array[Vector2i] = []
 		for x in grid_width:
 			for y in grid_height:
@@ -328,18 +329,10 @@ func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript) -> void
 				if c != null:
 					to_destroy.append(Vector2i(x, y))
 		effect_spawner_node.spawn_firework(filler.grid_to_world(bomb.grid_pos))
-		for pos in to_destroy:
-			var c = filler.get_candy_at(pos)
-			if c:
-				_trigger_obstacle_adjacent(pos)
-				effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-				filler.remove_candy_at(pos)
-				c.animate_destroy()
-				GameManager.add_score(1, true)
-				candies_destroyed.emit(1, c.candy_color)
+		_explode_cells(to_destroy)
 
 	elif other.candy_type in [CandyScript.CandyType.STRIPED_H, CandyScript.CandyType.STRIPED_V]:
-		# COLOR_BOMB + STRIPED: all same-color candies become striped, then trigger
+		# COLOR_BOMB + STRIPED: 全盤同色 candy 變 STRIPED → 一起觸發(_explode_cells 帶 chain)
 		_destroy_candy_at(bomb.grid_pos, target_color)
 		_destroy_candy_at(other.grid_pos, target_color)
 		var targets: Array[Vector2i] = []
@@ -355,19 +348,10 @@ func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript) -> void
 				c.set_candy_type(striped_type)
 				effect_spawner_node.spawn_special_destroy_effect(filler.grid_to_world(pos), target_color)
 		await get_tree().create_timer(0.4).timeout
-		for pos in targets:
-			var c = filler.get_candy_at(pos)
-			if c and not c.is_being_destroyed:
-				_trigger_special_candy(c)
-				_trigger_obstacle_adjacent(pos)
-				effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-				filler.remove_candy_at(pos)
-				c.animate_destroy()
-				GameManager.add_score(1, true)
-				candies_destroyed.emit(1, target_color)
+		_explode_cells(targets)
 
 	elif other.candy_type == CandyScript.CandyType.WRAPPED:
-		# COLOR_BOMB + WRAPPED: all same-color candies become wrapped, then trigger
+		# COLOR_BOMB + WRAPPED: 全盤同色 candy 變 WRAPPED → 一起觸發(chain)
 		_destroy_candy_at(bomb.grid_pos, target_color)
 		_destroy_candy_at(other.grid_pos, target_color)
 		var targets: Array[Vector2i] = []
@@ -382,30 +366,39 @@ func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript) -> void
 				c.set_candy_type(CandyScript.CandyType.WRAPPED)
 				effect_spawner_node.spawn_special_destroy_effect(filler.grid_to_world(pos), target_color)
 		await get_tree().create_timer(0.4).timeout
-		for pos in targets:
-			var c = filler.get_candy_at(pos)
-			if c and not c.is_being_destroyed:
-				_trigger_special_candy(c)
-				_trigger_obstacle_adjacent(pos)
-				effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-				filler.remove_candy_at(pos)
-				c.animate_destroy()
-				GameManager.add_score(1, true)
-				candies_destroyed.emit(1, target_color)
+		_explode_cells(targets)
 
-	else:
-		# COLOR_BOMB + NORMAL: destroy all of that color
+	elif other.candy_type == CandyScript.CandyType.SPIRAL:
+		# COLOR_BOMB + SPIRAL(光球 + 紙飛機):全盤同色 candy 變 SPIRAL → 一起觸發
+		# (對應設計文件「紙風車 + 道具:盤面最多元素變該道具」,類比同色 → 道具)
 		_destroy_candy_at(bomb.grid_pos, target_color)
+		_destroy_candy_at(other.grid_pos, target_color)
+		var targets: Array[Vector2i] = []
 		for x in grid_width:
 			for y in grid_height:
 				var c = filler.get_candy_at(Vector2i(x, y))
 				if c != null and c.candy_color == target_color:
-					_trigger_obstacle_adjacent(Vector2i(x, y))
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(Vector2i(x, y)), c.candy_color)
-					filler.remove_candy_at(Vector2i(x, y))
-					c.animate_destroy()
-					GameManager.add_score(1, true)
-					candies_destroyed.emit(1, target_color)
+					targets.append(Vector2i(x, y))
+		for pos in targets:
+			var c = filler.get_candy_at(pos)
+			if c and not c.is_being_destroyed:
+				c.set_candy_type(CandyScript.CandyType.SPIRAL)
+				effect_spawner_node.spawn_special_destroy_effect(filler.grid_to_world(pos), target_color)
+		await get_tree().create_timer(0.4).timeout
+		_explode_cells(targets)
+
+	else:
+		# COLOR_BOMB + NORMAL: 同色全消(用 _explode_cells 走連鎖,
+		# 萬一同色 candy 裡有 special — 雖然 match_finder 排除 NORMAL 之外,
+		# 但可能是上回合留下的 special 撞同色,也會 chain trigger)
+		_destroy_candy_at(bomb.grid_pos, target_color)
+		var nc_targets: Array[Vector2i] = []
+		for x in grid_width:
+			for y in grid_height:
+				var c = filler.get_candy_at(Vector2i(x, y))
+				if c != null and c.candy_color == target_color:
+					nc_targets.append(Vector2i(x, y))
+		_explode_cells(nc_targets)
 
 	await get_tree().create_timer(0.3).timeout
 	await _cascade_loop()
@@ -421,6 +414,89 @@ func _destroy_candy_at(pos: Vector2i, color_for_signal: int) -> void:
 		GameManager.add_score(1, true)
 		candies_destroyed.emit(1, color_for_signal)
 
+
+# ===========================================================================
+# 連鎖消除 (chain reaction)
+# ---------------------------------------------------------------------------
+# 設計需求(user 確認):
+#   - TNT 爆炸範圍內如果有 Soda / TrPr / 彩球 → 它們也要被觸發
+#   - Soda 火箭路徑上有 TNT → TNT 也炸
+#   - 彩球被波及 → 也要清同色
+#
+# 實作:用兩個 helper,所有「批次消除目標 cell」的地方都改走它們
+#   _explode_cells(targets): 對每個 target 銷毀 candy;若是 special candy → 觸發 _chain_trigger
+#   _chain_trigger(type, pos, color): 觸發 special 的 effect → 對 effect 範圍呼叫 _explode_cells
+# 兩者互相 recursive,自然就有 cascade。
+# is_being_destroyed flag 防止重複觸發同一格,避免無限遞迴。
+# ===========================================================================
+
+func _explode_cells(targets: Array) -> void:
+	# targets: Array of Vector2i (untyped Array 接受 Array[Vector2i] / array literal)
+	# 對每個 target 銷毀 candy + 鄰邊 obstacle damage。若 candy 本身是 special,加入 chain queue 觸發。
+	var chain_queue: Array = []
+	for tp in targets:
+		var pos: Vector2i = tp as Vector2i
+		var c = filler.get_candy_at(pos)
+		if c == null or c.is_being_destroyed:
+			# 已被別人消掉,仍對鄰邊 obstacle 算一次傷害(例如 TNT 範圍掃過已破的格)
+			_trigger_obstacle_adjacent(pos)
+			continue
+		var ct = c.candy_type
+		var color = c.candy_color
+		if ct != CandyScript.CandyType.NORMAL:
+			# 是 special candy → 加入連鎖佇列,先記下,destroy 後再觸發 effect
+			chain_queue.append({"pos": pos, "type": ct, "color": color})
+		_trigger_obstacle_adjacent(pos)
+		effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), color)
+		filler.remove_candy_at(pos)
+		c.animate_destroy()
+		candies_destroyed.emit(1, color)
+	# 連鎖:對每個被波及的 special candy 觸發其 effect
+	# (此時該 special candy 已 remove,_chain_trigger 不會再 destroy 自己)
+	for ch in chain_queue:
+		_chain_trigger(ch["type"], ch["pos"], ch["color"])
+
+
+func _chain_trigger(ct: int, pos: Vector2i, color: int) -> void:
+	# 觸發指定 candy_type 的 effect at pos。pos 上的 candy 已被消除(由 _explode_cells 處理),
+	# 這裡只負責收集 effect 範圍 + 呼叫 _explode_cells(targets)。recursive 經由 _explode_cells 串起來。
+	var sub_targets: Array[Vector2i] = []
+	match ct:
+		CandyScript.CandyType.STRIPED_H:
+			AudioManager.play_special_trigger_sound()
+			for x in grid_width:
+				if x != pos.x:
+					sub_targets.append(Vector2i(x, pos.y))
+		CandyScript.CandyType.STRIPED_V:
+			AudioManager.play_special_trigger_sound()
+			for y in grid_height:
+				if y != pos.y:
+					sub_targets.append(Vector2i(pos.x, y))
+		CandyScript.CandyType.WRAPPED:
+			AudioManager.play_special_trigger_sound()
+			effect_spawner_node.spawn_shockwave(filler.grid_to_world(pos))
+			sub_targets = SpecialCandy.get_wrapped_targets(pos, grid_width, grid_height)
+		CandyScript.CandyType.SPIRAL:
+			AudioManager.play_special_trigger_sound()
+			effect_spawner_node.spawn_shockwave(filler.grid_to_world(pos))
+			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+				var tp = pos + offset
+				if tp.x >= 0 and tp.x < grid_width and tp.y >= 0 and tp.y < grid_height:
+					sub_targets.append(tp)
+		CandyScript.CandyType.COLOR_BOMB:
+			# 連鎖中的彩球:清掉隨機色(沒人 swap 給它指定色)
+			AudioManager.play_special_trigger_sound()
+			effect_spawner_node.spawn_firework(filler.grid_to_world(pos))
+			var num_colors_local = filler.num_colors if filler else 4
+			var picked = randi() % num_colors_local
+			for x in grid_width:
+				for y in grid_height:
+					var p = Vector2i(x, y)
+					var c2 = filler.get_candy_at(p)
+					if c2 and not c2.is_being_destroyed and c2.candy_color == picked:
+						sub_targets.append(p)
+	_explode_cells(sub_targets)
+
 func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: String) -> void:
 	var pos_a = candy_a.grid_pos
 	var pos_b = candy_b.grid_pos
@@ -431,35 +507,17 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 		"double_striped":
 			# Cross elimination: full row + full column
 			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
-			var targets = SpecialCandy.get_cross_targets(mid_pos, grid_width, grid_height)
 			_destroy_candy_at(pos_a, candy_a.candy_color)
 			_destroy_candy_at(pos_b, candy_b.candy_color)
-			for pos in targets:
-				var c = filler.get_candy_at(pos)
-				if c and not c.is_being_destroyed:
-					_trigger_obstacle_adjacent(pos)
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-					filler.remove_candy_at(pos)
-					c.animate_destroy()
-					GameManager.add_score(1, true)
-					candies_destroyed.emit(1, c.candy_color)
+			_explode_cells(SpecialCandy.get_cross_targets(mid_pos, grid_width, grid_height))
 
 		"double_wrapped":
-			# 5×5 big explosion
+			# 7×7 big explosion (TNT + TNT,半徑 3)
 			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
 			effect_spawner_node.spawn_firework(filler.grid_to_world(mid_pos))
-			var targets = SpecialCandy.get_big_wrapped_targets(mid_pos, grid_width, grid_height)
 			_destroy_candy_at(pos_a, candy_a.candy_color)
 			_destroy_candy_at(pos_b, candy_b.candy_color)
-			for pos in targets:
-				var c = filler.get_candy_at(pos)
-				if c and not c.is_being_destroyed:
-					_trigger_obstacle_adjacent(pos)
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-					filler.remove_candy_at(pos)
-					c.animate_destroy()
-					GameManager.add_score(1, true)
-					candies_destroyed.emit(1, c.candy_color)
+			_explode_cells(SpecialCandy.get_big_wrapped_targets(mid_pos, grid_width, grid_height))
 
 		"wrapped_striped":
 			# Giant cross: 3 rows + 3 columns
@@ -467,53 +525,33 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
 			_destroy_candy_at(pos_a, candy_a.candy_color)
 			_destroy_candy_at(pos_b, candy_b.candy_color)
+			var ws_targets: Array[Vector2i] = []
 			for dy in range(-1, 2):
+				var row_y = mid_pos.y + dy
+				if row_y < 0 or row_y >= grid_height:
+					continue
 				for x in grid_width:
-					var row_y = mid_pos.y + dy
-					if row_y < 0 or row_y >= grid_height:
-						continue
-					var pos = Vector2i(x, row_y)
-					var c = filler.get_candy_at(pos)
-					if c and not c.is_being_destroyed:
-						_trigger_obstacle_adjacent(pos)
-						effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-						filler.remove_candy_at(pos)
-						c.animate_destroy()
-						GameManager.add_score(1, true)
-						candies_destroyed.emit(1, c.candy_color)
+					ws_targets.append(Vector2i(x, row_y))
 			for dx in range(-1, 2):
+				var col_x = mid_pos.x + dx
+				if col_x < 0 or col_x >= grid_width:
+					continue
 				for y in grid_height:
-					var col_x = mid_pos.x + dx
-					if col_x < 0 or col_x >= grid_width:
-						continue
-					var pos = Vector2i(col_x, y)
-					var c = filler.get_candy_at(pos)
-					if c and not c.is_being_destroyed:
-						_trigger_obstacle_adjacent(pos)
-						effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-						filler.remove_candy_at(pos)
-						c.animate_destroy()
-						GameManager.add_score(1, true)
-						candies_destroyed.emit(1, c.candy_color)
+					ws_targets.append(Vector2i(col_x, y))
+			_explode_cells(ws_targets)
 
 		"double_spiral":
 			# 設計文件「紙飛機+紙飛機」:合成點 4 鄰消除 + 起飛 3 台紙飛機
-			# 3 台紙飛機按優先級各選一個目標,飛過去當紙飛機(各自 4 鄰)
 			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
 			_destroy_candy_at(pos_a, candy_a.candy_color)
 			_destroy_candy_at(pos_b, candy_b.candy_color)
 			# 合成點 4 鄰
+			var nbors: Array[Vector2i] = []
 			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
 				var tp = mid_pos + offset
-				if tp.x < 0 or tp.x >= grid_width or tp.y < 0 or tp.y >= grid_height:
-					continue
-				var c = filler.get_candy_at(tp)
-				if c and not c.is_being_destroyed:
-					_trigger_obstacle_adjacent(tp)
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), c.candy_color)
-					filler.remove_candy_at(tp)
-					c.animate_destroy()
-					candies_destroyed.emit(1, c.candy_color)
+				if tp.x >= 0 and tp.x < grid_width and tp.y >= 0 and tp.y < grid_height:
+					nbors.append(tp)
+			_explode_cells(nbors)
 			# 飛 3 台紙飛機
 			var picks = _pick_top_plane_targets(3, [mid_pos, pos_a, pos_b])
 			for tgt in picks:
@@ -523,21 +561,15 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 
 		"spiral_wrapped":
 			# 設計文件「紙飛機+炸彈」:合成點 4 鄰消除 + 飛到新位置「使用炸彈」(5x5)
-			# 新位置 = 全盤權重最高的 obstacle(通關目標 +100、層數=1 +1)
 			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
 			_destroy_candy_at(pos_a, candy_a.candy_color)
 			_destroy_candy_at(pos_b, candy_b.candy_color)
+			var nbors_w: Array[Vector2i] = []
 			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
 				var tp = mid_pos + offset
-				if tp.x < 0 or tp.x >= grid_width or tp.y < 0 or tp.y >= grid_height:
-					continue
-				var c = filler.get_candy_at(tp)
-				if c and not c.is_being_destroyed:
-					_trigger_obstacle_adjacent(tp)
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), c.candy_color)
-					filler.remove_candy_at(tp)
-					c.animate_destroy()
-					candies_destroyed.emit(1, c.candy_color)
+				if tp.x >= 0 and tp.x < grid_width and tp.y >= 0 and tp.y < grid_height:
+					nbors_w.append(tp)
+			_explode_cells(nbors_w)
 			await get_tree().create_timer(0.15).timeout
 			var picks_w = _pick_top_plane_targets(1, [mid_pos, pos_a, pos_b])
 			if picks_w.size() > 0:
@@ -547,8 +579,6 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 
 		"spiral_striped":
 			# 設計文件「紙飛機+火箭」:合成點 4 鄰消除 + 飛到新位置「使用火箭」
-			# 火箭方向 = 參與合成的那顆 STRIPED 的方向(H 或 V)
-			# 新位置 = 全盤權重最高的 obstacle
 			var striped_kind = "striped_h"
 			if candy_a.candy_type == CandyScript.CandyType.STRIPED_V \
 			   or candy_b.candy_type == CandyScript.CandyType.STRIPED_V:
@@ -556,17 +586,12 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
 			_destroy_candy_at(pos_a, candy_a.candy_color)
 			_destroy_candy_at(pos_b, candy_b.candy_color)
+			var nbors_s: Array[Vector2i] = []
 			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
 				var tp = mid_pos + offset
-				if tp.x < 0 or tp.x >= grid_width or tp.y < 0 or tp.y >= grid_height:
-					continue
-				var c = filler.get_candy_at(tp)
-				if c and not c.is_being_destroyed:
-					_trigger_obstacle_adjacent(tp)
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), c.candy_color)
-					filler.remove_candy_at(tp)
-					c.animate_destroy()
-					candies_destroyed.emit(1, c.candy_color)
+				if tp.x >= 0 and tp.x < grid_width and tp.y >= 0 and tp.y < grid_height:
+					nbors_s.append(tp)
+			_explode_cells(nbors_s)
 			await get_tree().create_timer(0.15).timeout
 			var picks_s = _pick_top_plane_targets(1, [mid_pos, pos_a, pos_b])
 			if picks_s.size() > 0:
@@ -681,61 +706,9 @@ func _cascade_loop() -> void:
 		await _process_matches(new_matches)
 
 func _trigger_special_candy(candy: CandyScript) -> void:
-	var pos = candy.grid_pos
-	match candy.candy_type:
-		CandyScript.CandyType.STRIPED_H:
-			AudioManager.play_special_trigger_sound()
-			for x in grid_width:
-				if x != pos.x:
-					var target = filler.get_candy_at(Vector2i(x, pos.y))
-					if target and not target.is_being_destroyed:
-						_trigger_obstacle_adjacent(Vector2i(x, pos.y))
-						effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(Vector2i(x, pos.y)), target.candy_color)
-						filler.remove_candy_at(Vector2i(x, pos.y))
-						target.animate_destroy()
-						GameManager.add_score(1, true)
-
-		CandyScript.CandyType.STRIPED_V:
-			AudioManager.play_special_trigger_sound()
-			for y in grid_height:
-				if y != pos.y:
-					var target = filler.get_candy_at(Vector2i(pos.x, y))
-					if target and not target.is_being_destroyed:
-						_trigger_obstacle_adjacent(Vector2i(pos.x, y))
-						effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(Vector2i(pos.x, y)), target.candy_color)
-						filler.remove_candy_at(Vector2i(pos.x, y))
-						target.animate_destroy()
-						GameManager.add_score(1, true)
-
-		CandyScript.CandyType.WRAPPED:
-			# TNT — 5x5 爆炸範圍(用 SpecialCandy.get_wrapped_targets,
-			# 不要再 inline 一個 3x3 loop,免得改範圍要改兩處)
-			AudioManager.play_special_trigger_sound()
-			effect_spawner_node.spawn_shockwave(filler.grid_to_world(pos))
-			for tp in SpecialCandy.get_wrapped_targets(pos, grid_width, grid_height):
-				var target = filler.get_candy_at(tp)
-				if target and not target.is_being_destroyed:
-					_trigger_obstacle_adjacent(tp)
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), target.candy_color)
-					filler.remove_candy_at(tp)
-					target.animate_destroy()
-
-		CandyScript.CandyType.SPIRAL:
-			# 紙飛機 TrPr — 對應 Python _apply_trpr_base:十字 4 格(上下左右各 1 格)
-			# 飛行階段(找最高權重障礙物再打)留 v2
-			AudioManager.play_special_trigger_sound()
-			effect_spawner_node.spawn_shockwave(filler.grid_to_world(pos))
-			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
-				var tp = pos + offset
-				if tp.x < 0 or tp.x >= grid_width or tp.y < 0 or tp.y >= grid_height:
-					continue
-				_trigger_obstacle_adjacent(tp)
-				var target = filler.get_candy_at(tp)
-				if target and not target.is_being_destroyed:
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), target.candy_color)
-					filler.remove_candy_at(tp)
-					target.animate_destroy()
-					GameManager.add_score(1, true)
+	# 觸發 candy 本身的 effect (不消除 candy 自己 — 由 caller 處理)。
+	# 走 _chain_trigger → _explode_cells,所以 effect 範圍內若有 special candy 會自動連鎖。
+	_chain_trigger(candy.candy_type, candy.grid_pos, candy.candy_color)
 
 # ===========================================================================
 # 紙飛機(SPIRAL / TrPr)目標優先級
@@ -837,39 +810,26 @@ func _pick_top_plane_targets(n: int, exclude: Array[Vector2i] = []) -> Array[Vec
 
 func _detonate_at(pos: Vector2i, kind: String) -> void:
 	# 在 pos 觸發指定 special candy 效果(用於紙飛機合成「使用 X」)。
-	# 不消除 pos 自身的 candy(紙飛機飛過去引爆,而非「該格本來是 X candy」)。
 	# kind: "wrapped" / "striped_h" / "striped_v" / "spiral"
-	var targets: Array[Vector2i] = []
+	# 把 pos 本身放進 cells,_explode_cells 會處理它(包含 chain — 若該格剛好有 special candy)
+	effect_spawner_node.spawn_shockwave(filler.grid_to_world(pos))
+	var cells: Array[Vector2i] = [pos]
 	match kind:
 		"wrapped":
-			targets = SpecialCandy.get_wrapped_targets(pos, grid_width, grid_height)
+			for tp in SpecialCandy.get_wrapped_targets(pos, grid_width, grid_height):
+				cells.append(tp)
 		"striped_h":
-			targets = SpecialCandy.get_striped_h_targets(pos, grid_width)
+			for tp in SpecialCandy.get_striped_h_targets(pos, grid_width):
+				cells.append(tp)
 		"striped_v":
-			targets = SpecialCandy.get_striped_v_targets(pos, grid_height)
+			for tp in SpecialCandy.get_striped_v_targets(pos, grid_height):
+				cells.append(tp)
 		"spiral":
-			# 紙飛機本體效果:4 鄰
 			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
 				var tp = pos + offset
 				if tp.x >= 0 and tp.x < grid_width and tp.y >= 0 and tp.y < grid_height:
-					targets.append(tp)
-	effect_spawner_node.spawn_shockwave(filler.grid_to_world(pos))
-	# pos 本身也消(紙飛機落點)
-	_trigger_obstacle_adjacent(pos)
-	var pc = filler.get_candy_at(pos)
-	if pc and not pc.is_being_destroyed:
-		effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), pc.candy_color)
-		filler.remove_candy_at(pos)
-		pc.animate_destroy()
-		candies_destroyed.emit(1, pc.candy_color)
-	for tp in targets:
-		var c = filler.get_candy_at(tp)
-		if c and not c.is_being_destroyed:
-			_trigger_obstacle_adjacent(tp)
-			effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), c.candy_color)
-			filler.remove_candy_at(tp)
-			c.animate_destroy()
-			candies_destroyed.emit(1, c.candy_color)
+					cells.append(tp)
+	_explode_cells(cells)
 
 
 # 對齊 tile_defs.py:每個 obstacle prefix 對應 (can_adjacent_elim, can_inplace_elim)
