@@ -15,9 +15,15 @@ extends CanvasLayer
 signal level_selected(level_index: int)
 signal cancelled
 
+# 直接 load 中文字型,在每個 Label/Button 上 add_theme_font_override("font", ...)。
+# 不依賴 project.godot::theme/default_font(Godot 4 web export 有時不會 honor),
+# 雙保險:UI 字體永遠是 NotoSans。
+const FONT_PATH := "res://resources/fonts/NotoSans-Regular.ttf"
+
 
 func setup(paths: Array[String], show_cancel: bool = false) -> void:
 	layer = 50
+	var font = load(FONT_PATH) as Font
 	# 全螢幕背景
 	var bg = ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -28,6 +34,8 @@ func setup(paths: Array[String], show_cancel: bool = false) -> void:
 	# 標題 + 提示(放在最上方)
 	var title = Label.new()
 	title.text = "選擇關卡 ── 共 %d 關" % paths.size()
+	if font:
+		title.add_theme_font_override("font", font)
 	title.add_theme_font_size_override("font_size", 38)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -38,6 +46,8 @@ func setup(paths: Array[String], show_cancel: bool = false) -> void:
 
 	var hint = Label.new()
 	hint.text = "1~100 = 從官方匯入  ·  D1~D6 = 手寫測試關卡"
+	if font:
+		hint.add_theme_font_override("font", font)
 	hint.add_theme_font_size_override("font_size", 14)
 	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -50,6 +60,8 @@ func setup(paths: Array[String], show_cancel: bool = false) -> void:
 	if show_cancel:
 		var cancel_btn = Button.new()
 		cancel_btn.text = "× 取消(繼續本關)"
+		if font:
+			cancel_btn.add_theme_font_override("font", font)
 		cancel_btn.add_theme_font_size_override("font_size", 16)
 		cancel_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 		cancel_btn.offset_left = -200
@@ -79,7 +91,9 @@ func setup(paths: Array[String], show_cancel: bool = false) -> void:
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(56, 56)
 		btn.text = _short_label(paths[i])
-		btn.add_theme_font_size_override("font_size", 16)
+		if font:
+			btn.add_theme_font_override("font", font)
+		btn.add_theme_font_size_override("font_size", 18)
 		var idx = i
 		btn.pressed.connect(func(): level_selected.emit(idx))
 		grid.add_child(btn)

@@ -40,6 +40,8 @@ static func get_combo_result(type_a: int, type_b: int) -> Dictionary:
 
 	var is_striped_a = type_a in [CandyScript.CandyType.STRIPED_H, CandyScript.CandyType.STRIPED_V]
 	var is_striped_b = type_b in [CandyScript.CandyType.STRIPED_H, CandyScript.CandyType.STRIPED_V]
+	var is_spiral_a = type_a == CandyScript.CandyType.SPIRAL
+	var is_spiral_b = type_b == CandyScript.CandyType.SPIRAL
 
 	if type_a == CandyScript.CandyType.WRAPPED and type_b == CandyScript.CandyType.WRAPPED:
 		return {"effect": "double_wrapped"}
@@ -50,6 +52,15 @@ static func get_combo_result(type_a: int, type_b: int) -> Dictionary:
 
 	if is_striped_a and is_striped_b:
 		return {"effect": "double_striped"}
+
+	# SPIRAL (TrPr / 紙飛機) 組合 — 我們專案特有,參考 Python 設計加碼
+	if is_spiral_a and is_spiral_b:
+		return {"effect": "double_spiral"}
+	if (is_spiral_a and type_b == CandyScript.CandyType.WRAPPED) or \
+	   (is_spiral_b and type_a == CandyScript.CandyType.WRAPPED):
+		return {"effect": "spiral_wrapped"}
+	if (is_spiral_a and is_striped_b) or (is_spiral_b and is_striped_a):
+		return {"effect": "spiral_striped"}
 
 	return {"effect": "none"}
 

@@ -102,23 +102,35 @@ func apply_gravity() -> Array[Tween]:
 	return tweens
 
 func fill_empty_cells() -> Array[Tween]:
+	# 物理上:從天上掉下來,**第一顆會穿過空格落到最底**,然後第二顆停在它上面,...
+	# 視覺上要呈現「一列連續往下掉的隊列」:
+	#   - 排在最上方(start_y=-1)的 candy 落到最深的空格(y 最大)
+	#   - 排在 start_y=-2 的 candy 落到次深空格
+	#   - 每顆 dist 相同 → 等速一起到位,看起來像「整條糖果列車滑下來」
+	#
+	# 舊版是 y=0..height 順序 fill,start_y 隨著遞減,結果上面 dist 小、下面 dist 大,
+	# 變成「上面先到位、下面後到位」,看起來像「先生成的留在上面」。已修正。
 	var tweens: Array[Tween] = []
 	for x in width:
-		var spawn_y = -1
+		# 從上到下收集這一列所有空格(by y ascending)
+		var empty_ys: Array[int] = []
 		for y in height:
 			if Vector2i(x, y) in blocked_cells:
 				continue
 			if grid[x][y] == null:
-				var color = randi() % num_colors
-				var candy = _create_candy(color, Vector2i(x, y))
-				var start_y = spawn_y
-				candy.position = grid_to_world(Vector2i(x, start_y))
-				spawn_y -= 1
-				grid[x][y] = candy
-				var target = grid_to_world(Vector2i(x, y))
-				var dist = abs(y - start_y)
-				var tween = candy.animate_fall(target, _fall_duration(dist))
-				tweens.append(tween)
+				empty_ys.append(y)
+		# 反向 fill:第 i 顆 spawn(start_y=-i-1)落到第 i 個最底空格
+		for i in empty_ys.size():
+			var target_y = empty_ys[empty_ys.size() - 1 - i]
+			var start_y = -(i + 1)
+			var color = randi() % num_colors
+			var candy = _create_candy(color, Vector2i(x, target_y))
+			candy.position = grid_to_world(Vector2i(x, start_y))
+			grid[x][target_y] = candy
+			var target = grid_to_world(Vector2i(x, target_y))
+			var dist = abs(target_y - start_y)
+			var tween = candy.animate_fall(target, _fall_duration(dist))
+			tweens.append(tween)
 	return tweens
 
 func remove_candy_at(pos: Vector2i) -> Node2D:

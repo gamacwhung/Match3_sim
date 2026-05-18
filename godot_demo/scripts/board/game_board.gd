@@ -298,7 +298,9 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 
 	GameManager.use_move()
 	cascade_level = 0
-	await _process_matches(matches)
+	# 把玩家 swap 的兩格傳進去:_process_matches 內如果這個 group 內含 swap 格,
+	# 會用 swap_dest 當合成位置,避免 special candy 出現在「離手指很遠」的格
+	await _process_matches(matches, [pos_a, pos_b])
 	_post_turn_check()
 
 func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
@@ -494,10 +496,100 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 						GameManager.add_score(1, true)
 						candies_destroyed.emit(1, c.candy_color)
 
+		"double_spiral":
+			# TrPr + TrPr — 全 row + 全 col(超大十字),類似 double_striped 但更狂
+			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
+			effect_spawner_node.spawn_firework(filler.grid_to_world(mid_pos))
+			var targets = SpecialCandy.get_cross_targets(mid_pos, grid_width, grid_height)
+			_destroy_candy_at(pos_a, candy_a.candy_color)
+			_destroy_candy_at(pos_b, candy_b.candy_color)
+			for pos in targets:
+				var c = filler.get_candy_at(pos)
+				if c and not c.is_being_destroyed:
+					_trigger_obstacle_adjacent(pos)
+					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
+					filler.remove_candy_at(pos)
+					c.animate_destroy()
+					candies_destroyed.emit(1, c.candy_color)
+
+		"spiral_wrapped":
+			# TrPr + TNT — 大十字(全 row 寬 3 + 全 col 寬 3) + 中心 5x5
+			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
+			effect_spawner_node.spawn_firework(filler.grid_to_world(mid_pos))
+			_destroy_candy_at(pos_a, candy_a.candy_color)
+			_destroy_candy_at(pos_b, candy_b.candy_color)
+			# 全 row 寬 3 + 全 col 寬 3
+			for dy in range(-1, 2):
+				for x in grid_width:
+					var row_y = mid_pos.y + dy
+					if row_y < 0 or row_y >= grid_height:
+						continue
+					var pos = Vector2i(x, row_y)
+					var c = filler.get_candy_at(pos)
+					if c and not c.is_being_destroyed:
+						_trigger_obstacle_adjacent(pos)
+						effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
+						filler.remove_candy_at(pos)
+						c.animate_destroy()
+						candies_destroyed.emit(1, c.candy_color)
+			for dx in range(-1, 2):
+				for y in grid_height:
+					var col_x = mid_pos.x + dx
+					if col_x < 0 or col_x >= grid_width:
+						continue
+					var pos = Vector2i(col_x, y)
+					var c = filler.get_candy_at(pos)
+					if c and not c.is_being_destroyed:
+						_trigger_obstacle_adjacent(pos)
+						effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
+						filler.remove_candy_at(pos)
+						c.animate_destroy()
+						candies_destroyed.emit(1, c.candy_color)
+			# 中心 5x5(TNT 部分,跟十字會 overlap 但 c.is_being_destroyed 會 skip)
+			for tp in SpecialCandy.get_wrapped_targets(mid_pos, grid_width, grid_height):
+				var c = filler.get_candy_at(tp)
+				if c and not c.is_being_destroyed:
+					_trigger_obstacle_adjacent(tp)
+					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), c.candy_color)
+					filler.remove_candy_at(tp)
+					c.animate_destroy()
+					candies_destroyed.emit(1, c.candy_color)
+
+		"spiral_striped":
+			# TrPr + Soda — 大十字(全 row + 全 col)+ 中心十字 4 鄰
+			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
+			_destroy_candy_at(pos_a, candy_a.candy_color)
+			_destroy_candy_at(pos_b, candy_b.candy_color)
+			var cross = SpecialCandy.get_cross_targets(mid_pos, grid_width, grid_height)
+			for pos in cross:
+				var c = filler.get_candy_at(pos)
+				if c and not c.is_being_destroyed:
+					_trigger_obstacle_adjacent(pos)
+					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
+					filler.remove_candy_at(pos)
+					c.animate_destroy()
+					candies_destroyed.emit(1, c.candy_color)
+			# 中心 4 鄰加碼(spiral 本體效果)
+			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+				var tp = mid_pos + offset
+				if tp.x < 0 or tp.x >= grid_width or tp.y < 0 or tp.y >= grid_height:
+					continue
+				var c = filler.get_candy_at(tp)
+				if c and not c.is_being_destroyed:
+					_trigger_obstacle_adjacent(tp)
+					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), c.candy_color)
+					filler.remove_candy_at(tp)
+					c.animate_destroy()
+					candies_destroyed.emit(1, c.candy_color)
+
 	await get_tree().create_timer(0.3).timeout
 	await _cascade_loop()
 
-func _process_matches(matches: Array[Dictionary]) -> void:
+func _process_matches(matches: Array[Dictionary], swap_cells: Array[Vector2i] = []) -> void:
+	# swap_cells:玩家剛 swap 的兩格 [pos_a (來源), pos_b (目標)]。
+	# 若某個 match group 內含這兩格之一,合成 special 的位置會用 swap dest
+	# (pos_b 優先,代表玩家手指落下的地方),這樣 special candy 不會「噴去別處」。
+	# cascade 連鎖呼叫時 swap_cells 為空,沿用 match_finder 原計算的 special_pos。
 	for match_data in matches:
 		var cells = match_data["cells"] as Array[Vector2i]
 		var shape = match_data.get("shape", "line")
@@ -509,6 +601,12 @@ func _process_matches(matches: Array[Dictionary]) -> void:
 
 		# special_pos 由 match_finder 算好(L_T pivot / FOUR 中段 / 2x2 角)
 		var special_pos = match_data.get("special_pos", cells[0]) as Vector2i
+		# 玩家 swap 形成的 match:讓 special 出現在玩家手指落下的格
+		if swap_cells.size() == 2:
+			if swap_cells[1] in cells:
+				special_pos = swap_cells[1]
+			elif swap_cells[0] in cells:
+				special_pos = swap_cells[0]
 		var special_type = -1
 
 		# 對齊 Python 設計優先級:FIVE_PLUS > L_T > FOUR > 2x2 > THREE
@@ -618,19 +716,17 @@ func _trigger_special_candy(candy: CandyScript) -> void:
 						GameManager.add_score(1, true)
 
 		CandyScript.CandyType.WRAPPED:
+			# TNT — 5x5 爆炸範圍(用 SpecialCandy.get_wrapped_targets,
+			# 不要再 inline 一個 3x3 loop,免得改範圍要改兩處)
 			AudioManager.play_special_trigger_sound()
 			effect_spawner_node.spawn_shockwave(filler.grid_to_world(pos))
-			for dx in range(-1, 2):
-				for dy in range(-1, 2):
-					if dx == 0 and dy == 0:
-						continue
-					var tp = Vector2i(pos.x + dx, pos.y + dy)
-					var target = filler.get_candy_at(tp)
-					if target and not target.is_being_destroyed:
-						_trigger_obstacle_adjacent(tp)
-						effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), target.candy_color)
-						filler.remove_candy_at(tp)
-						target.animate_destroy()
+			for tp in SpecialCandy.get_wrapped_targets(pos, grid_width, grid_height):
+				var target = filler.get_candy_at(tp)
+				if target and not target.is_being_destroyed:
+					_trigger_obstacle_adjacent(tp)
+					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), target.candy_color)
+					filler.remove_candy_at(tp)
+					target.animate_destroy()
 
 		CandyScript.CandyType.SPIRAL:
 			# 紙飛機 TrPr — 對應 Python _apply_trpr_base:十字 4 格(上下左右各 1 格)

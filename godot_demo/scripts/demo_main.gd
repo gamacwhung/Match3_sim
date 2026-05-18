@@ -88,6 +88,9 @@ func _show_menu_button() -> void:
 	add_child(menu_button_ui)
 	var btn = Button.new()
 	btn.text = "☰ 選關"
+	var font = load("res://resources/fonts/NotoSans-Regular.ttf") as Font
+	if font:
+		btn.add_theme_font_override("font", font)
 	btn.add_theme_font_size_override("font_size", 16)
 	btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	btn.offset_left = -120
