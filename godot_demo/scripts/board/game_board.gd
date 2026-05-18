@@ -497,79 +497,12 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 						candies_destroyed.emit(1, c.candy_color)
 
 		"double_spiral":
-			# TrPr + TrPr — 全 row + 全 col(超大十字),類似 double_striped 但更狂
-			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
-			effect_spawner_node.spawn_firework(filler.grid_to_world(mid_pos))
-			var targets = SpecialCandy.get_cross_targets(mid_pos, grid_width, grid_height)
-			_destroy_candy_at(pos_a, candy_a.candy_color)
-			_destroy_candy_at(pos_b, candy_b.candy_color)
-			for pos in targets:
-				var c = filler.get_candy_at(pos)
-				if c and not c.is_being_destroyed:
-					_trigger_obstacle_adjacent(pos)
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-					filler.remove_candy_at(pos)
-					c.animate_destroy()
-					candies_destroyed.emit(1, c.candy_color)
-
-		"spiral_wrapped":
-			# TrPr + TNT — 大十字(全 row 寬 3 + 全 col 寬 3) + 中心 5x5
-			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
-			effect_spawner_node.spawn_firework(filler.grid_to_world(mid_pos))
-			_destroy_candy_at(pos_a, candy_a.candy_color)
-			_destroy_candy_at(pos_b, candy_b.candy_color)
-			# 全 row 寬 3 + 全 col 寬 3
-			for dy in range(-1, 2):
-				for x in grid_width:
-					var row_y = mid_pos.y + dy
-					if row_y < 0 or row_y >= grid_height:
-						continue
-					var pos = Vector2i(x, row_y)
-					var c = filler.get_candy_at(pos)
-					if c and not c.is_being_destroyed:
-						_trigger_obstacle_adjacent(pos)
-						effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-						filler.remove_candy_at(pos)
-						c.animate_destroy()
-						candies_destroyed.emit(1, c.candy_color)
-			for dx in range(-1, 2):
-				for y in grid_height:
-					var col_x = mid_pos.x + dx
-					if col_x < 0 or col_x >= grid_width:
-						continue
-					var pos = Vector2i(col_x, y)
-					var c = filler.get_candy_at(pos)
-					if c and not c.is_being_destroyed:
-						_trigger_obstacle_adjacent(pos)
-						effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-						filler.remove_candy_at(pos)
-						c.animate_destroy()
-						candies_destroyed.emit(1, c.candy_color)
-			# 中心 5x5(TNT 部分,跟十字會 overlap 但 c.is_being_destroyed 會 skip)
-			for tp in SpecialCandy.get_wrapped_targets(mid_pos, grid_width, grid_height):
-				var c = filler.get_candy_at(tp)
-				if c and not c.is_being_destroyed:
-					_trigger_obstacle_adjacent(tp)
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), c.candy_color)
-					filler.remove_candy_at(tp)
-					c.animate_destroy()
-					candies_destroyed.emit(1, c.candy_color)
-
-		"spiral_striped":
-			# TrPr + Soda — 大十字(全 row + 全 col)+ 中心十字 4 鄰
+			# 設計文件「紙飛機+紙飛機」:合成點 4 鄰消除 + 起飛 3 台紙飛機
+			# 3 台紙飛機按優先級各選一個目標,飛過去當紙飛機(各自 4 鄰)
 			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
 			_destroy_candy_at(pos_a, candy_a.candy_color)
 			_destroy_candy_at(pos_b, candy_b.candy_color)
-			var cross = SpecialCandy.get_cross_targets(mid_pos, grid_width, grid_height)
-			for pos in cross:
-				var c = filler.get_candy_at(pos)
-				if c and not c.is_being_destroyed:
-					_trigger_obstacle_adjacent(pos)
-					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
-					filler.remove_candy_at(pos)
-					c.animate_destroy()
-					candies_destroyed.emit(1, c.candy_color)
-			# 中心 4 鄰加碼(spiral 本體效果)
+			# 合成點 4 鄰
 			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
 				var tp = mid_pos + offset
 				if tp.x < 0 or tp.x >= grid_width or tp.y < 0 or tp.y >= grid_height:
@@ -581,6 +514,65 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 					filler.remove_candy_at(tp)
 					c.animate_destroy()
 					candies_destroyed.emit(1, c.candy_color)
+			# 飛 3 台紙飛機
+			var picks = _pick_top_plane_targets(3, [mid_pos, pos_a, pos_b])
+			for tgt in picks:
+				await get_tree().create_timer(0.12).timeout
+				effect_spawner_node.spawn_firework(filler.grid_to_world(tgt))
+				_detonate_at(tgt, "spiral")
+
+		"spiral_wrapped":
+			# 設計文件「紙飛機+炸彈」:合成點 4 鄰消除 + 飛到新位置「使用炸彈」(5x5)
+			# 新位置 = 全盤權重最高的 obstacle(通關目標 +100、層數=1 +1)
+			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
+			_destroy_candy_at(pos_a, candy_a.candy_color)
+			_destroy_candy_at(pos_b, candy_b.candy_color)
+			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+				var tp = mid_pos + offset
+				if tp.x < 0 or tp.x >= grid_width or tp.y < 0 or tp.y >= grid_height:
+					continue
+				var c = filler.get_candy_at(tp)
+				if c and not c.is_being_destroyed:
+					_trigger_obstacle_adjacent(tp)
+					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), c.candy_color)
+					filler.remove_candy_at(tp)
+					c.animate_destroy()
+					candies_destroyed.emit(1, c.candy_color)
+			await get_tree().create_timer(0.15).timeout
+			var picks_w = _pick_top_plane_targets(1, [mid_pos, pos_a, pos_b])
+			if picks_w.size() > 0:
+				var tgt = picks_w[0]
+				effect_spawner_node.spawn_firework(filler.grid_to_world(tgt))
+				_detonate_at(tgt, "wrapped")
+
+		"spiral_striped":
+			# 設計文件「紙飛機+火箭」:合成點 4 鄰消除 + 飛到新位置「使用火箭」
+			# 火箭方向 = 參與合成的那顆 STRIPED 的方向(H 或 V)
+			# 新位置 = 全盤權重最高的 obstacle
+			var striped_kind = "striped_h"
+			if candy_a.candy_type == CandyScript.CandyType.STRIPED_V \
+			   or candy_b.candy_type == CandyScript.CandyType.STRIPED_V:
+				striped_kind = "striped_v"
+			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
+			_destroy_candy_at(pos_a, candy_a.candy_color)
+			_destroy_candy_at(pos_b, candy_b.candy_color)
+			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+				var tp = mid_pos + offset
+				if tp.x < 0 or tp.x >= grid_width or tp.y < 0 or tp.y >= grid_height:
+					continue
+				var c = filler.get_candy_at(tp)
+				if c and not c.is_being_destroyed:
+					_trigger_obstacle_adjacent(tp)
+					effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), c.candy_color)
+					filler.remove_candy_at(tp)
+					c.animate_destroy()
+					candies_destroyed.emit(1, c.candy_color)
+			await get_tree().create_timer(0.15).timeout
+			var picks_s = _pick_top_plane_targets(1, [mid_pos, pos_a, pos_b])
+			if picks_s.size() > 0:
+				var tgt = picks_s[0]
+				effect_spawner_node.spawn_firework(filler.grid_to_world(tgt))
+				_detonate_at(tgt, striped_kind)
 
 	await get_tree().create_timer(0.3).timeout
 	await _cascade_loop()
@@ -744,6 +736,141 @@ func _trigger_special_candy(candy: CandyScript) -> void:
 					filler.remove_candy_at(tp)
 					target.animate_destroy()
 					GameManager.add_score(1, true)
+
+# ===========================================================================
+# 紙飛機(SPIRAL / TrPr)目標優先級
+# 來源:docs/design/盤面物件設計文件 sheet「4.螺旋槳」§3 物件權重表
+#   元素=1, 道具=0, 木箱=10, 繩索=10, 餅乾=10, 果凍=10, 櫻桃=20, 甜甜圈=0(特殊)
+# 額外加權:通關目標 +100,層數=1 +1,多層加總(本實作把每 instance 視為一單位)
+# 我們專案中文件未明列的障礙物,參照「障礙物 = 10」這個 base 給 10。
+# Crt / Rope 設計文件明列 10。
+# ===========================================================================
+const _PLANE_WEIGHT_BY_PREFIX: Dictionary = {
+	"Crt": 10,              # 文件明列
+	"Rope": 10,             # 文件明列
+	"Barrel": 10,
+	"TrafficCone": 10,
+	"SalmonCan": 10,
+	"WaterChiller": 10,
+	"BeverageChiller": 10,
+	"Mud": 10,
+	"Pool": 10,
+	"Stamp": 10,
+	"Roadblock": 10,
+	"Puddle": 10,
+}
+
+
+func _is_plane_objective_tile(tile_id: String) -> bool:
+	# 是否是當前關卡的通關目標。tile_id 格式像 "Crt-1" / "Crt-3",
+	# objective 也存類似 tile_id 字串;同字母 prefix(到第一個 '-')即視為同類目標。
+	var my_prefix = tile_id.split("-")[0]
+	if my_prefix == "":
+		return false
+	for obj in GameManager.level_objectives:
+		var obj_tid = str(obj.get("tile_id", ""))
+		if obj_tid != "":
+			var obj_prefix = obj_tid.split("-")[0]
+			if obj_prefix == my_prefix:
+				return true
+	return false
+
+
+func _compute_plane_target_weights() -> Dictionary:
+	# 回傳 {Vector2i pos: int weight}。多格 instance 只回傳一個 representative cell。
+	var weights: Dictionary = {}
+	var seen_inst: Dictionary = {}
+	for pos in obstacle_map.keys():
+		var obs = obstacle_map[pos]
+		var tid = str(obs.get("tile_id", ""))
+		var inst_id = str(obs.get("instance_id", ""))
+		if inst_id != "" and seen_inst.has(inst_id):
+			continue
+		var base_w = 0
+		for prefix in _PLANE_WEIGHT_BY_PREFIX.keys():
+			if tid.begins_with(prefix):
+				base_w = _PLANE_WEIGHT_BY_PREFIX[prefix]
+				break
+		if base_w <= 0:
+			continue
+		var hp = int(obs.get("hp", 1))
+		if hp == 1:
+			base_w += 1
+		if _is_plane_objective_tile(tid):
+			base_w += 100
+		weights[pos] = base_w
+		if inst_id != "":
+			seen_inst[inst_id] = true
+	return weights
+
+
+func _pick_top_plane_targets(n: int, exclude: Array[Vector2i] = []) -> Array[Vector2i]:
+	# 取前 n 高權重的 target,排除 exclude 內的 cell。
+	# 沒有 obstacle 時 fallback:盤面隨機 n 格(讓紙飛機還是有目標,避免空轉)
+	var weights = _compute_plane_target_weights()
+	var sorted_keys: Array = weights.keys()
+	sorted_keys.sort_custom(func(a, b): return weights[a] > weights[b])
+	var picks: Array[Vector2i] = []
+	for k in sorted_keys:
+		if k in exclude or k in picks:
+			continue
+		picks.append(k)
+		if picks.size() >= n:
+			break
+	# fallback:盤面找有 candy 的格,扣掉 exclude
+	if picks.size() < n:
+		var candidates: Array[Vector2i] = []
+		for x in grid_width:
+			for y in grid_height:
+				var p = Vector2i(x, y)
+				if p in exclude or p in picks:
+					continue
+				if filler.get_candy_at(p) != null:
+					candidates.append(p)
+		candidates.shuffle()
+		for c in candidates:
+			picks.append(c)
+			if picks.size() >= n:
+				break
+	return picks
+
+
+func _detonate_at(pos: Vector2i, kind: String) -> void:
+	# 在 pos 觸發指定 special candy 效果(用於紙飛機合成「使用 X」)。
+	# 不消除 pos 自身的 candy(紙飛機飛過去引爆,而非「該格本來是 X candy」)。
+	# kind: "wrapped" / "striped_h" / "striped_v" / "spiral"
+	var targets: Array[Vector2i] = []
+	match kind:
+		"wrapped":
+			targets = SpecialCandy.get_wrapped_targets(pos, grid_width, grid_height)
+		"striped_h":
+			targets = SpecialCandy.get_striped_h_targets(pos, grid_width)
+		"striped_v":
+			targets = SpecialCandy.get_striped_v_targets(pos, grid_height)
+		"spiral":
+			# 紙飛機本體效果:4 鄰
+			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+				var tp = pos + offset
+				if tp.x >= 0 and tp.x < grid_width and tp.y >= 0 and tp.y < grid_height:
+					targets.append(tp)
+	effect_spawner_node.spawn_shockwave(filler.grid_to_world(pos))
+	# pos 本身也消(紙飛機落點)
+	_trigger_obstacle_adjacent(pos)
+	var pc = filler.get_candy_at(pos)
+	if pc and not pc.is_being_destroyed:
+		effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), pc.candy_color)
+		filler.remove_candy_at(pos)
+		pc.animate_destroy()
+		candies_destroyed.emit(1, pc.candy_color)
+	for tp in targets:
+		var c = filler.get_candy_at(tp)
+		if c and not c.is_being_destroyed:
+			_trigger_obstacle_adjacent(tp)
+			effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(tp), c.candy_color)
+			filler.remove_candy_at(tp)
+			c.animate_destroy()
+			candies_destroyed.emit(1, c.candy_color)
+
 
 # 對齊 tile_defs.py:每個 obstacle prefix 對應 (can_adjacent_elim, can_inplace_elim)
 # 不要在 Godot 端瞎猜 — 完全照 Python tile_defs.py 的設計表
