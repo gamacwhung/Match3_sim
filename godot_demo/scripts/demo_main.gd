@@ -80,25 +80,42 @@ func _on_level_button_pressed(idx: int) -> void:
 
 
 func _show_menu_button() -> void:
-	# 遊戲中右上角的「☰ 選關」按鈕,讓玩家可以隨時跳關
+	# 遊戲中右上角的兩顆按鈕:「↻ 重玩」「☰ 選關」,demo 操作起來不卡頓
 	if menu_button_ui != null:
 		menu_button_ui.queue_free()
 	menu_button_ui = CanvasLayer.new()
 	menu_button_ui.layer = 20
 	add_child(menu_button_ui)
-	var btn = Button.new()
-	btn.text = "☰ 選關"
-	var font = load("res://resources/fonts/NotoSans-Regular.ttf") as Font
+
+	var font = load("res://resources/fonts/NotoSansTC-Regular.otf") as Font
+
+	# 重玩本關 — 比 demo 跟客戶說「再來一次」最快的入口
+	var replay_btn = Button.new()
+	replay_btn.text = "↻ 重玩本關"
 	if font:
-		btn.add_theme_font_override("font", font)
-	btn.add_theme_font_size_override("font_size", 16)
-	btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	btn.offset_left = -120
-	btn.offset_right = -16
-	btn.offset_top = 16
-	btn.offset_bottom = 56
-	btn.pressed.connect(func(): _show_level_select(true))
-	menu_button_ui.add_child(btn)
+		replay_btn.add_theme_font_override("font", font)
+	replay_btn.add_theme_font_size_override("font_size", 18)
+	replay_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	replay_btn.offset_left = -310
+	replay_btn.offset_right = -160
+	replay_btn.offset_top = 16
+	replay_btn.offset_bottom = 62
+	replay_btn.pressed.connect(func(): _retry_level())
+	menu_button_ui.add_child(replay_btn)
+
+	# 選關
+	var select_btn = Button.new()
+	select_btn.text = "☰ 選關"
+	if font:
+		select_btn.add_theme_font_override("font", font)
+	select_btn.add_theme_font_size_override("font_size", 18)
+	select_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	select_btn.offset_left = -150
+	select_btn.offset_right = -16
+	select_btn.offset_top = 16
+	select_btn.offset_bottom = 62
+	select_btn.pressed.connect(func(): _show_level_select(true))
+	menu_button_ui.add_child(select_btn)
 
 
 func _clear_current() -> void:
@@ -136,8 +153,10 @@ func _start_level(idx: int) -> void:
 		push_error("DemoMain: load_from_file failed: " + path)
 		return
 
-	# 補一個 level_id (HUD 可能會用)
-	level_data.level_id = _level_index + 1
+	# level_id 由 JsonLevelLoader 從 JSON 的 "name" 欄位解析(e.g. "Level_26" → 26),
+	# 這裡只在 loader 沒解析成功時 fallback 用陣列 index。
+	if level_data.level_id <= 0:
+		level_data.level_id = _level_index + 1
 
 	GameManager.start_level(level_data)
 

@@ -158,10 +158,12 @@ func _draw() -> void:
 				if OBSTACLE_TEXTURES.has(sprite_key):
 					draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], rect, false)
 					sprite_drawn = true
-				# 礦泉水櫃 — 在 lv* 上再疊一層門(讓櫃子看起來「有門」,不是裸露的瓶子)。
-				# 整顆破壞掉 (hp 已歸 0,obstacle_map 上根本不存在) 之前都疊。
-				if tid.begins_with("WaterChiller") and OBSTACLE_TEXTURES.has("WaterChiller_door"):
-					draw_texture_rect(OBSTACLE_TEXTURES["WaterChiller_door"], rect, false, Color(1, 1, 1, 0.85))
+				# 礦泉水櫃 — 「門」設計(user 確認):HP=max(closed)時門關著,
+				# 1 hit 開門 → HP=10..1 已經是開門狀態,就不用再疊門了。
+				# closed.png 本身有畫門,但對比比較弱;額外疊一層 WaterChiller_door 強調「門關著」,
+				# 玩家看一眼就知道「現在門是關的」。
+				if tid.begins_with("WaterChiller") and hp >= 11 and OBSTACLE_TEXTURES.has("WaterChiller_door"):
+					draw_texture_rect(OBSTACLE_TEXTURES["WaterChiller_door"], rect, false, Color(1, 1, 1, 0.6))
 
 		if sprite_drawn:
 			# HP > 1 時加上小 HP 標記(放在 anchor 右下)

@@ -361,20 +361,18 @@ static func _resolve_obstacle_hp(tile_id: String) -> int:
 		var n = int(num_str)
 		if n > 0:
 			return n
-	# 預設 HP — 對齊官方 Goal Count 的設計:
-	#   WaterChiller (hits 模式): 10 HP/instance → goal = 10 × instances
-	#   BeverageChiller (hits 模式): 4 HP/instance → goal = 4 × instances
-	#   Barrel (hits 模式): 2 HP/each → goal ≈ 2 × instances
+	# 預設 HP — 對應視覺狀態 + 對齊官方 Goal:
+	#   WaterChiller HP=11(門關著)→ 1 hit 開門 → HP=10..1 對應 lv10..lv1
+	#       hits 模式 + per-match dedup → 1 match 只扣 1 滴血(不管打到幾格)
+	#   BeverageChiller HP=5(門關著)→ 同理,4 顆罐子
+	#   Barrel HP=1 — user 確認,每個桶子單發即破
+	#   TrafficCone 沒帶 _lv 時當 lv1 → HP=1
 	#   Pool 沒帶 _lv 時當「滿池 lv5」 — instance 模式,5 hits 才整池消失
 	if tile_id.begins_with("WaterChiller"):
-		return 10
+		return 11
 	if tile_id.begins_with("BeverageChiller"):
-		return 4
-	if tile_id == "Barrel":
-		return 2
+		return 5
 	if tile_id == "Pool" or tile_id == "Pool_lv1":
-		# official_format 預設只生成 "Pool_lv1" 當 tile_id,實際 HP 我們開到 5(對應 lv5 滿池視覺)。
-		# Pool 是 instance 模式 — 5 hits 才扣 +1 GOAL,跟官方 goal=instances 一致。
 		return 5
 	# Crt1, Crt2, Crt3, Crt4 等沒有 _lv 字尾:取最後一位數字
 	var last_char = tile_id.right(1)

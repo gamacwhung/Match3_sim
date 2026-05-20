@@ -57,13 +57,38 @@ func increment_combo() -> void:
 func reset_combo() -> void:
 	combo_count = 0
 
-func update_objective(obj_type: String, color: int = -1, amount: int = 1) -> void:
+func update_objective(obj_type: String, color: int = -1, amount: int = 1, tile_id: String = "") -> void:
+	# obj_type 對齊 obstacle type ("clear_jelly", "clear_wire", "clear_ice", "collect")。
+	# 對於 obstacle 類目標(clear_*),很多關卡多個 family 都是同一 type(e.g. Crt 跟 Puddle 都是
+	# clear_jelly),只用 type 比對會誤增。所以多帶一個 tile_id(被打的 obstacle 的 tile_id):
+	# 只更新 tile_id 前綴跟自己同 family 的 objective。
 	for obj in level_objectives:
-		if obj["type"] == obj_type:
-			if obj.has("color") and color >= 0 and obj["color"] != color:
+		if obj["type"] != obj_type:
+			continue
+		if obj.has("color") and color >= 0 and obj["color"] != color:
+			continue
+		# tile_id 過濾:objective 的 tile_id 是 family (e.g. "Crt") 或 specific (e.g. "Crt2"),
+		# 只要 broken obstacle 的 tile_id 「開頭」是 objective 的 tile_id family,就算同類
+		if tile_id != "" and obj.has("tile_id") and str(obj["tile_id"]) != "":
+			var obj_family = _tile_family(str(obj["tile_id"]))
+			var broken_family = _tile_family(tile_id)
+			if obj_family != broken_family:
 				continue
-			obj["current"] = obj.get("current", 0) + amount
-			objective_updated.emit(obj)
+		obj["current"] = obj.get("current", 0) + amount
+		objective_updated.emit(obj)
+
+
+# 抽 family prefix:截掉尾巴數字(Crt1 → Crt) 跟 _lv* 字尾(Puddle_lv2 → Puddle)
+static func _tile_family(tile_id: String) -> String:
+	var s = tile_id.split("#")[0]   # 去 instance tag
+	var lv_idx = s.find("_lv")
+	if lv_idx >= 0:
+		return s.substr(0, lv_idx)
+	# 截掉尾巴連續數字(Crt1 → Crt、Crt12 → Crt)
+	var i = s.length()
+	while i > 0 and s.substr(i - 1, 1).is_valid_int():
+		i -= 1
+	return s.substr(0, i) if i > 0 else s
 
 func check_win_condition() -> bool:
 	for obj in level_objectives:

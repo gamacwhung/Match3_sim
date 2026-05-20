@@ -29,6 +29,10 @@ var _hint_delay: float = 3.0
 var _hint_candies: Array = []
 var _hint_shown: bool = false
 
+# Per-match damage dedup — 每次 _explode_cells / 直接觸發 / 連鎖 都遞增 tick。
+# Chiller / Stamp 等障礙物在同一個 tick 內只能算 1 次傷害。
+var _damage_tick_id: int = 0
+
 signal board_ready
 signal turn_completed
 signal candies_destroyed(count: int, color: int)
@@ -259,7 +263,22 @@ func _on_candy_swiped(candy: CandyScript, direction: Vector2i) -> void:
 	var target_pos = candy.grid_pos + direction
 	if target_pos.x < 0 or target_pos.x >= grid_width or target_pos.y < 0 or target_pos.y >= grid_height:
 		return
-	if Vector2i(target_pos.x, target_pos.y) in blocked_cells:
+	var tpos: Vector2i = Vector2i(target_pos.x, target_pos.y)
+	if tpos in blocked_cells:
+		# 例外:可移動障礙物(Barrel / TrafficCone)可以被 swap(user 確認)。
+		# 跟元素互換規則一樣:有 match 成立才有效,沒 match 還原。
+		if obstacle_map.has(tpos):
+			var obs = obstacle_map[tpos]
+			var tid_obs: String = str(obs.get("tile_id", ""))
+			# 候選:目標是可移動障礙物 + 不能跟 lock cell(已鎖住的糖)swap
+			# + 不能 swap 到自己的 cell 已經有其他 obstacle(避免 Puddle/Rope 被覆寫掉)
+			if _is_movable_obstacle(tid_obs) \
+				and not _is_candy_locked(candy.grid_pos) \
+				and not obstacle_map.has(candy.grid_pos):
+				if selected_candy:
+					selected_candy.set_selected(false)
+					selected_candy = null
+				_try_swap_with_movable_obstacle(candy, tpos)
 		return
 	var target_candy = filler.get_candy_at(target_pos)
 	if target_candy == null:
@@ -382,6 +401,85 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 	await _process_matches(matches, [pos_a, pos_b])
 
 	_post_turn_check()
+
+
+# Swap 糖果與可移動障礙物(Barrel / TrafficCone)— user 確認:
+#   - 我可以主動拿一顆糖跟旁邊的水桶/三角錐互換
+#   - 但只有「換完後有 match 成立」才算合法,沒 match 還原(跟正常糖果 swap 規則一致)
+#   - 水桶不會 match 自己(neutral),靠的是糖在新位置觸發 3 連
+# 實作:data 互換 + 動畫,match 檢查走 MatchFinder。
+func _try_swap_with_movable_obstacle(candy: CandyScript, obs_pos: Vector2i) -> void:
+	is_processing = true
+	_reset_hint_timer()
+	if selected_candy:
+		selected_candy.set_selected(false)
+		selected_candy = null
+	AudioManager.play_swap_sound()
+
+	var candy_pos: Vector2i = candy.grid_pos
+	var world_candy: Vector2 = filler.grid_to_world(candy_pos)
+	var world_obs: Vector2 = filler.grid_to_world(obs_pos)
+	var obs = obstacle_map[obs_pos]
+
+	# data 互換:糖 → obs_pos,obstacle → candy_pos
+	filler.set_candy_at(candy_pos, null)
+	filler.set_candy_at(obs_pos, candy)
+	candy.grid_pos = obs_pos
+	obstacle_map.erase(obs_pos)
+	obstacle_map[candy_pos] = obs
+	if obs_pos in blocked_cells:
+		blocked_cells.erase(obs_pos)
+	if not (candy_pos in blocked_cells):
+		blocked_cells.append(candy_pos)
+
+	# 動畫
+	var tween_a = candy.animate_to(world_obs, 0.2)
+	board_bg.queue_redraw()
+	await tween_a.finished
+
+	# 檢查是否成立 match
+	var matches = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
+
+	# 如果糖本身是 special candy,允許「滑出去施放」— 直接觸發,不檢查 match
+	# (跟正常 _try_swap 的 special-no-match 分支一致)
+	var is_special: bool = candy.candy_type != CandyScript.CandyType.NORMAL
+	if matches.size() == 0 and not is_special:
+		# 沒 match → 還原
+		AudioManager.play_swap_back_sound()
+		filler.set_candy_at(obs_pos, null)
+		filler.set_candy_at(candy_pos, candy)
+		candy.grid_pos = candy_pos
+		obstacle_map.erase(candy_pos)
+		obstacle_map[obs_pos] = obs
+		if candy_pos in blocked_cells:
+			blocked_cells.erase(candy_pos)
+		if not (obs_pos in blocked_cells):
+			blocked_cells.append(obs_pos)
+		var tween_back = candy.animate_to(world_candy, 0.2)
+		board_bg.queue_redraw()
+		await tween_back.finished
+		is_processing = false
+		return
+
+	GameManager.use_move()
+	cascade_level = 0
+
+	if matches.size() == 0 and is_special:
+		# special candy 滑出去 → 在新位置(obs_pos)施放
+		AudioManager.play_special_trigger_sound()
+		var sp_type = candy.candy_type
+		var sp_color = candy.candy_color
+		_destroy_candy_at(obs_pos, sp_color, EXPLODE_MODE_SPECIAL)
+		_chain_trigger(sp_type, obs_pos, sp_color)
+		await get_tree().create_timer(0.3).timeout
+		await _cascade_loop()
+		_post_turn_check()
+		return
+
+	# 有 match → 正常 match 流程
+	await _process_matches(matches, [candy_pos, obs_pos])
+	_post_turn_check()
+
 
 func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript, drag_dest: Vector2i = Vector2i(-1, -1)) -> void:
 	# drag_dest:用戶滑動的目的地(orb 視覺從這格升起)。-1, -1 → fallback 用 bomb 的位置。
@@ -563,6 +661,9 @@ const EXPLODE_MODE_PLANE: int = 2
 func _explode_cells(targets: Array, mode: int = EXPLODE_MODE_MATCH) -> void:
 	# targets: Array of Vector2i
 	# mode 行為見上方常數註解。
+	# 遞增 _damage_tick_id → 同一個 _explode_cells call 內所有 Chiller/Stamp 的傷害
+	# 都跟這個 tick 比對 → 同一瞬間只算 1 次(per-match dedup)。
+	_damage_tick_id += 1
 	var chain_queue: Array = []
 	for tp in targets:
 		var pos: Vector2i = tp as Vector2i
@@ -1083,22 +1184,30 @@ func _damage_obstacle(pos: Vector2i) -> void:
 	if not obstacle_map.has(pos):
 		return
 	var obs = obstacle_map[pos]
+	var tid: String = str(obs.get("tile_id", ""))
+
+	# 「同一瞬間只能算 1 次」的障礙物(user 確認):
+	#   - WaterChiller / BeverageChiller — 一個 match 同瞬間只扣 1 滴血(不管打到幾格)
+	#   - Stamp(manufacturer)— 一個 match 同瞬間只 +1 蓋章進 GOAL
+	# 實作:_damage_tick_id 在每次 _explode_cells 開頭遞增,
+	#   shared obs dict 記錄 _last_damage_tick;若相同 tick → 跳過,不重複算。
+	if _is_per_match_dedup(tid):
+		if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
+			return
+		obs["_last_damage_tick"] = _damage_tick_id
 
 	# 明信片(Stamp)— 製造機特殊分支:
 	#   不扣 HP、不從盤面移除,每次受 adj 消除就 GOAL +1。
 	#   對齊 Python match_engine.py::_damage_middle(manufacturer 分支)。
 	if obs.get("type", "") == "manufacturer":
 		AudioManager.play_obstacle_break_sound()
-		GameManager.update_objective("clear_" + obs["type"], -1, 1, str(obs.get("tile_id", "")))
+		GameManager.update_objective("clear_" + obs["type"], -1, 1, tid)
 		board_bg.queue_redraw()
 		return
 
-	# 共用 dict:多格 instance 的 4 個 cell 都指向同個 dict,改 hp 全部跟著變
-	# (注意:同回合若 4 cells 都被相鄰打到 → 等於扣 4 次 hp,這對應 WaterChiller
-	# multi-hit 的設計;對 BeverageChiller 是 single-per-match 略快,但 demo 接受)
+	# 一般障礙物 — 扣 1 滴血
 	obs["hp"] -= 1
 	AudioManager.play_obstacle_break_sound()
-	var tid: String = str(obs.get("tile_id", ""))
 
 	# Goal 計法分兩種(對齊官方 Goal Count 意義):
 	#   hits 模式:每次扣血都 +1 GOAL
@@ -1133,11 +1242,26 @@ func _damage_obstacle(pos: Vector2i) -> void:
 #   hits 模式 = 每扣 1 滴血就 +1 GOAL(因為 goal 數 = HP 總和)
 #   instance 模式 = 該 instance 整顆破才 +1 GOAL(因為 goal 數 = 物件數)
 static func _is_hits_mode_obstacle(tile_id: String) -> bool:
+	# Chiller — 多 HP,有 per-match dedup,每 match +1 GOAL(只算 1 次)
+	# Barrel / TrafficCone — HP=1,instance==hits 結果一樣;保留在 hits 模式維持語意一致
 	return (
 		tile_id.begins_with("WaterChiller")
 		or tile_id.begins_with("BeverageChiller")
 		or tile_id.begins_with("Barrel")
 		or tile_id.begins_with("TrafficCone")
+	)
+
+
+# 同一個 match (= 一次 _explode_cells call) 內,這些障礙物只算 1 次傷害(user 確認):
+#   - WaterChiller / BeverageChiller 的「門」=1 滴血,
+#     一個 match 不管打到 2x2 內幾格,只開一次門
+#   - Stamp(明信片)— 一個 match 只蓋 1 章
+# 連鎖時下一個 _explode_cells call 又算 1 次,所以連鎖還是會持續扣血/蓋章。
+static func _is_per_match_dedup(tile_id: String) -> bool:
+	return (
+		tile_id.begins_with("WaterChiller")
+		or tile_id.begins_with("BeverageChiller")
+		or tile_id == "Stamp"
 	)
 
 
