@@ -49,7 +49,10 @@ const OBSTACLE_TYPE_MAP: Dictionary = {
 	"TrafficCone": "jelly",
 	"SalmonCan": "jelly",
 	"Barrel": "jelly",
-	"Stamp": "jelly",
+	# 明信片(Stamp / Postmark)— 製造機:不會被消除,每次相鄰消除就生產 +1 進 GOAL。
+	# game_board::_damage_obstacle 看到 type == "manufacturer" 走特殊分支
+	# (對齊 Python match_engine.py::_damage_middle 對 manufacturer 的處理)。
+	"Stamp": "manufacturer",
 	"WaterChiller": "jelly",
 	"BeverageChiller": "jelly",
 	"Pool": "jelly",
@@ -91,7 +94,9 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 	所以我們要先建 typed 變數再賦值,不能直接用 plain literal 賦值。
 	"""
 	var level = LevelData.new()
-	level.level_id = 1
+	# level_id 從 JSON name 解析:"Level_26" → 26 / "level_07" → 7
+	# 找不到就維持預設 1;呼叫端(demo_main)若有正確 index 也可以再 override
+	level.level_id = _parse_level_id_from_name(str(data.get("name", "")))
 	level.grid_width = int(data.get("cols", 9))
 	level.grid_height = int(data.get("rows", 10))
 	level.max_moves = int(data.get("max_steps", 30))
@@ -138,6 +143,7 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 	var middle_grid: Array = []
 	var upper_grid: Array = []
 	var bottom_grid: Array = []
+	var bottle_colors_grid: Array = []
 	if typeof(board_field) == TYPE_ARRAY:
 		# 舊格式 — 整片是 middle layer
 		middle_grid = board_field
@@ -145,6 +151,8 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 		middle_grid = board_field.get("middle", [])
 		upper_grid = board_field.get("upper", [])
 		bottom_grid = board_field.get("bottom", [])
+		# 飲料櫃每格罐子顏色 (Red/Grn/Blu/Yel),由 official_format.py 從 corner item id 解出
+		bottle_colors_grid = board_field.get("bottle_colors", [])
 	else:
 		push_error("JsonLevelLoader: unsupported 'board' type")
 		return level
@@ -157,6 +165,11 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 	# typed arrays — 同 objectives,直接 append 進 typed array 再賦值
 	var blocked_arr: Array[Vector2i] = []
 	var obstacle_arr: Array[Dictionary] = []
+	# 開局就放在盤面上的特殊糖(Soda0d / TNT / TrPr / LtBl ...);loader 識別出來、
+	# game_board.init_board 會在 fill_initial 之後 spawn 對應 special candy。
+	var pre_placed_specials_arr: Array[Dictionary] = []
+	# 下層 Puddle 但 middle 沒被 blocking 障礙佔住的格 — 開局留空(糖不掉到水窪上)
+	var puddle_only_arr: Array[Vector2i] = []
 
 	# Pass 1:middle layer 的 void → blocked_cells;tile_id 含 "#" → 多格 instance
 	#         非元素 tile → obstacle
@@ -192,14 +205,28 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 			# 元素 → 不放障礙(讓 game_board 用 candy 自動填)
 			if _resolve_element_color(tile_id) >= 0:
 				continue
-			# 道具 → 暫時也不放(需要 yuehpo 的 special_candy 機制,目前簡化省略)
+			# 道具 → 記入 pre_placed_specials,game_board 會在 fill_initial 後 spawn special
 			if _is_powerup(tile_id):
+				var type_name = _powerup_type_name(tile_id)
+				if type_name != "":
+					pre_placed_specials_arr.append({
+						"pos": pos,
+						"type_name": type_name,
+						"tile_id": tile_id,
+					})
 				continue
 			# 障礙
 			var obs_type = _resolve_obstacle_type(tile_id)
 			if obs_type == null:
 				continue
 			var hp = _resolve_obstacle_hp(tile_id)
+
+			# 取出該 cell 的瓶子顏色 (僅對 BeverageChiller 有用) — official_format.py 寫進 bottle_colors[r][c]
+			var bottle_color = ""
+			if bottle_colors_grid.size() > r and bottle_colors_grid[r] is Array:
+				var row_bc = bottle_colors_grid[r] as Array
+				if row_bc.size() > c and row_bc[c] != null:
+					bottle_color = str(row_bc[c])
 
 			if inst_tag != "":
 				# 多格 instance — 同 tag 的 cells 共享同個 dict
@@ -209,6 +236,7 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 					shared = shared_by_key[key]
 				else:
 					var instance_cells: Array[Vector2i] = []
+					var bottle_map: Dictionary = {}   # Vector2i → "Red"/"Grn"/"Blu"/"Yel"
 					shared = {
 						"type": obs_type,
 						"hp": hp,
@@ -216,9 +244,12 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 						"tile_id": tile_id,
 						"instance_id": key,
 						"instance_cells": instance_cells,
+						"bottle_colors": bottle_map,
 					}
 					shared_by_key[key] = shared
 				shared["instance_cells"].append(pos)
+				if bottle_color != "":
+					shared["bottle_colors"][pos] = bottle_color
 				# 每個 cell 都把 shared 加進 obstacle_arr(同個 dict reference)
 				obstacle_arr.append({
 					"pos": [pos.x, pos.y],
@@ -294,9 +325,14 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 				})
 				if _is_blocking_obstacle(tid):
 					blocked_arr.append(pos)
+				elif tid.begins_with("Puddle"):
+					# 下層 Puddle:不 blocking,但開局留空(糖不要疊在水窪上)
+					puddle_only_arr.append(pos)
 
 	level.blocked_cells = blocked_arr
 	level.obstacle_data = obstacle_arr
+	level.puddle_only_cells = puddle_only_arr
+	level.pre_placed_specials = pre_placed_specials_arr
 
 	return level
 
@@ -318,13 +354,28 @@ static func _resolve_obstacle_type(tile_id: String):
 
 
 static func _resolve_obstacle_hp(tile_id: String) -> int:
-	# 從 tile_id 末尾數字解析 HP,例如 "Crt3" → 3
+	# 從 tile_id 末尾數字解析 HP,例如 "Crt3" → 3、"Pool_lv5" → 5
 	var match_lv = tile_id.find("_lv")
 	if match_lv >= 0:
 		var num_str = tile_id.substr(match_lv + 3)
 		var n = int(num_str)
 		if n > 0:
 			return n
+	# 預設 HP — 對齊官方 Goal Count 的設計:
+	#   WaterChiller (hits 模式): 10 HP/instance → goal = 10 × instances
+	#   BeverageChiller (hits 模式): 4 HP/instance → goal = 4 × instances
+	#   Barrel (hits 模式): 2 HP/each → goal ≈ 2 × instances
+	#   Pool 沒帶 _lv 時當「滿池 lv5」 — instance 模式,5 hits 才整池消失
+	if tile_id.begins_with("WaterChiller"):
+		return 10
+	if tile_id.begins_with("BeverageChiller"):
+		return 4
+	if tile_id == "Barrel":
+		return 2
+	if tile_id == "Pool" or tile_id == "Pool_lv1":
+		# official_format 預設只生成 "Pool_lv1" 當 tile_id,實際 HP 我們開到 5(對應 lv5 滿池視覺)。
+		# Pool 是 instance 模式 — 5 hits 才扣 +1 GOAL,跟官方 goal=instances 一致。
+		return 5
 	# Crt1, Crt2, Crt3, Crt4 等沒有 _lv 字尾:取最後一位數字
 	var last_char = tile_id.right(1)
 	if last_char.is_valid_int():
@@ -336,6 +387,42 @@ static func _resolve_obstacle_hp(tile_id: String) -> int:
 
 static func _is_powerup(tile_id: String) -> bool:
 	return tile_id in ["Soda0d", "Soda90", "TNT", "TrPr", "LtBl"]
+
+
+# Soda0d = 橫向火箭(0 度,沿 x 軸飛)→ 消整列(同 y) → STRIPED_H
+# Soda90 = 直向火箭(90 度,沿 y 軸飛)→ 消整欄(同 x) → STRIPED_V
+# TNT/TrPr/LtBl → 對應 WRAPPED/SPIRAL/COLOR_BOMB
+const POWERUP_TYPE_MAP: Dictionary = {
+	"Soda0d": "striped_h",
+	"Soda90": "striped_v",
+	"TNT": "wrapped",
+	"TrPr": "spiral",
+	"LtBl": "color_bomb",
+}
+
+
+static func _powerup_type_name(tile_id: String) -> String:
+	return POWERUP_TYPE_MAP.get(tile_id, "")
+
+
+# 從 "Level_26" / "level_026" / "level_07" 之類解析整數;失敗回傳 1
+static func _parse_level_id_from_name(name_str: String) -> int:
+	if name_str == "":
+		return 1
+	# 找最後一段數字
+	var s = name_str.to_lower()
+	var idx = s.rfind("_")
+	var num_part = s.substr(idx + 1) if idx >= 0 else s
+	# 去掉前綴非數字
+	var digits = ""
+	for ch in num_part:
+		if ch >= "0" and ch <= "9":
+			digits += ch
+		elif digits != "":
+			break
+	if digits == "":
+		return 1
+	return int(digits)
 
 
 # ---------------------------------------------------------------------------

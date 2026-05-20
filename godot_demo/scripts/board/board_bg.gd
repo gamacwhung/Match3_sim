@@ -43,11 +43,28 @@ const OBSTACLE_TEXTURES: Dictionary = {
 	"BeverageChiller_lv3": preload("res://resources/sprites/BeverageChiller_lv3.png"),
 	"BeverageChiller_lv4": preload("res://resources/sprites/BeverageChiller_lv4.png"),
 	"BeverageChiller_lv5": preload("res://resources/sprites/BeverageChiller_lv5.png"),
+	# 飲料櫃 — 分層 composite (body + 個別瓶子 + 門)
+	"BeverageChiller_body": preload("res://resources/sprites/BeverageChiller_body.png"),
+	"BeverageChiller_door": preload("res://resources/sprites/BeverageChiller_door.png"),
+	"BeverageChiller_bottle_red": preload("res://resources/sprites/BeverageChiller_bottle_red.png"),
+	"BeverageChiller_bottle_blue": preload("res://resources/sprites/BeverageChiller_bottle_blue.png"),
+	"BeverageChiller_bottle_green": preload("res://resources/sprites/BeverageChiller_bottle_green.png"),
+	"BeverageChiller_bottle_yellow": preload("res://resources/sprites/BeverageChiller_bottle_yellow.png"),
+	# 礦泉水櫃 — 門(疊在 lv* 圖上面)
+	"WaterChiller_door": preload("res://resources/sprites/WaterChiller_door.png"),
 	"Pool_lv1": preload("res://resources/sprites/Pool_lv1.png"),
 	"Pool_lv2": preload("res://resources/sprites/Pool_lv2.png"),
 	"Pool_lv3": preload("res://resources/sprites/Pool_lv3.png"),
 	"Pool_lv4": preload("res://resources/sprites/Pool_lv4.png"),
 	"Pool_lv5": preload("res://resources/sprites/Pool_lv5.png"),
+}
+
+# 飲料櫃瓶色 (來自 official_format 的 corner item id) → sprite key
+const BEVERAGE_BOTTLE_TEXTURE_KEY: Dictionary = {
+	"Red": "BeverageChiller_bottle_red",
+	"Blu": "BeverageChiller_bottle_blue",
+	"Grn": "BeverageChiller_bottle_green",
+	"Yel": "BeverageChiller_bottle_yellow",
 }
 
 const BOARD_BG_TEXTURE: Texture2D = preload("res://resources/sprites/board_bg.png")
@@ -131,10 +148,20 @@ func _draw() -> void:
 		if obs.has("tile_id"):
 			var tid = obs["tile_id"]
 			var hp = obs.get("hp", 1)
-			var sprite_key = _resolve_sprite_key(tid, hp)
-			if OBSTACLE_TEXTURES.has(sprite_key):
-				draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], rect, false)
+			# BeverageChiller 有 bottle_colors → 用分層 composite (body + 4 罐子 + 門)
+			# 沒有就 fallback 走原來 lv*/closed 單張圖。
+			if tid.begins_with("BeverageChiller") and obs.has("bottle_colors") and (obs["bottle_colors"] as Dictionary).size() > 0:
+				_draw_beverage_chiller_composite(rect, anchor_pos, size_cells, cs, offset, obs)
 				sprite_drawn = true
+			else:
+				var sprite_key = _resolve_sprite_key(tid, hp)
+				if OBSTACLE_TEXTURES.has(sprite_key):
+					draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], rect, false)
+					sprite_drawn = true
+				# 礦泉水櫃 — 在 lv* 上再疊一層門(讓櫃子看起來「有門」,不是裸露的瓶子)。
+				# 整顆破壞掉 (hp 已歸 0,obstacle_map 上根本不存在) 之前都疊。
+				if tid.begins_with("WaterChiller") and OBSTACLE_TEXTURES.has("WaterChiller_door"):
+					draw_texture_rect(OBSTACLE_TEXTURES["WaterChiller_door"], rect, false, Color(1, 1, 1, 0.85))
 
 		if sprite_drawn:
 			# HP > 1 時加上小 HP 標記(放在 anchor 右下)
@@ -202,3 +229,53 @@ func _draw_hp_text(pos: Vector2, hp: int) -> void:
 	for i in range(min(hp, 4)):
 		var dot_pos = pos + Vector2(-3 + i * 2, 0)
 		draw_circle(dot_pos, 1.2, Color.WHITE)
+
+
+# BeverageChiller 分層 composite — 一層 body + 4 個對應顏色的罐子 + 門。
+# 設計需求(user 確認):
+#   1. 飲料櫃要看得到門(目前 lv*/closed 圖少了門)
+#   2. 不同關卡的罐子顏色不同,要按 level 的 bottle_colors 數據放
+# 罐子位置:每個 instance_cells 對應到 anchor 內的 (x_off, y_off) 局部位置。
+# HP-based 視覺淡化:hp 越低 → 已被「砸」的罐子越多。挑「離左上最遠」的先消失,
+# 跟玩家直覺對齊(從右下方往左上扣)。
+func _draw_beverage_chiller_composite(rect: Rect2, anchor_pos: Vector2i, size_cells: Vector2i, cs: float, offset: Vector2, obs: Dictionary) -> void:
+	# 1) 畫底層 body
+	if OBSTACLE_TEXTURES.has("BeverageChiller_body"):
+		draw_texture_rect(OBSTACLE_TEXTURES["BeverageChiller_body"], rect, false)
+
+	# 2) 罐子 — 按 hp 決定要畫幾個,從「右下→左上」的順序保留(被砸掉的先從右下消失)
+	# Note:讓 「left-top is the most-recently destroyed」的逆順序 → 用 instance_cells
+	# 排序 by (-r, -c) 後取前 hp 個 cell 來畫(其餘空著)。
+	var hp: int = obs.get("hp", 0)
+	var max_hp: int = obs.get("max_hp", 4)
+	var n_show: int = clamp(hp, 0, max_hp)
+	var cells: Array = obs.get("instance_cells", [])
+	var bottle_colors: Dictionary = obs.get("bottle_colors", {})
+	# 排序 — 左上優先保留 (按 r asc, c asc),反之最後消除
+	var sorted_cells: Array = cells.duplicate()
+	sorted_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		if a.y != b.y:
+			return a.y < b.y
+		return a.x < b.x
+	)
+	for i in n_show:
+		if i >= sorted_cells.size():
+			break
+		var cell: Vector2i = sorted_cells[i] as Vector2i
+		var color_id: String = str(bottle_colors.get(cell, ""))
+		if not BEVERAGE_BOTTLE_TEXTURE_KEY.has(color_id):
+			continue
+		var key: String = BEVERAGE_BOTTLE_TEXTURE_KEY[color_id]
+		if not OBSTACLE_TEXTURES.has(key):
+			continue
+		# 該 cell 的世界座標 — 對應 instance 內 1 格
+		var cell_top_left = offset + Vector2(cell.x * cs, cell.y * cs)
+		var cell_rect = Rect2(cell_top_left + Vector2(2, 2), Vector2(cs - 4, cs - 4))
+		# 罐子稍微縮小一點,避免溢出格邊
+		var inset := Vector2(cs * 0.10, cs * 0.10)
+		cell_rect = Rect2(cell_top_left + inset, Vector2(cs, cs) - inset * 2.0)
+		draw_texture_rect(OBSTACLE_TEXTURES[key], cell_rect, false)
+
+	# 3) 門 — 只在「未受任何傷害」才畫(closed 狀態),被打過一下就破掉看到瓶子
+	if hp >= max_hp and OBSTACLE_TEXTURES.has("BeverageChiller_door"):
+		draw_texture_rect(OBSTACLE_TEXTURES["BeverageChiller_door"], rect, false, Color(1, 1, 1, 0.92))

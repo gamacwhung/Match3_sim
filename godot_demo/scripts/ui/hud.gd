@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 @onready var score_label: Label = $TopBar/ScoreLabel
+@onready var level_label: Label = $TopBar/LevelLabel
 @onready var moves_label: Label = $TopBar/MovesLabel
 @onready var objective_label: Label = $TopBar/ObjectiveLabel
 @onready var score_bar: ProgressBar = $TopBar/ScoreBar
@@ -8,11 +9,18 @@ extends CanvasLayer
 @onready var star2: Node2D = $TopBar/ScoreBar/Star2
 @onready var star3: Node2D = $TopBar/ScoreBar/Star3
 
+# Web export 有時不認 project.godot 的 default_font(尤其是 web build cache 過的版本),
+# 跟 level_select.gd 用一樣方式:手動 load CJK 字型並 per-label override,確保中文不會顯示成方塊。
+const FONT_PATH: String = "res://resources/fonts/NotoSansTC-Regular.otf"
+var _font: FontFile = null
+
 var star_thresholds: Array[int] = []
 var _score_objective_target: int = 0
 var _star_colors: Array[Color] = [Color(0.4, 0.4, 0.4), Color(0.4, 0.4, 0.4), Color(0.4, 0.4, 0.4)]
 
 func _ready() -> void:
+	_font = load(FONT_PATH) as FontFile
+	_apply_font_overrides()
 	GameManager.score_changed.connect(_on_score_changed)
 	GameManager.moves_changed.connect(_on_moves_changed)
 	GameManager.objective_updated.connect(_on_objective_updated)
@@ -20,8 +28,16 @@ func _ready() -> void:
 	star2.draw.connect(func(): _draw_star(star2, 1))
 	star3.draw.connect(func(): _draw_star(star3, 2))
 
+func _apply_font_overrides() -> void:
+	# 字型沒載成功也不要 crash;繼續用全域 fallback
+	if _font == null:
+		return
+	for lb in [score_label, level_label, moves_label, objective_label]:
+		if lb:
+			lb.add_theme_font_override("font", _font)
+
 func setup(level_data: Resource) -> void:
-	# 方案 A:不顯示分數,只顯示步數 + 障礙物進度
+	# 方案 A:不顯示分數,只顯示「關卡編號 + 剩餘步數 + 障礙物進度」
 	score_label.visible = false
 	score_bar.visible = false
 	star1.visible = false
@@ -29,6 +45,11 @@ func setup(level_data: Resource) -> void:
 	star3.visible = false
 	star_thresholds = level_data.star_thresholds.duplicate()
 	_score_objective_target = 0
+	_apply_font_overrides()
+	# 顯示關卡編號(loader 從 JSON name 解析)— 強調醒目讓玩家一眼看到在玩哪關
+	var lid = int(level_data.level_id) if level_data and "level_id" in level_data else 0
+	level_label.text = "第 %d 關" % lid if lid > 0 else "Demo 關卡"
+	level_label.add_theme_color_override("font_color", Color(1, 0.95, 0.55))
 	_on_moves_changed(level_data.max_moves)
 	_update_objective_display(level_data.objectives)
 
@@ -92,6 +113,7 @@ func _type_to_label(t: String) -> String:
 		"clear_jelly": return "障礙物"
 		"clear_ice": return "冰塊"
 		"clear_wire": return "繩索"
+		"clear_manufacturer": return "明信片"
 		"score": return "分數"
 	return "目標"
 
