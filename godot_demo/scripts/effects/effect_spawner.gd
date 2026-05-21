@@ -3,6 +3,11 @@ extends Node2D
 const CandyRenderer = preload("res://scripts/effects/candy_renderer.gd")
 const PLANE_TEXTURE: Texture2D = preload("res://resources/sprites/TrPr.png")
 const COLOR_BOMB_TEXTURE: Texture2D = preload("res://resources/sprites/LtBl.png")
+const STAMP_TEXTURE: Texture2D = preload("res://resources/sprites/Stamp.png")
+
+# 郵戳蓋章 — 跟 candy 同尺寸(Stamp.png 1024×1024,cell ~70px)
+const STAMP_EFFECT_SCALE: Vector2 = Vector2(0.068, 0.068)
+const STAMP_INK_COLOR: Color = Color(0.75, 0.12, 0.18, 0.95)
 
 func spawn_destroy_effect(world_pos: Vector2, candy_color: int) -> void:
 	var color = CandyRenderer.COLOR_MAP.get(candy_color, Color.WHITE)
@@ -114,6 +119,67 @@ func spawn_color_bomb_orb(world_pos: Vector2, duration: float) -> void:
 	tw.tween_callback(orb.queue_free)
 
 # 目標被光球「點亮」的瞬間特效:小範圍彩色脈動 + 環擴張
+# 郵戳(Stamp / manufacturer)被相鄰消除觸發 — 蓋章動畫讓玩家知道有 +1 GOAL。
+func spawn_stamp_trigger(world_pos: Vector2) -> void:
+	# 1) 郵戳圖案「按下再彈回」
+	var stamp = Sprite2D.new()
+	stamp.texture = STAMP_TEXTURE
+	stamp.position = world_pos + Vector2(0, -8)
+	stamp.z_index = 210
+	stamp.scale = STAMP_EFFECT_SCALE * 1.15
+	stamp.modulate = Color(1.0, 1.0, 1.0, 0.95)
+	add_child(stamp)
+	var press = create_tween()
+	press.tween_property(stamp, "position", world_pos + Vector2(0, 4), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	press.parallel().tween_property(stamp, "scale", STAMP_EFFECT_SCALE * 0.92, 0.08)
+	press.tween_property(stamp, "position", world_pos, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	press.parallel().tween_property(stamp, "scale", STAMP_EFFECT_SCALE, 0.1)
+	press.tween_property(stamp, "modulate:a", 0.0, 0.25).set_delay(0.12)
+	press.tween_callback(stamp.queue_free)
+
+	# 2) 印泥擴散環
+	var ring = _RingEffect.new()
+	ring.position = world_pos
+	ring.ring_color = STAMP_INK_COLOR
+	ring.expand_speed = 180.0
+	ring.max_radius = 50.0
+	add_child(ring)
+
+	# 3) 印泥粒子
+	_spawn_particles(world_pos, STAMP_INK_COLOR, 10, 90.0)
+	_spawn_particles(world_pos, Color(0.95, 0.55, 0.2, 0.9), 6, 70.0)
+
+	# 4) 中心短暫閃光
+	var flash = _ParticleDot.new()
+	flash.position = world_pos
+	flash.color = Color(1.0, 0.92, 0.75, 1.0)
+	flash.velocity = Vector2.ZERO
+	flash.lifetime = 0.2
+	flash.sz = 22.0
+	add_child(flash)
+
+	# 5) 「+1」浮字
+	_spawn_stamp_plus_one(world_pos)
+
+
+func _spawn_stamp_plus_one(pos: Vector2) -> void:
+	var label = Label.new()
+	label.text = "+1"
+	label.position = pos + Vector2(-12, -28)
+	label.scale = Vector2(0.6, 0.6)
+	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_color_override("font_color", STAMP_INK_COLOR)
+	label.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.9))
+	label.add_theme_constant_override("outline_size", 3)
+	label.z_index = 220
+	add_child(label)
+	var tween = create_tween()
+	tween.tween_property(label, "scale", Vector2(1.2, 1.2), 0.1).set_trans(Tween.TRANS_BACK)
+	tween.parallel().tween_property(label, "position:y", pos.y - 55, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.35).set_delay(0.2)
+	tween.tween_callback(label.queue_free)
+
+
 func spawn_target_highlight(world_pos: Vector2, candy_color: int) -> void:
 	var color = CandyRenderer.COLOR_MAP.get(candy_color, Color.WHITE)
 	# 中心快速放大+淡出的白光點
