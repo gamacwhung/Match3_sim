@@ -40,20 +40,20 @@ static func build_obstacle_map(obstacle_data: Array, grid_width: int, grid_heigh
 		if not entry.has("type"):
 			continue
 
-		var type_enum = ObstacleType.ICE
-		match entry["type"]:
-			"ice": type_enum = ObstacleType.ICE
-			"wire": type_enum = ObstacleType.WIRE
-			"jelly": type_enum = ObstacleType.JELLY
-
-		var hp = entry.get("hp", 1)
-		var data = create_obstacle_data(type_enum, hp)
+		# 直接以 entry["type"] 字串傳遞 — 支援 manufacturer / 之後新增的 type
+		# (改之前透過 enum 走 match,Stamp 的 "manufacturer" 沒被認到會被默默改成 "ice",
+		#  害 _damage_obstacle 的 manufacturer 分支永遠跳不到 → Stamp 會被當 ice 扣 HP/消除。
+		#  改成直接 copy entry 內欄位,避免再丟資訊。)
+		var hp: int = int(entry.get("hp", 1))
+		var data: Dictionary = {
+			"type": str(entry["type"]),
+			"hp": hp,
+			"max_hp": int(entry.get("max_hp", hp)),
+		}
 		if entry.has("tile_id"):
 			data["tile_id"] = entry["tile_id"]
 		if entry.has("layer"):
 			data["layer"] = entry["layer"]
-		if entry.has("max_hp"):
-			data["max_hp"] = entry["max_hp"]
 		obs_map[pos] = data
 	return obs_map
 
