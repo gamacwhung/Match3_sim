@@ -68,12 +68,47 @@ const BEVERAGE_BOTTLE_TEXTURE_KEY: Dictionary = {
 }
 
 const BOARD_BG_TEXTURE: Texture2D = preload("res://resources/sprites/board_bg.png")
+const STAMP_FLASH_DURATION: float = 0.65
 
 var board: Node2D
+# 郵戳蓋章閃爍 — grid pos → 結束時間(秒)
+var _stamp_flash_until: Dictionary = {}
 
 
 func _ready() -> void:
 	board = get_parent()
+	set_process(false)
+
+
+func trigger_stamp_flash(grid_pos: Vector2i) -> void:
+	_stamp_flash_until[grid_pos] = Time.get_ticks_msec() / 1000.0 + STAMP_FLASH_DURATION
+	if not is_processing():
+		set_process(true)
+	queue_redraw()
+
+
+func _process(_delta: float) -> void:
+	var now = Time.get_ticks_msec() / 1000.0
+	var changed := false
+	for pos in _stamp_flash_until.keys():
+		if _stamp_flash_until[pos] <= now:
+			_stamp_flash_until.erase(pos)
+			changed = true
+	if changed:
+		queue_redraw()
+	if _stamp_flash_until.is_empty():
+		set_process(false)
+
+
+func _stamp_flash_progress(grid_pos: Vector2i) -> float:
+	if not _stamp_flash_until.has(grid_pos):
+		return -1.0
+	var now = Time.get_ticks_msec() / 1000.0
+	var end_t: float = _stamp_flash_until[grid_pos]
+	if now >= end_t:
+		return -1.0
+	var start_t = end_t - STAMP_FLASH_DURATION
+	return clampf((now - start_t) / STAMP_FLASH_DURATION, 0.0, 1.0)
 
 
 func _draw() -> void:
@@ -156,7 +191,30 @@ func _draw() -> void:
 			else:
 				var sprite_key = _resolve_sprite_key(tid, hp)
 				if OBSTACLE_TEXTURES.has(sprite_key):
-					draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], rect, false)
+					var tex_rect: Rect2 = rect
+					var mod: Color = Color.WHITE
+					if tid == "Stamp" or obs.get("type", "") == "manufacturer":
+						var ft = _stamp_flash_progress(pos)
+						if ft >= 0.0:
+							var pulse = sin(ft * PI)
+							var grow = 6.0 * pulse
+							tex_rect = Rect2(
+								rect.position - Vector2(grow, grow),
+								rect.size + Vector2(grow * 2.0, grow * 2.0)
+							)
+							mod = Color(1.0, 0.7 + 0.3 * pulse, 0.7 + 0.3 * pulse, 1.0)
+							draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], tex_rect, false, mod)
+							draw_rect(rect, Color(0.92, 0.12, 0.18, 0.5 * pulse), true)
+							draw_arc(
+								rect.position + rect.size * 0.5,
+								rect.size.x * 0.55 * (0.85 + 0.15 * pulse),
+								0, TAU, 32,
+								Color(0.95, 0.25, 0.2, 0.85 * pulse), 4.0
+							)
+						else:
+							draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], tex_rect, false, mod)
+					else:
+						draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], tex_rect, false, mod)
 					sprite_drawn = true
 				# 礦泉水櫃 — 「門」設計(user 確認):HP=max(closed)時門關著,
 				# 1 hit 開門 → HP=10..1 已經是開門狀態,就不用再疊門了。

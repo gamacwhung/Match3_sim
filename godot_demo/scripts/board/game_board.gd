@@ -1202,6 +1202,8 @@ func _damage_obstacle(pos: Vector2i) -> void:
 	if obs.get("type", "") == "manufacturer":
 		AudioManager.play_obstacle_break_sound()
 		effect_spawner_node.spawn_stamp_trigger(filler.grid_to_world(pos))
+		if board_bg.has_method("trigger_stamp_flash"):
+			board_bg.trigger_stamp_flash(pos)
 		GameManager.update_objective("clear_" + obs["type"], -1, 1, tid)
 		board_bg.queue_redraw()
 		return
