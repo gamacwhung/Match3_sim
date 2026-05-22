@@ -89,7 +89,7 @@ func _build_objective_icons(objectives: Array) -> void:
 		var tex = _icon_for_family(family, str(obj.get("type", "")))
 
 		var panel = PanelContainer.new()
-		panel.custom_minimum_size = Vector2(88, 72)
+		panel.custom_minimum_size = Vector2(96, 82)
 		var sb = StyleBoxFlat.new()
 		sb.bg_color = Color(0.12, 0.08, 0.18, 0.88)
 		sb.border_color = Color(0.55, 0.45, 0.75, 0.9)
@@ -192,14 +192,17 @@ func _update_objective_icons(objectives: Array) -> void:
 		var tgt: int = int(obj.get("target", 0))
 		var done := cur >= tgt and tgt > 0
 		var remaining := max(0, tgt - cur)
+		var goal_kind: String = str(obj.get("goal_kind", ""))
+		var n_inst: int = int(obj.get("board_instances", 0))
 
-		w["count"].text = "%d / %d" % [cur, tgt]
+		w["count"].text = _format_objective_count(obj, cur, tgt, remaining, done)
 		w["check"].visible = done
 
 		var sb: StyleBoxFlat = w["style"]
 		if done:
 			sb.bg_color = Color(0.08, 0.14, 0.08, 0.75)
 			sb.border_color = Color(0.35, 0.85, 0.4, 0.7)
+			sb.set_border_width_all(2)
 			if w["icon"]:
 				w["icon"].modulate = Color(0.55, 0.55, 0.55, 0.85)
 			w["count"].add_theme_color_override("font_color", Color(0.55, 0.85, 0.55))
@@ -208,45 +211,76 @@ func _update_objective_icons(objectives: Array) -> void:
 			sb.border_color = Color(1.0, 0.82, 0.25, 1.0)
 			sb.set_border_width_all(3)
 			if w["icon"]:
-				w["icon"].modulate = Color(1.15, 1.1, 1.0, 1.0)
+				w["icon"].modulate = Color(1.2, 1.15, 1.05, 1.0)
 			w["count"].add_theme_color_override("font_color", Color(1.0, 0.95, 0.55))
-			w["count"].text = "%d / %d" % [cur, tgt] if tgt > 0 else "—"
-			if remaining > 0 and tgt > 0:
-				w["count"].text = "%d / %d\n還差 %d" % [cur, tgt, remaining]
 
 
-func play_stamp_card_fly(from_global: Vector2) -> void:
-	var card = Sprite2D.new()
-	card.texture = POSTMARK_CARD_TEX
-	card.global_position = from_global
-	card.scale = Vector2(0.055, 0.055)
-	card.z_index = 120
-	add_child(card)
-
-	var target := _stamp_objective_fly_target()
-	var tw = create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(card, "global_position", target, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property(card, "scale", Vector2(0.032, 0.032), 0.5)
-	tw.tween_property(card, "modulate:a", 0.0, 0.12).set_delay(0.42)
-	tw.chain().tween_callback(card.queue_free)
-	tw.chain().tween_callback(_pulse_stamp_objective)
-
-
-func _stamp_objective_fly_target() -> Vector2:
-	if _objective_widgets.has("Stamp"):
-		var panel: Control = _objective_widgets["Stamp"]["panel"]
-		return panel.global_position + panel.size * 0.5
-	return Vector2(get_viewport().get_visible_rect().size.x * 0.5, 80)
+func _format_objective_count(obj: Dictionary, cur: int, tgt: int, remaining: int, done: bool) -> String:
+	var kind: String = str(obj.get("goal_kind", ""))
+	var n_inst: int = int(obj.get("board_instances", 0))
+	if kind == "hits" and n_inst > 0:
+		# 2×2 櫃:目標數=總敲擊次數,不是格子數;標示盤上有幾「台」
+		var lines := "%d / %d 次" % [cur, tgt]
+		if not done and remaining > 0:
+			lines += "\n還差 %d 次" % remaining
+		lines += "\n（%d 台 2×2）" % n_inst
+		return lines
+	if kind == "triggers":
+		var lines_t := "%d / %d 次" % [cur, tgt]
+		if not done and remaining > 0:
+			lines_t += "\n還差 %d 次" % remaining
+		return lines_t
+	var lines_i := "%d / %d" % [cur, tgt]
+	if not done and remaining > 0:
+		lines_i += "\n還差 %d" % remaining
+	return lines_i
 
 
-func _pulse_stamp_objective() -> void:
-	if not _objective_widgets.has("Stamp"):
+func play_objective_fly(from_global: Vector2, family: String) -> void:
+	var tex: Texture2D = POSTMARK_CARD_TEX if family == "Stamp" else _icon_for_family(family, "")
+	if tex == null:
 		return
-	var panel: Control = _objective_widgets["Stamp"]["panel"]
+	var target := _objective_fly_target(family)
+	var start_scale := 0.055 if family == "Stamp" else 0.04
+	var end_scale := 0.032 if family == "Stamp" else 0.028
+	var duration := 0.78 if family == "Stamp" else 0.72
+
+	var sprite = Sprite2D.new()
+	sprite.texture = tex
+	sprite.global_position = from_global
+	sprite.scale = Vector2(start_scale, start_scale)
+	sprite.z_index = 120
+	add_child(sprite)
+
+	var mid := from_global.lerp(target, 0.45) + Vector2(0, -42)
 	var tw = create_tween()
-	tw.tween_property(panel, "scale", Vector2(1.12, 1.12), 0.08).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(panel, "scale", Vector2.ONE, 0.12)
+	tw.tween_property(sprite, "global_position", mid, duration * 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(sprite, "global_position", target, duration * 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(sprite, "scale", Vector2(end_scale, end_scale), duration)
+	tw.parallel().tween_property(sprite, "modulate:a", 0.0, 0.18).set_delay(duration - 0.15)
+	tw.chain().tween_callback(sprite.queue_free)
+	tw.chain().tween_callback(_pulse_objective.bind(family))
+
+
+func _objective_fly_target(family: String) -> Vector2:
+	if _objective_widgets.has(family):
+		var panel: Control = _objective_widgets[family]["panel"]
+		return panel.global_position + panel.size * 0.5
+	return Vector2(get_viewport().get_visible_rect().size.x * 0.5, 90)
+
+
+func _pulse_objective(family: String) -> void:
+	if not _objective_widgets.has(family):
+		return
+	var panel: Control = _objective_widgets[family]["panel"]
+	var tw = create_tween()
+	tw.tween_property(panel, "scale", Vector2(1.14, 1.14), 0.1).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(panel, "scale", Vector2.ONE, 0.14)
+
+
+# 相容舊呼叫
+func play_stamp_card_fly(from_global: Vector2) -> void:
+	play_objective_fly(from_global, "Stamp")
 
 
 func _update_stars(score: int) -> void:

@@ -32,6 +32,8 @@ var _hint_shown: bool = false
 # Per-match damage dedup — 每次 _explode_cells / 直接觸發 / 連鎖 都遞增 tick。
 # Chiller / Stamp 等障礙物在同一個 tick 內只能算 1 次傷害。
 var _damage_tick_id: int = 0
+# 同一個 match 群組內,Stamp 目標只 +1 次(但每個相鄰郵戳都可播蓋章動畫)
+var _stamp_goal_last_tick: int = -1
 
 signal board_ready
 signal turn_completed
@@ -896,6 +898,8 @@ func _process_matches(matches: Array[Dictionary], swap_cells: Array[Vector2i] = 
 	# (pos_b 優先,代表玩家手指落下的地方),這樣 special candy 不會「噴去別處」。
 	# cascade 連鎖呼叫時 swap_cells 為空,沿用 match_finder 原計算的 special_pos。
 	for match_data in matches:
+		# 每個 match 群組一個 tick — 讓相鄰障礙物 dedup 正確(含 _process_matches 路徑)
+		_damage_tick_id += 1
 		var cells = match_data["cells"] as Array[Vector2i]
 		var shape = match_data.get("shape", "line")
 		var first_candy = filler.get_candy_at(cells[0])
@@ -942,6 +946,8 @@ func _process_matches(matches: Array[Dictionary], swap_cells: Array[Vector2i] = 
 				candies_destroyed.emit(1, candy.candy_color)
 				filler.remove_candy_at(cell)
 				candy.animate_destroy()
+		# 保險:確保與 match 相鄰的郵戳都有觸發到(中間欄消除時常靠這條)
+		_trigger_manufacturers_adjacent_to_cells(cells)
 
 		GameManager.add_score(cells.size(), special_type >= 0)
 
@@ -1161,6 +1167,25 @@ static func _elim_rule(tile_id: String, kind: String) -> bool:
 	return false
 
 
+func _trigger_manufacturers_adjacent_to_cells(cells: Array[Vector2i]) -> void:
+	var seen: Dictionary = {}
+	for cell in cells:
+		for dir in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+			var adj: Vector2i = cell + dir
+			if seen.has(adj):
+				continue
+			if not obstacle_map.has(adj):
+				continue
+			var adj_obs = obstacle_map[adj]
+			if adj_obs.get("type", "") != "manufacturer":
+				continue
+			var adj_tid: String = str(adj_obs.get("tile_id", ""))
+			if not _elim_rule(adj_tid, "adj"):
+				continue
+			seen[adj] = true
+			_damage_obstacle(adj)
+
+
 func _trigger_obstacle_adjacent(pos: Vector2i) -> void:
 	# 一般 match 消除走這條:adjacent + inplace
 	# 打 4 鄰 — 只對 can_adjacent_elim 的 obstacle 才打
@@ -1206,9 +1231,12 @@ func _damage_obstacle(pos: Vector2i) -> void:
 			if board_bg.has_method("trigger_stamp_flash"):
 				board_bg.trigger_stamp_flash(pos)
 			effect_spawner_node.spawn_stamp_trigger(filler.grid_to_world(pos))
-			_schedule_stamp_return_idle(pos, 0.38)
-			_fly_stamp_card_to_hud(pos)
-		GameManager.update_objective("clear_" + obs["type"], -1, 1, tid)
+			_schedule_stamp_return_idle(pos, 0.55)
+		# 同一 match 群組只 +1 GOAL;每個相鄰郵戳仍播動畫
+		if _damage_tick_id != _stamp_goal_last_tick:
+			_stamp_goal_last_tick = _damage_tick_id
+			GameManager.update_objective("clear_" + obs["type"], -1, 1, tid)
+			_fly_goal_feedback(pos, tid)
 		board_bg.queue_redraw()
 		return
 
@@ -1225,6 +1253,7 @@ func _damage_obstacle(pos: Vector2i) -> void:
 	#       → 官方 goal = 「物件 instance 數」(不論 HP 多寡)。
 	if _is_hits_mode_obstacle(tid):
 		GameManager.update_objective("clear_" + obs["type"], -1, 1, tid)
+		_fly_goal_feedback(pos, tid)
 
 	if obs["hp"] <= 0:
 		# 一格 vs. 多格 instance — 共享 dict 帶 instance_cells,把整個 instance 一起 erase
@@ -1234,6 +1263,7 @@ func _damage_obstacle(pos: Vector2i) -> void:
 		# instance 模式才在 HP=0 補 GOAL(hits 模式上面已經逐次加過了)
 		if not _is_hits_mode_obstacle(tid):
 			GameManager.update_objective("clear_" + obs["type"], -1, 1, tid)
+			_fly_goal_feedback(pos, tid)
 		# 實體障礙(Crt/Barrel/WaterChiller 等)初始時 cell 都 blocked(沒糖)。
 		# 打掉後解封,下一次 _cascade_loop 的 apply_gravity 會自動補糖。
 		# filler.blocked_cells 跟 game_board.blocked_cells 共用同一個 array(reference),
@@ -1334,11 +1364,11 @@ func _schedule_stamp_return_idle(grid_pos: Vector2i, delay: float) -> void:
 		board_bg.queue_redraw()
 
 
-func _fly_stamp_card_to_hud(grid_pos: Vector2i) -> void:
+func _fly_goal_feedback(grid_pos: Vector2i, tile_id: String) -> void:
 	var hud = get_tree().get_first_node_in_group("game_hud")
-	if hud and hud.has_method("play_stamp_card_fly"):
-		var world_local = filler.grid_to_world(grid_pos)
-		hud.play_stamp_card_fly(to_global(world_local))
+	if hud and hud.has_method("play_objective_fly"):
+		var fam = GameManager._tile_family(tile_id)
+		hud.play_objective_fly(to_global(filler.grid_to_world(grid_pos)), fam)
 
 
 func _mark_all_stamps_victory() -> void:

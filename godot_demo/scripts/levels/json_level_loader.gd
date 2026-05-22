@@ -132,7 +132,6 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 	# Fallback:沒有目標 → 分數目標(避免無法判勝)
 	if objectives_arr.size() == 0:
 		objectives_arr.append({"type": "score", "target": 1000, "current": 0})
-	level.objectives = objectives_arr
 
 	# board → blocked_cells + obstacle_data
 	var board_field = data.get("board")
@@ -337,6 +336,22 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 	level.puddle_only_cells = puddle_only_arr
 	level.pre_placed_specials = pre_placed_specials_arr
 
+	# 補齊目標 metadata(2×2 櫃=「台數」,不是格子數)
+	for obj in objectives_arr:
+		var tid_g: String = str(obj.get("tile_id", ""))
+		var fam_g = _goal_family(tid_g)
+		if fam_g in ["WaterChiller", "BeverageChiller"]:
+			var n_inst = _count_family_instances(obstacle_arr, fam_g)
+			obj["board_instances"] = n_inst
+			obj["goal_kind"] = "hits"
+			obj["cells_per_instance"] = 4
+		elif fam_g != "":
+			obj["goal_kind"] = "instances" if fam_g not in ["Barrel", "TrafficCone", "Stamp"] else "hits"
+			if fam_g == "Stamp":
+				obj["goal_kind"] = "triggers"
+
+	level.objectives = objectives_arr
+
 	return level
 
 
@@ -407,6 +422,33 @@ static func _powerup_type_name(tile_id: String) -> String:
 
 
 # 從 "Level_26" / "level_026" / "level_07" 之類解析整數;失敗回傳 1
+static func _goal_family(tile_id: String) -> String:
+	for prefix in ["WaterChiller", "BeverageChiller", "TrafficCone", "SalmonCan", "Roadblock", "Puddle", "Crt", "Barrel", "Pool", "Stamp", "Rope", "Mud"]:
+		if tile_id.begins_with(prefix):
+			return prefix
+	return ""
+
+
+static func _count_family_instances(obstacle_arr: Array, family: String) -> int:
+	var seen: Dictionary = {}
+	for entry in obstacle_arr:
+		var tid: String = ""
+		var inst_key: String = ""
+		if entry.has("shared_ref"):
+			var sh: Dictionary = entry["shared_ref"]
+			tid = str(sh.get("tile_id", ""))
+			inst_key = str(sh.get("instance_id", ""))
+		else:
+			tid = str(entry.get("tile_id", ""))
+			inst_key = str(entry.get("pos", ""))
+		if not tid.begins_with(family):
+			continue
+		if inst_key == "":
+			inst_key = str(entry.get("pos", ""))
+		seen[inst_key] = true
+	return seen.size()
+
+
 static func _parse_level_id_from_name(name_str: String) -> int:
 	if name_str == "":
 		return 1
