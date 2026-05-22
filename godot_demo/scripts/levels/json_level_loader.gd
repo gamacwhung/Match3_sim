@@ -333,6 +333,34 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 	level.bottom_obstacle_data = bottom_obstacle_arr
 	level.pre_placed_specials = pre_placed_specials_arr
 
+	# Pass 4: Spawners — 頂部生成器
+	var spawners_raw = data.get("spawners", [])
+	var spawner_arr: Array[Dictionary] = []
+	if typeof(spawners_raw) == TYPE_ARRAY:
+		for s in spawners_raw:
+			if typeof(s) != TYPE_DICTIONARY:
+				continue
+			var cols_raw = s.get("spawn_cols", [])
+			var elems_raw = s.get("elements", [])
+			var set_ratio: int = int(s.get("set_ratio", 1))
+			var spawn_cols: Array[int] = []
+			for col_val in cols_raw:
+				spawn_cols.append(int(col_val))
+			var elements: Array[Dictionary] = []
+			for e in elems_raw:
+				if typeof(e) == TYPE_DICTIONARY:
+					elements.append({
+						"tile_id": str(e.get("tile_id", "")),
+						"ratio": int(e.get("ratio", 1)),
+					})
+			if spawn_cols.size() > 0 and elements.size() > 0:
+				spawner_arr.append({
+					"spawn_cols": spawn_cols,
+					"elements": elements,
+					"set_ratio": set_ratio,
+				})
+	level.spawner_data = spawner_arr
+
 	# 補齊目標 metadata(2×2 櫃=「台數」,不是格子數)
 	for obj in objectives_arr:
 		var tid_g: String = str(obj.get("tile_id", ""))

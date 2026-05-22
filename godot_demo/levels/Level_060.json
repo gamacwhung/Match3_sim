@@ -233,5 +233,20 @@
         null
       ]
     ]
-  }
+  },
+  "spawners": [
+    {
+      "spawn_cols": [
+        4,
+        5
+      ],
+      "elements": [
+        {
+          "tile_id": "TrafficCone_lv2",
+          "ratio": 1
+        }
+      ],
+      "set_ratio": 99
+    }
+  ]
 }

@@ -1,6 +1,7 @@
 extends Node
 
 signal fill_complete
+signal obstacle_spawned(pos: Vector2i, tile_id: String)
 
 var grid: Array = []
 var width: int = 9
@@ -11,6 +12,10 @@ var blocked_cells: Array[Vector2i] = []
 var candy_scene: PackedScene
 var candy_container: Node2D
 var num_colors: int = 6
+
+# Spawner 機制
+var spawner_data: Array[Dictionary] = []
+var _spawner_counters: Array[int] = []  # 每個 spawner 的累計 fill 計數
 
 func setup(w: int, h: int, c_size: float, offset: Vector2, container: Node2D, scene: PackedScene, blocked: Array[Vector2i] = []) -> void:
 	width = w
@@ -27,14 +32,24 @@ func setup(w: int, h: int, c_size: float, offset: Vector2, container: Node2D, sc
 		col.fill(null)
 		grid.append(col)
 
+
+func set_spawners(data: Array[Dictionary]) -> void:
+	spawner_data = data
+	_spawner_counters.clear()
+	for i in data.size():
+		_spawner_counters.append(0)
+
 func grid_to_world(grid_pos: Vector2i) -> Vector2:
 	return board_offset + Vector2(grid_pos.x * cell_size + cell_size / 2.0, grid_pos.y * cell_size + cell_size / 2.0)
 
 func fill_initial() -> void:
 	var MatchFinder = preload("res://scripts/board/match_finder.gd")
+	var reachable = _compute_reachable_cells()
 	for y in height:
 		for x in width:
 			if Vector2i(x, y) in blocked_cells:
+				continue
+			if not reachable.has(Vector2i(x, y)):
 				continue
 			var color = _pick_no_match_color(x, y)
 			var candy = _create_candy(color, Vector2i(x, y))
@@ -210,6 +225,38 @@ func _reachable_from_top(x: int, y: int) -> bool:
 	return true
 
 
+# 計算所有能從盤面頂部到達的非 blocked 格子（考慮直落 + 斜落）
+# 用 BFS：從所有頂部可進入格向下擴展（下、左下、右下）
+func _compute_reachable_cells() -> Dictionary:
+	var reachable: Dictionary = {}
+	var queue: Array[Vector2i] = []
+	# 種子：row 0 中所有非 blocked 的格
+	for x in width:
+		var p = Vector2i(x, 0)
+		if p not in blocked_cells:
+			reachable[p] = true
+			queue.append(p)
+	# BFS 向下擴展
+	var head = 0
+	while head < queue.size():
+		var cur: Vector2i = queue[head]
+		head += 1
+		# 三方向：正下、左下、右下
+		for dx in [-1, 0, 1]:
+			var nx = cur.x + dx
+			var ny = cur.y + 1
+			if nx < 0 or nx >= width or ny >= height:
+				continue
+			var np = Vector2i(nx, ny)
+			if np in blocked_cells:
+				continue
+			if reachable.has(np):
+				continue
+			reachable[np] = true
+			queue.append(np)
+	return reachable
+
+
 func fill_empty_cells() -> Array[Tween]:
 	# 物理上:從天上掉下來,**第一顆會穿過空格落到最底**,然後第二顆停在它上面...
 	# 視覺上要呈現「一列連續往下掉的隊列」:
@@ -236,6 +283,13 @@ func fill_empty_cells() -> Array[Tween]:
 		for i in reachable_empty_ys.size():
 			var target_y = reachable_empty_ys[reachable_empty_ys.size() - 1 - i]
 			var start_y = -(i + 1)
+
+			# 檢查 spawner 是否要在此欄生成障礙
+			var spawned_tile = _try_spawn_obstacle(x)
+			if spawned_tile != "":
+				obstacle_spawned.emit(Vector2i(x, target_y), spawned_tile)
+				continue
+
 			var color = randi() % num_colors
 			var candy = _create_candy(color, Vector2i(x, target_y))
 			candy.position = grid_to_world(Vector2i(x, start_y))
@@ -245,6 +299,32 @@ func fill_empty_cells() -> Array[Tween]:
 			var tween = candy.animate_fall(target, _fall_duration(dist))
 			tweens.append(tween)
 	return tweens
+
+
+func _try_spawn_obstacle(col: int) -> String:
+	for idx in spawner_data.size():
+		var s: Dictionary = spawner_data[idx]
+		var spawn_cols: Array = s.get("spawn_cols", [])
+		if col not in spawn_cols:
+			continue
+		_spawner_counters[idx] += 1
+		var set_ratio: int = int(s.get("set_ratio", 1))
+		if _spawner_counters[idx] >= set_ratio:
+			_spawner_counters[idx] = 0
+			# 從 elements 中按 ratio 加權隨機選取
+			var elements: Array = s.get("elements", [])
+			if elements.size() == 0:
+				continue
+			var total_ratio: int = 0
+			for e in elements:
+				total_ratio += int(e.get("ratio", 1))
+			var roll: int = randi() % total_ratio
+			var accum: int = 0
+			for e in elements:
+				accum += int(e.get("ratio", 1))
+				if roll < accum:
+					return str(e.get("tile_id", ""))
+	return ""
 
 func remove_candy_at(pos: Vector2i) -> Node2D:
 	if pos.x < 0 or pos.x >= width or pos.y < 0 or pos.y >= height:

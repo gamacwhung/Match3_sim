@@ -380,5 +380,22 @@
         "Puddle_lv2"
       ]
     ]
-  }
+  },
+  "spawners": [
+    {
+      "spawn_cols": [
+        0,
+        1,
+        7,
+        8
+      ],
+      "elements": [
+        {
+          "tile_id": "Barrel",
+          "ratio": 1
+        }
+      ],
+      "set_ratio": 3
+    }
+  ]
 }

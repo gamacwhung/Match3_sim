@@ -380,5 +380,33 @@
         null
       ]
     ]
-  }
+  },
+  "spawners": [
+    {
+      "spawn_cols": [
+        0,
+        1
+      ],
+      "elements": [
+        {
+          "tile_id": "Barrel",
+          "ratio": 1
+        }
+      ],
+      "set_ratio": 2
+    },
+    {
+      "spawn_cols": [
+        7,
+        8
+      ],
+      "elements": [
+        {
+          "tile_id": "TrafficCone_lv2",
+          "ratio": 1
+        }
+      ],
+      "set_ratio": 2
+    }
+  ]
 }

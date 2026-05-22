@@ -166,6 +166,12 @@ func init_board(level_data: Resource = null) -> void:
 	# 之後 _damage_obstacle 在 blocked_cells 上 erase 一次,兩邊都會同步看到改變
 	filler.blocked_cells = blocked_cells
 
+	# 頂部 Spawner — 把 spawner_data 傳入 filler
+	if level_data and level_data.spawner_data.size() > 0:
+		filler.set_spawners(level_data.spawner_data)
+		if not filler.obstacle_spawned.is_connected(_on_obstacle_spawned):
+			filler.obstacle_spawned.connect(_on_obstacle_spawned)
+
 	# 預置道具:在原本被跳過的格上 spawn 對應的 special candy
 	_spawn_pre_placed_specials(pre_placed)
 
@@ -279,18 +285,16 @@ func _activate_special_directly(candy: CandyScript) -> void:
 			num_colors_local = filler.num_colors
 		var target_color = randi() % num_colors_local
 		effect_spawner_node.spawn_firework(filler.grid_to_world(pos))
-		# 自己先消除(SPECIAL mode → 該格 obstacle 直接打,但不擴散到 4 鄰)
 		_destroy_candy_at(pos, candy.candy_color, EXPLODE_MODE_SPECIAL)
-		# 清光同色 — 走 MATCH mode 讓鄰邊 obstacle 也被打到
-		# (跟「光球+元素 swap combo」一致:純點亮 = 等同一般 match,要有相鄰消除)
+		# 光球只對基本元素產生影響，道具不受影響
 		var nc_targets: Array[Vector2i] = []
 		for x in grid_width:
 			for y in grid_height:
 				var p = Vector2i(x, y)
 				var c = filler.get_candy_at(p)
-				if c and not c.is_being_destroyed and c.candy_color == target_color:
+				if c and not c.is_being_destroyed and c.candy_color == target_color and c.candy_type == CandyScript.CandyType.NORMAL:
 					nc_targets.append(p)
-		_explode_cells(nc_targets, EXPLODE_MODE_MATCH)
+		_explode_cells_no_chain(nc_targets)
 	else:
 		# STRIPED/WRAPPED:觸發自身,然後消除自己(SPECIAL mode → 該格直接打,不擴散到 4 鄰)
 		_trigger_special_candy(candy)
@@ -839,13 +843,13 @@ func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript, drag_de
 		await _animate_color_bomb_sequence(targets, orb_pos, CandyScript.CandyType.SPIRAL)
 
 	else:
-		# COLOR_BOMB + NORMAL:同色一個個點亮 → 同時消除
+		# COLOR_BOMB + NORMAL:只消除同色基本元素，道具不受影響
 		_destroy_candy_at(bomb.grid_pos, target_color, EXPLODE_MODE_SPECIAL)
 		var nc_targets: Array[Vector2i] = []
 		for x in grid_width:
 			for y in grid_height:
 				var c = filler.get_candy_at(Vector2i(x, y))
-				if c != null and c.candy_color == target_color and not c.is_being_destroyed:
+				if c != null and c.candy_color == target_color and not c.is_being_destroyed and c.candy_type == CandyScript.CandyType.NORMAL:
 					nc_targets.append(Vector2i(x, y))
 		await _animate_color_bomb_sequence(nc_targets, orb_pos, -1)
 
@@ -894,8 +898,10 @@ func _animate_color_bomb_sequence(targets: Array, bomb_pos: Vector2i, transform_
 	#     **EXPLODE_MODE_SPECIAL** → 每個變身道具觸發自己的 row/col/cross 範圍,
 	#     不用再額外擴散到鄰邊(那是道具自己的工作)。
 	await get_tree().create_timer(0.15).timeout
-	var mode = EXPLODE_MODE_MATCH if transform_to < 0 else EXPLODE_MODE_SPECIAL
-	_explode_cells(targets, mode)
+	if transform_to < 0:
+		_explode_cells_no_chain(targets)
+	else:
+		_explode_cells(targets, EXPLODE_MODE_SPECIAL)
 
 func _destroy_candy_at(pos: Vector2i, color_for_signal: int, mode: int = EXPLODE_MODE_MATCH) -> void:
 	var c = filler.get_candy_at(pos)
@@ -991,6 +997,23 @@ func _explode_cells(targets: Array, mode: int = EXPLODE_MODE_MATCH) -> void:
 		_chain_trigger(ch["type"], ch["pos"], ch["color"])
 
 
+func _explode_cells_no_chain(targets: Array) -> void:
+	_obstacle_damage_mode = EXPLODE_MODE_MATCH
+	_damage_tick_id += 1
+	for tp in targets:
+		var pos: Vector2i = tp as Vector2i
+		var c = filler.get_candy_at(pos)
+		if c == null or c.is_being_destroyed:
+			_trigger_obstacle_adjacent(pos, -1)
+			continue
+		var color: int = c.candy_color
+		_trigger_obstacle_adjacent(pos, color)
+		effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), color)
+		filler.remove_candy_at(pos)
+		c.animate_destroy()
+		candies_destroyed.emit(1, color)
+
+
 func _chain_trigger(ct: int, pos: Vector2i, color: int) -> void:
 	# 觸發指定 candy_type 的 effect at pos。pos 上的 candy 已被消除(由 _explode_cells 處理),
 	# 這裡只負責收集 effect 範圍 + 呼叫 _explode_cells(targets)。recursive 經由 _explode_cells 串起來。
@@ -1031,7 +1054,7 @@ func _chain_trigger(ct: int, pos: Vector2i, color: int) -> void:
 				_deferred_plane_impact(to_ws, 0.92)
 				_deferred_explode([tgt_spiral], 1.0, EXPLODE_MODE_PLANE)
 		CandyScript.CandyType.COLOR_BOMB:
-			# 連鎖中的彩球:清掉隨機色(沒人 swap 給它指定色)
+			# 連鎖中的彩球:只清同色基本元素
 			AudioManager.play_special_trigger_sound()
 			effect_spawner_node.spawn_firework(filler.grid_to_world(pos))
 			var num_colors_local = filler.num_colors if filler else 4
@@ -1040,7 +1063,7 @@ func _chain_trigger(ct: int, pos: Vector2i, color: int) -> void:
 				for y in grid_height:
 					var p = Vector2i(x, y)
 					var c2 = filler.get_candy_at(p)
-					if c2 and not c2.is_being_destroyed and c2.candy_color == picked:
+					if c2 and not c2.is_being_destroyed and c2.candy_color == picked and c2.candy_type == CandyScript.CandyType.NORMAL:
 						sub_targets.append(p)
 	# 道具連鎖:條紋/包裝/彩球 = 原地炸(SPECIAL);紙飛機 4 鄰 = 相鄰消除(MATCH)
 	var chain_mode := EXPLODE_MODE_SPECIAL
@@ -1655,10 +1678,6 @@ func _damage_obstacle(pos: Vector2i, adj_color_name: String = "") -> void:
 func _try_damage_beverage_chiller(obs: Dictionary, adj_color_name: String) -> bool:
 	var max_hp: int = int(obs.get("max_hp", 5))
 	var hp: int = int(obs.get("hp", 0))
-	if _should_per_match_dedup("BeverageChiller", obs, _obstacle_damage_mode):
-		if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
-			return false
-		obs["_last_damage_tick"] = _damage_tick_id
 
 	var bottle_colors: Dictionary = obs.get("bottle_colors", {})
 	if not obs.has("bottle_alive"):
@@ -1706,6 +1725,12 @@ func _try_damage_beverage_chiller(obs: Dictionary, adj_color_name: String) -> bo
 		if target.x < 0:
 			return false
 		bottle_alive[target] = false
+
+	# 色彩/道具驗證通過後再做 dedup（避免錯色先卡住同 tick 的正確色）
+	if _should_per_match_dedup("BeverageChiller", obs, _obstacle_damage_mode):
+		if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
+			return false
+		obs["_last_damage_tick"] = _damage_tick_id
 
 	obs["hp"] = hp - 1
 	return true
@@ -1907,3 +1932,22 @@ func set_bottom_obstacle_map(obs: Dictionary) -> void:
 
 func get_obstacle_map() -> Dictionary:
 	return obstacle_map
+
+
+func _on_obstacle_spawned(pos: Vector2i, tile_id: String) -> void:
+	var hp: int = 1
+	if tile_id.begins_with("TrafficCone_lv"):
+		var lv_str = tile_id.substr(tile_id.find("_lv") + 3)
+		hp = int(lv_str) if int(lv_str) > 0 else 1
+	elif tile_id.begins_with("TrafficCone"):
+		hp = 1
+	var obs_data: Dictionary = {
+		"type": "jelly",
+		"hp": hp,
+		"max_hp": hp,
+		"tile_id": tile_id,
+	}
+	obstacle_map[pos] = obs_data
+	if not pos in blocked_cells:
+		blocked_cells.append(pos)
+	board_bg.queue_redraw()

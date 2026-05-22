@@ -257,5 +257,20 @@
         null
       ]
     ]
-  }
+  },
+  "spawners": [
+    {
+      "spawn_cols": [
+        6,
+        7
+      ],
+      "elements": [
+        {
+          "tile_id": "Barrel",
+          "ratio": 1
+        }
+      ],
+      "set_ratio": 3
+    }
+  ]
 }

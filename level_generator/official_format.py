@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import re
 from collections import Counter
 from typing import Optional
 
@@ -139,16 +140,27 @@ def _corner_kind_and_pos(item_id):
         return ('pool', item_id - 61)
     return (None, None)
 
-# Goal ID 不等於 item ID。從 100 關推得的常見對應如下。
-# 但因為 enum 沒明確定義,實際做法是「從 Goal.Count 反查盤面上 obstacle 數」,
-# 這個表只當 hint。
-GOAL_HINT = {
-    12: 'Crt',           # 任一 Carton 等級
-    16: 'Barrel',
-    20: 'Pool',
-    26: 'TrafficCone',
-    # 14, 17, 19, 21 在不同關代表不同物件,完全靠推算
+# Goal ID 不等於 item ID — 經 100 關官方資料反推實際對應關係。
+# 「target_count」的計法,在不同物件上不同:
+#   - 一般物件(Crt, Puddle, Barrel, ...): count = 盤上 instance 數
+#   - WaterChiller / BeverageChiller (多格 chiller): count = 整個 chiller 的 HP 總和
+#       WaterChiller 是 10 HP per instance,BC 是 4 HP per instance
+#   - Stamp: count = 用印次數,跟盤上 stamp 數沒固定倍率(疑似 stamp 可多次點)
+# 不能精確推算的(Stamp 等),就用 family 標 hint,實際 count 仍用官方給的數字。
+GOAL_ID_TO_FAMILY = {
+    12: 'Crt',           # 紙箱 — count = 紙箱 instance 數
+    13: 'Puddle',        # 水漥 — count = puddle cell 數
+    14: 'WaterChiller',  # 礦泉水櫃 — count = HP 總和(10/instance)
+    15: 'Stamp',         # 郵戳 — count 直接用官方數
+    16: 'Barrel',        # 木桶
+    17: 'BeverageChiller',  # 飲料櫃 — count = HP 總和(4/instance)
+    19: 'SalmonCan',     # 鮭魚罐
+    20: 'Pool',          # 充氣泳池
+    21: 'Mud',           # 泥巴
+    26: 'TrafficCone',   # 交通錐
 }
+# 舊名(保留 backward compat)
+GOAL_HINT = GOAL_ID_TO_FAMILY
 
 
 # ===========================================================================
@@ -309,13 +321,25 @@ def official_to_ours(official: dict) -> tuple[dict, list[str]]:
             if upper[r][c] is None:
                 upper[r][c] = f'Rope_lv{int(cell["Rope"])}'
 
-    # 4) Goals — 從盤面 obstacle 反推（Goal ID 與 item ID 不同套,只能用內容推算）
+    # 4) Goals — Goal ID 不等於 item ID,要用 family 對應表轉。
+    # 我們把 goal 用 family prefix 表示(例: "Crt", "Puddle") 不再拆成 Crt1/Crt2,
+    # 顯示時就是「紙箱 0/94」一條線(不會出現兩條同名 "紙箱"),
+    # game_manager 端會用 tile_id prefix 比對 → 任何 Crt 被清都會 +1。
     goals: dict[str, int] = {}
     obs_counts = _count_clearable(middle, upper, bottom)
     for g in official.get('Goals', []):
-        inferred = _infer_goal(g['Goal'], g['Count'], obs_counts, warnings)
-        for tid, n in inferred.items():
-            goals[tid] = goals.get(tid, 0) + n
+        family = GOAL_ID_TO_FAMILY.get(g['Goal'])
+        target = int(g['Count'])
+        if family:
+            # 直接用 family 名作為 tile_id key(_resolve_obstacle_type 會匹配前綴)
+            goals[family] = goals.get(family, 0) + target
+        else:
+            # 完全沒對到 → fallback heuristic(以前的行為)
+            inferred = _infer_goal(g['Goal'], target, obs_counts, warnings)
+            for tid, n in inferred.items():
+                goals[tid] = goals.get(tid, 0) + n
+            if not inferred:
+                warnings.append(f'Goal id {g["Goal"]} Count={target} — 沒對應 family,跳過')
 
     # 5) Limits → max_steps
     max_steps = 30
@@ -348,6 +372,12 @@ def official_to_ours(official: dict) -> tuple[dict, list[str]]:
         out['board']['bottle_colors'] = bottle_colors_layer
     if beverage_colors:
         out['beverage_colors'] = sorted(beverage_colors)
+
+    # 7) Spawners — Sets 中含障礙 ID (>=21) 的 Set，配合 FillType=1 的 spawn points
+    spawners = _parse_spawners(official, W, H)
+    if spawners:
+        out['spawners'] = spawners
+
     return out, warnings
 
 
@@ -359,6 +389,67 @@ def _is_clearable_obstacle(tile_id: str) -> bool:
         'Puddle', 'Mud', 'Rope',
     )
     return tile_id.startswith(obstacle_prefixes)
+
+
+def _parse_spawners(official: dict, W: int, H: int) -> list[dict]:
+    """
+    解析官方 Sets，產出 spawner 列表。
+    每個 spawner = {
+      "spawn_cols": [col indices where this set can spawn],
+      "elements": [{"tile_id": "Barrel", "ratio": 1}, ...],
+      "set_ratio": int
+    }
+    只回傳含有障礙物 (Id >= 21) 的 Set。
+    """
+    sets = official.get('Sets', [])
+    grid = official.get('Grid', {})
+    cells_off = grid.get('Cells', [])
+
+    # 找出 FillType == 1 的 cell idx → (col, row) in our format
+    fill_cells = set()
+    for idx, cell in enumerate(cells_off):
+        if cell.get('FillType') == 1:
+            fill_cells.add(idx)
+
+    spawners = []
+    for s in sets:
+        elements = s.get('Elements', [])
+        has_obstacle = any(e.get('Id', 0) >= 21 for e in elements)
+        if not has_obstacle:
+            continue
+
+        target_fills = s.get('TargetFills', [])
+        # 只取 FillType=1 且在 TargetFills 中的格子的 col
+        spawn_cols = set()
+        for idx in target_fills:
+            if idx in fill_cells and idx < W * H:
+                x, y = idx_to_xy(idx, W)
+                spawn_cols.add(x)
+
+        if not spawn_cols:
+            continue
+
+        elems_out = []
+        for e in elements:
+            eid = e.get('Id', 0)
+            ratio = e.get('CreateRatio', 1)
+            tile_info = SINGLE_OFFICIAL_TO_TILE.get(eid)
+            if tile_info and tile_info[0]:
+                elems_out.append({
+                    'tile_id': tile_info[0],
+                    'ratio': ratio,
+                })
+
+        if not elems_out:
+            continue
+
+        spawners.append({
+            'spawn_cols': sorted(spawn_cols),
+            'elements': elems_out,
+            'set_ratio': s.get('CreateRatio', 1),
+        })
+
+    return spawners
 
 
 def _count_clearable(
@@ -698,7 +789,13 @@ def _import_dir(src: pathlib.Path, dst: pathlib.Path) -> None:
             with open(f, 'r', encoding='utf-8') as fh:
                 official = json.load(fh)
             our, warnings = official_to_ours(official)
-            out_path = dst / f.name.lower()
+            # 輸出檔名：Level_046.json（三位數零填充，大寫 L）
+            num_match = re.search(r'(\d+)', f.stem)
+            if num_match:
+                out_name = f'Level_{int(num_match.group(1)):03d}.json'
+            else:
+                out_name = f.name
+            out_path = dst / out_name
             with open(out_path, 'w', encoding='utf-8') as fh:
                 json.dump(our, fh, ensure_ascii=False, indent=2)
             if warnings:
