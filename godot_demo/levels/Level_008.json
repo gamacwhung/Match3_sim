@@ -6,9 +6,8 @@
   "num_colors": 4,
   "max_steps": 27,
   "goals": {
-    "Puddle_lv2": 45,
-    "Crt1": 22,
-    "Crt2": 9
+    "Puddle": 45,
+    "Crt": 31
   },
   "board": {
     "middle": [

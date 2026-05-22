@@ -6,9 +6,9 @@
   "num_colors": 3,
   "max_steps": 25,
   "goals": {
-    "Puddle_lv2": 30,
-    "SalmonCan": 62,
-    "Stamp": 15
+    "Puddle": 15,
+    "Stamp": 60,
+    "SalmonCan": 32
   },
   "board": {
     "middle": [

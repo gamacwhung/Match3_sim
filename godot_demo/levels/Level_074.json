@@ -6,9 +6,9 @@
   "num_colors": 4,
   "max_steps": 25,
   "goals": {
-    "Puddle_lv2": 24,
-    "TrafficCone_lv2": 36,
-    "Pool_lv1": 5
+    "Puddle": 24,
+    "TrafficCone": 36,
+    "Pool": 5
   },
   "board": {
     "middle": [

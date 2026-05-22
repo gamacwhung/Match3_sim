@@ -1201,9 +1201,13 @@ func _damage_obstacle(pos: Vector2i) -> void:
 	#   對齊 Python match_engine.py::_damage_middle(manufacturer 分支)。
 	if obs.get("type", "") == "manufacturer":
 		AudioManager.play_obstacle_break_sound()
-		effect_spawner_node.spawn_stamp_trigger(filler.grid_to_world(pos))
-		if board_bg.has_method("trigger_stamp_flash"):
-			board_bg.trigger_stamp_flash(pos)
+		if obs.get("stamp_state", "idle") != "victory":
+			obs["stamp_state"] = "pressed"
+			if board_bg.has_method("trigger_stamp_flash"):
+				board_bg.trigger_stamp_flash(pos)
+			effect_spawner_node.spawn_stamp_trigger(filler.grid_to_world(pos))
+			_schedule_stamp_return_idle(pos, 0.38)
+			_fly_stamp_card_to_hud(pos)
 		GameManager.update_objective("clear_" + obs["type"], -1, 1, tid)
 		board_bg.queue_redraw()
 		return
@@ -1320,11 +1324,39 @@ func _apply_movable_obstacle_gravity() -> bool:
 		board_bg.queue_redraw()
 	return any_moved
 
+func _schedule_stamp_return_idle(grid_pos: Vector2i, delay: float) -> void:
+	await get_tree().create_timer(delay).timeout
+	if not is_instance_valid(self) or not obstacle_map.has(grid_pos):
+		return
+	var o = obstacle_map[grid_pos]
+	if str(o.get("stamp_state", "")) == "pressed":
+		o["stamp_state"] = "idle"
+		board_bg.queue_redraw()
+
+
+func _fly_stamp_card_to_hud(grid_pos: Vector2i) -> void:
+	var hud = get_tree().get_first_node_in_group("game_hud")
+	if hud and hud.has_method("play_stamp_card_fly"):
+		var world_local = filler.grid_to_world(grid_pos)
+		hud.play_stamp_card_fly(to_global(world_local))
+
+
+func _mark_all_stamps_victory() -> void:
+	for p in obstacle_map:
+		var o = obstacle_map[p]
+		if o.get("type", "") == "manufacturer" or str(o.get("tile_id", "")) == "Stamp":
+			o["stamp_state"] = "victory"
+	board_bg.queue_redraw()
+
+
 func _post_turn_check() -> void:
 	GameManager.reset_combo()
 	_reset_hint_timer()
 
 	if GameManager.check_win_condition():
+		_mark_all_stamps_victory()
+		board_bg.queue_redraw()
+		await get_tree().create_timer(0.55).timeout
 		GameManager.complete_level()
 		is_processing = false
 		turn_completed.emit()

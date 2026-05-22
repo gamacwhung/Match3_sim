@@ -23,6 +23,10 @@ const OBSTACLE_TEXTURES: Dictionary = {
 	"Rope_lv1": preload("res://resources/sprites/Rope_lv1.png"),
 	"Rope_lv2": preload("res://resources/sprites/Rope_lv2.png"),
 	"Stamp": preload("res://resources/sprites/Stamp.png"),
+	"Postmark_bundle": preload("res://resources/sprites/Postmark_bundle.png"),
+	"Postmark_01": preload("res://resources/sprites/Postmark_01.png"),
+	"Postmark_02": preload("res://resources/sprites/Postmark_02.png"),
+	"Postmark_card": preload("res://resources/sprites/Postmark_card.png"),
 	# 礦泉水櫃 — HP 11 段,closed 等於 lv11
 	"WaterChiller_closed": preload("res://resources/sprites/WaterChiller_closed.png"),
 	"WaterChiller_lv1": preload("res://resources/sprites/WaterChiller_lv1.png"),
@@ -68,7 +72,7 @@ const BEVERAGE_BOTTLE_TEXTURE_KEY: Dictionary = {
 }
 
 const BOARD_BG_TEXTURE: Texture2D = preload("res://resources/sprites/board_bg.png")
-const STAMP_FLASH_DURATION: float = 0.65
+const STAMP_FLASH_DURATION: float = 0.28
 
 var board: Node2D
 # 郵戳蓋章閃爍 — grid pos → 結束時間(秒)
@@ -188,33 +192,13 @@ func _draw() -> void:
 			if tid.begins_with("BeverageChiller") and obs.has("bottle_colors") and (obs["bottle_colors"] as Dictionary).size() > 0:
 				_draw_beverage_chiller_composite(rect, anchor_pos, size_cells, cs, offset, obs)
 				sprite_drawn = true
+			elif tid == "Stamp" or obs.get("type", "") == "manufacturer":
+				_draw_postmark_composite(rect, obs, pos)
+				sprite_drawn = true
 			else:
 				var sprite_key = _resolve_sprite_key(tid, hp)
 				if OBSTACLE_TEXTURES.has(sprite_key):
-					var tex_rect: Rect2 = rect
-					var mod: Color = Color.WHITE
-					if tid == "Stamp" or obs.get("type", "") == "manufacturer":
-						var ft = _stamp_flash_progress(pos)
-						if ft >= 0.0:
-							var pulse = sin(ft * PI)
-							var grow = 6.0 * pulse
-							tex_rect = Rect2(
-								rect.position - Vector2(grow, grow),
-								rect.size + Vector2(grow * 2.0, grow * 2.0)
-							)
-							mod = Color(1.0, 0.7 + 0.3 * pulse, 0.7 + 0.3 * pulse, 1.0)
-							draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], tex_rect, false, mod)
-							draw_rect(rect, Color(0.92, 0.12, 0.18, 0.5 * pulse), true)
-							draw_arc(
-								rect.position + rect.size * 0.5,
-								rect.size.x * 0.55 * (0.85 + 0.15 * pulse),
-								0, TAU, 32,
-								Color(0.95, 0.25, 0.2, 0.85 * pulse), 4.0
-							)
-						else:
-							draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], tex_rect, false, mod)
-					else:
-						draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], tex_rect, false, mod)
+					draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], rect, false)
 					sprite_drawn = true
 				# 礦泉水櫃 — 「門」設計(user 確認):HP=max(closed)時門關著,
 				# 1 hit 開門 → HP=10..1 已經是開門狀態,就不用再疊門了。
@@ -247,6 +231,43 @@ func _draw() -> void:
 			"jelly":
 				var jelly_alpha = 0.2 + obs["hp"] * 0.15
 				draw_rect(rect, Color(0.9, 0.3, 0.5, jelly_alpha), true)
+
+
+# 官方風格郵戳 — bundle(明信片疊) + 01(抬起) / 02(蓋下) / victory(通關後倒下+已蓋章疊)
+func _draw_postmark_composite(rect: Rect2, obs: Dictionary, grid_pos: Vector2i) -> void:
+	var state: String = str(obs.get("stamp_state", "idle"))
+	var ft = _stamp_flash_progress(grid_pos)
+	if ft >= 0.0 and state == "idle":
+		state = "pressed"
+
+	match state:
+		"victory":
+			# 通關:明信片疊顯示已蓋章 card;郵戳倒下(02 旋轉,頭朝左)
+			if OBSTACLE_TEXTURES.has("Postmark_card"):
+				draw_texture_rect(OBSTACLE_TEXTURES["Postmark_card"], rect, false)
+			if OBSTACLE_TEXTURES.has("Postmark_02"):
+				var fallen = Rect2(rect.position, Vector2(rect.size.x * 0.55, rect.size.y * 0.55))
+				draw_set_transform(
+					rect.position + Vector2(rect.size.x * 0.12, rect.size.y * 0.72),
+					-PI * 0.5,
+					Vector2.ONE
+				)
+				draw_texture_rect(OBSTACLE_TEXTURES["Postmark_02"], fallen, false)
+				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		"pressed":
+			if OBSTACLE_TEXTURES.has("Postmark_bundle"):
+				draw_texture_rect(OBSTACLE_TEXTURES["Postmark_bundle"], rect, false)
+			if OBSTACLE_TEXTURES.has("Postmark_02"):
+				draw_texture_rect(OBSTACLE_TEXTURES["Postmark_02"], rect, false)
+			if ft >= 0.0:
+				var pulse = sin(ft * PI) * 0.25
+				draw_rect(rect, Color(0.95, 0.2, 0.15, pulse), true)
+		_:
+			# idle — 空白疊 + 郵戳抬起(01)
+			if OBSTACLE_TEXTURES.has("Postmark_bundle"):
+				draw_texture_rect(OBSTACLE_TEXTURES["Postmark_bundle"], rect, false)
+			if OBSTACLE_TEXTURES.has("Postmark_01"):
+				draw_texture_rect(OBSTACLE_TEXTURES["Postmark_01"], rect, false)
 
 
 # tile_id + 當前 HP → sprite key,對齊 match3_board_component/asset_map.py 的邏輯

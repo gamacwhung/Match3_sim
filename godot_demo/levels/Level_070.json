@@ -6,9 +6,9 @@
   "num_colors": 4,
   "max_steps": 24,
   "goals": {
-    "Stamp": 32,
-    "TrafficCone_lv2": 32,
-    "BeverageChiller_closed": 14
+    "Stamp": 50,
+    "BeverageChiller": 20,
+    "TrafficCone": 8
   },
   "board": {
     "middle": [

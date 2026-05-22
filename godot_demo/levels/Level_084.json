@@ -6,9 +6,9 @@
   "num_colors": 4,
   "max_steps": 25,
   "goals": {
-    "Crt2": 16,
-    "Mud": 63,
-    "WaterChiller_closed": 1
+    "Crt": 12,
+    "WaterChiller": 20,
+    "Mud": 48
   },
   "board": {
     "middle": [

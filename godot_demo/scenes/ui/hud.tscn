@@ -11,7 +11,7 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_left = 10.0
 offset_right = -10.0
-offset_bottom = 140.0
+offset_bottom = 175.0
 grow_horizontal = 2
 
 [node name="ScoreBar" type="ProgressBar" parent="TopBar"]
@@ -35,13 +35,25 @@ theme_override_font_sizes/font_size = 26
 text = "Score: 0"
 horizontal_alignment = 1
 
+[node name="LevelLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "第 1 關"
+horizontal_alignment = 1
+
 [node name="MovesLabel" type="Label" parent="TopBar"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
-text = "Moves: 30"
+text = "剩餘步數: 30"
 horizontal_alignment = 1
 
+[node name="ObjectivesBar" type="HBoxContainer" parent="TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
 [node name="ObjectiveLabel" type="Label" parent="TopBar"]
+visible = false
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Objective"

@@ -6,10 +6,9 @@
   "num_colors": 4,
   "max_steps": 25,
   "goals": {
-    "Crt1": 35,
-    "Crt2": 12,
-    "SalmonCan": 25,
-    "Stamp": 2
+    "Crt": 32,
+    "Stamp": 25,
+    "SalmonCan": 17
   },
   "board": {
     "middle": [

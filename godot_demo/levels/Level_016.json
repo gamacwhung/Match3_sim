@@ -6,8 +6,8 @@
   "num_colors": 4,
   "max_steps": 25,
   "goals": {
-    "Puddle_lv2": 70,
-    "WaterChiller_closed": 8
+    "Puddle": 28,
+    "WaterChiller": 50
   },
   "board": {
     "middle": [

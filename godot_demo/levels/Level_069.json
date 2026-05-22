@@ -6,9 +6,9 @@
   "num_colors": 4,
   "max_steps": 30,
   "goals": {
-    "SalmonCan": 48,
-    "TrafficCone_lv2": 41,
-    "WaterChiller_closed": 3
+    "WaterChiller": 40,
+    "TrafficCone": 24,
+    "SalmonCan": 28
   },
   "board": {
     "middle": [

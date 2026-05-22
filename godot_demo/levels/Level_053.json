@@ -6,8 +6,8 @@
   "num_colors": 3,
   "max_steps": 25,
   "goals": {
-    "TrafficCone_lv2": 63,
-    "WaterChiller_closed": 5
+    "WaterChiller": 40,
+    "TrafficCone": 28
   },
   "board": {
     "middle": [

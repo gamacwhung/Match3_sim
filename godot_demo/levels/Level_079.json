@@ -6,9 +6,9 @@
   "num_colors": 4,
   "max_steps": 22,
   "goals": {
-    "Puddle_lv2": 63,
-    "Pool_lv1": 5,
-    "BeverageChiller_closed": 0
+    "BeverageChiller": 12,
+    "Puddle": 52,
+    "Pool": 4
   },
   "board": {
     "middle": [

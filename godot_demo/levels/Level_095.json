@@ -6,8 +6,7 @@
   "num_colors": 4,
   "max_steps": 23,
   "goals": {
-    "Rope_lv1": 48,
-    "Barrel": 32
+    "Barrel": 80
   },
   "board": {
     "middle": [

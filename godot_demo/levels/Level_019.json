@@ -6,10 +6,9 @@
   "num_colors": 4,
   "max_steps": 27,
   "goals": {
-    "Crt1": 21,
-    "Crt2": 11,
-    "Puddle_lv2": 63,
-    "WaterChiller_closed": 1
+    "Crt": 26,
+    "Puddle": 50,
+    "WaterChiller": 20
   },
   "board": {
     "middle": [

@@ -6,9 +6,9 @@
   "num_colors": 4,
   "max_steps": 25,
   "goals": {
-    "Crt2": 41,
-    "WaterChiller_closed": 25,
-    "BeverageChiller_closed": 22
+    "WaterChiller": 60,
+    "BeverageChiller": 20,
+    "Crt": 8
   },
   "board": {
     "middle": [

@@ -6,9 +6,9 @@
   "num_colors": 4,
   "max_steps": 27,
   "goals": {
-    "Crt2": 46,
-    "TrafficCone_lv2": 18,
-    "Stamp": 10
+    "Crt": 14,
+    "Stamp": 30,
+    "TrafficCone": 30
   },
   "board": {
     "middle": [

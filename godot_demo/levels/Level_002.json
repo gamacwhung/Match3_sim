@@ -6,7 +6,7 @@
   "num_colors": 4,
   "max_steps": 27,
   "goals": {
-    "Crt1": 42
+    "Crt": 42
   },
   "board": {
     "middle": [

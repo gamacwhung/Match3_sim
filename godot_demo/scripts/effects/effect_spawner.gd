@@ -115,46 +115,16 @@ func spawn_color_bomb_orb(world_pos: Vector2, duration: float) -> void:
 	tw.tween_callback(orb.queue_free)
 
 # 目標被光球「點亮」的瞬間特效:小範圍彩色脈動 + 環擴張
-# 郵戳(Stamp / manufacturer)被相鄰消除觸發 — 蓋章動畫(明顯、持久,Web 也能看見)。
+# 郵戳觸發 — 輕量提示(主視覺由盤面 01→02 + 明信片飛向 HUD 負責)。
 func spawn_stamp_trigger(world_pos: Vector2) -> void:
-	# 1) 印泥實心圓擴散(最顯眼的一層)
-	var blot = _InkBlot.new()
-	blot.position = world_pos
-	blot.z_index = 205
-	add_child(blot)
-
-	# 2) 雙層擴散環
-	for cfg in [
-		{"spd": 220.0, "max": 65.0, "col": STAMP_INK_COLOR},
-		{"spd": 320.0, "max": 85.0, "col": Color(1.0, 0.85, 0.35, 0.9)},
-	]:
-		var ring = _RingEffect.new()
-		ring.position = world_pos
-		ring.z_index = 204
-		ring.ring_color = cfg["col"]
-		ring.expand_speed = cfg["spd"]
-		ring.max_radius = cfg["max"]
-		add_child(ring)
-
-	# 3) 大量印泥粒子
-	_spawn_particles(world_pos, STAMP_INK_COLOR, 18, 130.0)
-	_spawn_particles(world_pos, Color(1.0, 0.75, 0.25, 1.0), 12, 100.0)
-
-	# 4) 中心強閃光(較大、較久)
-	var flash = _ParticleDot.new()
-	flash.position = world_pos
-	flash.z_index = 206
-	flash.color = Color(1.0, 0.95, 0.8, 1.0)
-	flash.velocity = Vector2.ZERO
-	flash.lifetime = 0.35
-	flash.sz = 36.0
-	add_child(flash)
-
-	# 5) 「+1」— 用 _draw 繪製,避免 Web 上 Label 沒字型不顯示
-	var plus = _StampPlusOne.new()
-	plus.position = world_pos + Vector2(0, -36)
-	plus.z_index = 210
-	add_child(plus)
+	var ring = _RingEffect.new()
+	ring.position = world_pos
+	ring.z_index = 204
+	ring.ring_color = STAMP_INK_COLOR
+	ring.expand_speed = 120.0
+	ring.max_radius = 32.0
+	add_child(ring)
+	_spawn_particles(world_pos, STAMP_INK_COLOR, 6, 55.0)
 
 
 func spawn_target_highlight(world_pos: Vector2, candy_color: int) -> void:
@@ -206,55 +176,6 @@ func _spawn_ring(pos: Vector2, color: Color) -> void:
 	ring.position = pos
 	ring.ring_color = color
 	add_child(ring)
-
-# 印泥實心圓 — 快速擴張再淡出
-class _InkBlot extends Node2D:
-	var radius: float = 8.0
-	var alpha: float = 0.75
-	var age: float = 0.0
-	const DURATION: float = 0.45
-
-	func _process(delta: float) -> void:
-		age += delta
-		if age >= DURATION:
-			queue_free()
-			return
-		var t = age / DURATION
-		radius = lerp(8.0, 42.0, t)
-		alpha = 0.75 * (1.0 - t)
-		queue_redraw()
-
-	func _draw() -> void:
-		draw_circle(Vector2.ZERO, radius, Color(STAMP_INK_COLOR.r, STAMP_INK_COLOR.g, STAMP_INK_COLOR.b, alpha))
-
-
-# 「+1」浮字 — Canvas draw_string,Web export 也穩定
-class _StampPlusOne extends Node2D:
-	var age: float = 0.0
-	const LIFETIME: float = 0.9
-	var _start_y: float = 0.0
-
-	func _ready() -> void:
-		_start_y = position.y
-
-	func _process(delta: float) -> void:
-		age += delta
-		position.y = _start_y - age * 70.0
-		if age >= LIFETIME:
-			queue_free()
-			return
-		queue_redraw()
-
-	func _draw() -> void:
-		var t = clampf(age / 0.12, 0.0, 1.0)
-		var pop = 1.0 + sin(t * PI) * 0.35
-		var alpha = 1.0 - clampf((age - 0.35) / 0.55, 0.0, 1.0)
-		var font = ThemeDB.fallback_font
-		var fs = int(30 * pop)
-		var col = Color(STAMP_INK_COLOR.r, STAMP_INK_COLOR.g, STAMP_INK_COLOR.b, alpha)
-		draw_string(font, Vector2(-16, 12), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
-		draw_string(font, Vector2(-17, 11), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1, alpha * 0.5))
-
 
 class _ParticleDot extends Node2D:
 	var velocity: Vector2 = Vector2.ZERO

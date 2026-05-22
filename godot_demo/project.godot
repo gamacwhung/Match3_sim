@@ -31,7 +31,7 @@ window/handheld/orientation=1
 
 [gui]
 
-theme/default_font="res://resources/fonts/NotoSans-Regular.ttf"
+theme/default_font="res://resources/fonts/NotoSansTC-Regular.otf"
 
 [physics]
 

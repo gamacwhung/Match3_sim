@@ -6,9 +6,9 @@
   "num_colors": 4,
   "max_steps": 23,
   "goals": {
-    "Barrel": 74,
-    "Stamp": 13,
-    "BeverageChiller_closed": 6
+    "Stamp": 45,
+    "Barrel": 32,
+    "BeverageChiller": 16
   },
   "board": {
     "middle": [

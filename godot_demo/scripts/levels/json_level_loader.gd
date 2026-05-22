@@ -257,13 +257,16 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 				})
 			else:
 				# 單格 obstacle — 各自獨立 dict
-				obstacle_arr.append({
+				var entry: Dictionary = {
 					"pos": [pos.x, pos.y],
 					"type": obs_type,
 					"hp": hp,
 					"max_hp": hp,
 					"tile_id": tile_id,
-				})
+				}
+				if obs_type == "manufacturer":
+					entry["stamp_state"] = "idle"
+				obstacle_arr.append(entry)
 
 			# 實體障礙也加進 blocked_cells → fill_initial 不會放糖,
 			# HP=0 時 game_board._damage_obstacle 會把它從 blocked 移除,

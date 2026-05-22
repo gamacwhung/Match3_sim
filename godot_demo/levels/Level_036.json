@@ -6,9 +6,8 @@
   "num_colors": 4,
   "max_steps": 25,
   "goals": {
-    "Crt2": 33,
-    "Crt1": 59,
-    "Stamp": 10
+    "Crt": 42,
+    "Stamp": 60
   },
   "board": {
     "middle": [

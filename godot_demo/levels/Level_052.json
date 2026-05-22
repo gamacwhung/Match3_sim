@@ -6,8 +6,8 @@
   "num_colors": 4,
   "max_steps": 25,
   "goals": {
-    "Crt2": 6,
-    "TrafficCone_lv2": 30
+    "Crt": 6,
+    "TrafficCone": 30
   },
   "board": {
     "middle": [

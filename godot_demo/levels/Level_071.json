@@ -6,7 +6,8 @@
   "num_colors": 4,
   "max_steps": 30,
   "goals": {
-    "Pool_lv1": 6
+    "Pool": 6,
+    "Puddle": 0
   },
   "board": {
     "middle": [

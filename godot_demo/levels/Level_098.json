@@ -6,10 +6,9 @@
   "num_colors": 4,
   "max_steps": 25,
   "goals": {
-    "Mud": 27,
-    "Rope_lv1": 11,
-    "BeverageChiller_closed": 2,
-    "WaterChiller_closed": 2
+    "WaterChiller": 20,
+    "BeverageChiller": 8,
+    "Mud": 14
   },
   "board": {
     "middle": [

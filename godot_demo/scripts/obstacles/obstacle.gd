@@ -54,6 +54,8 @@ static func build_obstacle_map(obstacle_data: Array, grid_width: int, grid_heigh
 			data["tile_id"] = entry["tile_id"]
 		if entry.has("layer"):
 			data["layer"] = entry["layer"]
+		if entry.has("stamp_state"):
+			data["stamp_state"] = entry["stamp_state"]
 		obs_map[pos] = data
 	return obs_map
 

@@ -6,8 +6,8 @@
   "num_colors": 4,
   "max_steps": 23,
   "goals": {
-    "Barrel": 85,
-    "WaterChiller_closed": 3
+    "WaterChiller": 40,
+    "Barrel": 48
   },
   "board": {
     "middle": [
