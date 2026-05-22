@@ -91,6 +91,9 @@ static func find_all_matches(grid: Array, width: int, height: int, blocked: Arra
 				var c00 = grid[x][y] as CandyScene
 				raw_lines.append({"color": c00.candy_color, "positions": positions, "kind": "block"})
 	
+	# T/L 短臂：接在 3 連上的 1~2 格（橫三+正下一格 → 併入同一 group）
+	raw_lines.append_array(_collect_t_arm_lines(grid, width, height, blocked, raw_lines))
+	
 	if raw_lines.size() == 0:
 		return [] as Array[Dictionary]
 	
@@ -189,7 +192,7 @@ static func find_all_matches(grid: Array, width: int, height: int, blocked: Arra
 				max_v_run_positions.clear()
 				for cy in range(vp_start, vp_end + 1):
 					max_v_run_positions.append(Vector2i(p.x, cy))
-			if h_run >= 3 and v_run >= 3 and not has_cross:
+			if h_run >= 3 and v_run >= 2 and not has_cross:
 				has_cross = true
 				l_t_pivot = p
 		
@@ -205,8 +208,8 @@ static func find_all_matches(grid: Array, width: int, height: int, blocked: Arra
 				special_pos = max_h_run_positions[int(max_h_run_positions.size() / 2)]
 			else:
 				special_pos = max_v_run_positions[int(max_v_run_positions.size() / 2)]
-		elif has_cross:
-			shape = "special"  # L_T
+		elif has_cross and positions.size() >= 5:
+			shape = "special"  # L_T (需 5+ 格才生成 TNT)
 			special_pos = l_t_pivot
 		elif max(max_h, max_v) == 4:
 			shape = "four"
@@ -240,6 +243,199 @@ static func find_all_matches(grid: Array, width: int, height: int, blocked: Arra
 		})
 	
 	return matches
+
+
+static func _collect_t_arm_lines(
+		grid: Array, width: int, height: int, blocked: Array[Vector2i], raw_lines: Array
+) -> Array:
+	var arms: Array = []
+	for raw in raw_lines:
+		if raw["kind"] != "h" or raw["positions"].size() < 3:
+			continue
+		var color: int = raw["color"]
+		var hset: Dictionary = {}
+		for p in raw["positions"]:
+			hset[p] = true
+		for p in raw["positions"]:
+			for dr in [-1, 1]:
+				var np := Vector2i(p.x, p.y + dr)
+				if np.y < 0 or np.y >= height or np in blocked or hset.has(np):
+					continue
+				var c = grid[np.x][np.y] as CandyScene
+				if c == null or c.candy_type != CandyScene.CandyType.NORMAL or c.candy_color != color:
+					continue
+				var arm: Array[Vector2i] = _col_run(grid, np.x, np.y, width, height, color, blocked, hset)
+				if arm.size() >= 2:
+					arms.append({"color": color, "positions": arm, "kind": "arm"})
+	for raw in raw_lines:
+		if raw["kind"] != "v" or raw["positions"].size() < 3:
+			continue
+		var color: int = raw["color"]
+		var vset: Dictionary = {}
+		for p in raw["positions"]:
+			vset[p] = true
+		for p in raw["positions"]:
+			for dc in [-1, 1]:
+				var np := Vector2i(p.x + dc, p.y)
+				if np.x < 0 or np.x >= width or np in blocked or vset.has(np):
+					continue
+				var c = grid[np.x][np.y] as CandyScene
+				if c == null or c.candy_type != CandyScene.CandyType.NORMAL or c.candy_color != color:
+					continue
+				var arm: Array[Vector2i] = _row_run(grid, np.x, np.y, width, height, color, blocked, vset)
+				if arm.size() >= 2:
+					arms.append({"color": color, "positions": arm, "kind": "arm"})
+	return arms
+
+
+static func _col_run(
+		grid: Array, x: int, y: int, width: int, height: int, color: int, blocked: Array[Vector2i], exclude: Dictionary = {}
+) -> Array[Vector2i]:
+	var run: Array[Vector2i] = [Vector2i(x, y)]
+	var py := y + 1
+	while py < height:
+		var p := Vector2i(x, py)
+		if p in blocked or grid[x][py] == null or exclude.has(p):
+			break
+		var c = grid[x][py] as CandyScene
+		if c == null or c.candy_color != color or c.candy_type != CandyScene.CandyType.NORMAL:
+			break
+		run.append(p)
+		py += 1
+	py = y - 1
+	while py >= 0:
+		var p := Vector2i(x, py)
+		if p in blocked or grid[x][py] == null or exclude.has(p):
+			break
+		var c = grid[x][py] as CandyScene
+		if c == null or c.candy_color != color or c.candy_type != CandyScene.CandyType.NORMAL:
+			break
+		run.insert(0, p)
+		py -= 1
+	return run
+
+
+static func _row_run(
+		grid: Array, x: int, y: int, width: int, height: int, color: int, blocked: Array[Vector2i], exclude: Dictionary = {}
+) -> Array[Vector2i]:
+	var run: Array[Vector2i] = [Vector2i(x, y)]
+	var px := x + 1
+	while px < width:
+		var p := Vector2i(px, y)
+		if p in blocked or grid[px][y] == null or exclude.has(p):
+			break
+		var c = grid[px][y] as CandyScene
+		if c == null or c.candy_color != color or c.candy_type != CandyScene.CandyType.NORMAL:
+			break
+		run.append(p)
+		px += 1
+	px = x - 1
+	while px >= 0:
+		var p := Vector2i(px, y)
+		if p in blocked or grid[px][y] == null or exclude.has(p):
+			break
+		var c = grid[px][y] as CandyScene
+		if c == null or c.candy_color != color or c.candy_type != CandyScene.CandyType.NORMAL:
+			break
+		run.insert(0, p)
+		px -= 1
+	return run
+
+
+## 設計文件「延伸消除」— 回傳需額外消除的格（不含已在 cells 內的）
+static func collect_extended_elimination(
+		grid: Array, width: int, height: int, cells: Array[Vector2i],
+		shape: String, pivot: Vector2i, color: int, blocked: Array[Vector2i]
+) -> Array[Vector2i]:
+	var pos: Dictionary = {}
+	for p in cells:
+		pos[p] = true
+	var extra: Array[Vector2i] = []
+	if shape == "five":
+		for dr in [-1, 1]:
+			var np: Vector2i = Vector2i(pivot.x, pivot.y + dr)
+			if np.y < 0 or np.y >= height or np in blocked or pos.has(np):
+				continue
+			var c = grid[np.x][np.y] as CandyScene
+			if c and c.candy_type == CandyScene.CandyType.NORMAL and c.candy_color == color:
+				extra.append(np)
+	elif shape == "special":
+		for off in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+			var np: Vector2i = pivot + off
+			if np.x < 0 or np.x >= width or np.y < 0 or np.y >= height or np in blocked or pos.has(np):
+				continue
+			var c = grid[np.x][np.y] as CandyScene
+			if c == null or c.candy_type != CandyScene.CandyType.NORMAL or c.candy_color != color:
+				continue
+			var trial: Dictionary = pos.duplicate()
+			trial[np] = true
+			if _trial_has_four_or_2x2(grid, width, height, trial, color, blocked):
+				extra.append(np)
+	elif shape == "block_2x2":
+		for p in cells:
+			for off in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+				var np: Vector2i = p + off
+				if np.x < 0 or np.x >= width or np.y < 0 or np.y >= height or np in blocked or pos.has(np):
+					continue
+				var c = grid[np.x][np.y] as CandyScene
+				if c == null or c.candy_type != CandyScene.CandyType.NORMAL or c.candy_color != color:
+					continue
+				if _forms_three_with_block(np, cells):
+					extra.append(np)
+	return extra
+
+
+static func _trial_has_four_or_2x2(
+		grid: Array, width: int, height: int, trial: Dictionary, color: int, blocked: Array[Vector2i]
+) -> bool:
+	var by_row: Dictionary = {}
+	var by_col: Dictionary = {}
+	for p in trial:
+		var c = grid[p.x][p.y] as CandyScene
+		if c == null or c.candy_color != color:
+			continue
+		if not by_row.has(p.y):
+			by_row[p.y] = []
+		by_row[p.y].append(p.x)
+		if not by_col.has(p.x):
+			by_col[p.x] = []
+		by_col[p.x].append(p.y)
+	for xs in by_row.values():
+		xs.sort()
+		if _max_consecutive(xs) >= 4:
+			return true
+	for ys in by_col.values():
+		ys.sort()
+		if _max_consecutive(ys) >= 4:
+			return true
+	for p in trial:
+		if _check_2x2_at(grid, p.x, p.y, width, height, blocked).size() == 4:
+			return true
+	return false
+
+
+static func _max_consecutive(sorted_vals: Array) -> int:
+	if sorted_vals.is_empty():
+		return 0
+	var best := 1
+	var cur := 1
+	for i in range(1, sorted_vals.size()):
+		if sorted_vals[i] == sorted_vals[i - 1] + 1:
+			cur += 1
+			best = maxi(best, cur)
+		else:
+			cur = 1
+	return best
+
+
+static func _forms_three_with_block(arm: Vector2i, block_cells: Array[Vector2i]) -> bool:
+	var shared := 0
+	for p in block_cells:
+		if p.y == arm.y and absi(p.x - arm.x) == 1:
+			shared += 1
+		elif p.x == arm.x and absi(p.y - arm.y) == 1:
+			shared += 1
+	return shared >= 2
 
 
 static func _check_2x2_at(grid: Array, x: int, y: int, width: int, height: int, blocked: Array[Vector2i]) -> Array[Vector2i]:
@@ -291,7 +487,18 @@ static func find_hint_move(grid: Array, width: int, height: int, blocked: Array[
 				var ny = y + dir.y
 				if nx >= width or ny >= height:
 					continue
-				if Vector2i(nx, ny) in blocked or grid[nx][ny] == null:
+				if Vector2i(nx, ny) in blocked:
+					continue
+				var other = grid[nx][ny]
+				if other == null:
+					# 盤內空格：模擬移入再還原
+					grid[nx][ny] = grid[x][y]
+					grid[x][y] = null
+					var found_empty = find_all_matches(grid, width, height, blocked).size() > 0
+					grid[x][y] = grid[nx][ny]
+					grid[nx][ny] = null
+					if found_empty:
+						return [Vector2i(x, y), Vector2i(nx, ny)]
 					continue
 				_swap_in_grid(grid, x, y, nx, ny)
 				var found = find_all_matches(grid, width, height, blocked).size() > 0

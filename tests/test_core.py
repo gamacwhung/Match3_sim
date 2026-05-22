@@ -100,6 +100,18 @@ class TestMatchDetection(unittest.TestCase):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].pattern, 'FIVE_PLUS')
 
+    def test_T形_橫三加下一格_四格不生成TNT(self):
+        # 設計：橫三 + 正下方一格 → 只是普通三消，不生成 TNT（需 5+ 格才是 L_T）
+        grid = [
+            ['Grn', 'Red', 'Red', 'Red'],
+            ['Grn', 'Blu', 'Red', 'Yel'],
+        ]
+        board = make_board(grid)
+        matches = match_engine.find_matches(board)
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].pattern, 'THREE')
+        self.assertEqual(len(matches[0].positions), 3)
+
     def test_L形_生成TNT(self):
         # L 形：3 橫 + 3 直（交於角落，h+v-1=5）
         grid = [
@@ -185,7 +197,7 @@ class TestAdjacentElimination(unittest.TestCase):
             ['Grn', 'Blu', 'Yel', 'Grn'],
         ]
         board = make_board(grid)
-        # SalmonCan can_adjacent_elim=False
+        # SalmonCan: 2HP, can_adjacent_elim=False, prop only
         match_engine.resolve(board)
         found = False
         for r in range(board.rows):
@@ -525,6 +537,30 @@ class TestWaterChillerTransition(unittest.TestCase):
         defn = get_def('WaterChiller_lv3')
         self.assertEqual(defn['elimination_type'], 'multi',
                          "開門的 WaterChiller 應為多次消除類型")
+
+
+class TestWaterChillerPowerupMultiHit(unittest.TestCase):
+    """開門礦泉水櫃 — 道具範圍多格各扣血"""
+
+    def test_炸彈打到四格扣四血(self):
+        grid = [
+            ['TNT', 'Grn', 'Grn', 'Grn'],
+            ['Grn', 'Grn', 'Grn', 'Grn'],
+            ['Grn', 'Grn', 'Grn', 'Grn'],
+            ['Grn', 'Grn', 'Grn', 'Grn'],
+        ]
+        board = make_board(grid)
+        iid = 'wc#1'
+        for r, c in [(1, 1), (1, 2), (2, 1), (2, 2)]:
+            t = Tile('WaterChiller_lv5')
+            t.health = 5
+            t.instance_id = iid
+            board.set_middle(r, c, t)
+        match_engine.activate_powerup(board, 0, 0)
+        sample = board.get_middle(1, 1)
+        self.assertIsNotNone(sample)
+        self.assertEqual(sample.health, 1,
+                         "開門櫃被 5×5 打到 4 格應共 -4 HP")
 
 
 class TestBeverageChillerColorMatch(unittest.TestCase):

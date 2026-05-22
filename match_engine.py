@@ -182,8 +182,11 @@ def find_matches(board: Board) -> list:
                 block = {(r, c), (r, c+1), (r+1, c), (r+1, c+1)}
                 raw_blocks.append((color, block))
 
+    # T/L 短臂：接在 3 連上的 1~2 格同色（讓「橫三+正下一格」能併入同一群組）
+    raw_arms = _collect_t_arm_lines(board, raw_h_lines, raw_v_lines)
+
     # 合併有交叉的同色連線成為群組
-    all_lines = raw_h_lines + raw_v_lines + raw_blocks
+    all_lines = raw_h_lines + raw_v_lines + raw_blocks + raw_arms
     # Union-Find 合併
     parent = list(range(len(all_lines)))
 
@@ -272,27 +275,29 @@ def _classify_pattern(board, positions, color):
 
     # --- L/T/+ 形 → TNT ---
     # 在 positions 內找一個格子,該格 h_run≥3 且 v_run≥3
-    for r, c in positions:
-        h_run = 1
-        cc = c + 1
-        while (r, cc) in pos_set:
-            h_run += 1
-            cc += 1
-        cc = c - 1
-        while (r, cc) in pos_set:
-            h_run += 1
-            cc -= 1
-        v_run = 1
-        rr = r + 1
-        while (rr, c) in pos_set:
-            v_run += 1
-            rr += 1
-        rr = r - 1
-        while (rr, c) in pos_set:
-            v_run += 1
-            rr -= 1
-        if h_run >= 3 and v_run >= 3:
-            return 'L_T', (r, c)
+    # 需 5+ 格才合成 TNT；4 格的小 L/T 不觸發
+    if len(positions) >= 5:
+        for r, c in positions:
+            h_run = 1
+            cc = c + 1
+            while (r, cc) in pos_set:
+                h_run += 1
+                cc += 1
+            cc = c - 1
+            while (r, cc) in pos_set:
+                h_run += 1
+                cc -= 1
+            v_run = 1
+            rr = r + 1
+            while (rr, c) in pos_set:
+                v_run += 1
+                rr += 1
+            rr = r - 1
+            while (rr, c) in pos_set:
+                v_run += 1
+                rr -= 1
+            if h_run >= 3 and v_run >= 2:
+                return 'L_T', (r, c)
 
     # --- 4 連橫/縱 → Soda ---
     if max_h_len == 4:
@@ -317,6 +322,187 @@ def _classify_pattern(board, positions, color):
     else:
         pivot = max_v_positions[len(max_v_positions) // 2]
     return 'THREE', pivot
+
+
+def _collect_t_arm_lines(board, raw_h_lines, raw_v_lines):
+    """接在 3 連上的同色短臂(2+ 格,不含父線格),供 union 合併成 L/T 五格以上群組。"""
+    rows, cols = board.rows, board.cols
+    grid = board.grid
+    arms = []
+
+    def _col_run(r, c, color, exclude):
+        run = [(r, c)]
+        rr = r + 1
+        while rr < rows:
+            if (rr, c) in exclude:
+                break
+            t = grid[rr][c].middle
+            if t is not None and t.color == color:
+                run.append((rr, c))
+                rr += 1
+            else:
+                break
+        rr = r - 1
+        while rr >= 0:
+            if (rr, c) in exclude:
+                break
+            t = grid[rr][c].middle
+            if t is not None and t.color == color:
+                run.insert(0, (rr, c))
+                rr -= 1
+            else:
+                break
+        return run
+
+    def _row_run(r, c, color, exclude):
+        run = [(r, c)]
+        cc = c + 1
+        while cc < cols:
+            if (r, cc) in exclude:
+                break
+            t = grid[r][cc].middle
+            if t is not None and t.color == color:
+                run.append((r, cc))
+                cc += 1
+            else:
+                break
+        cc = c - 1
+        while cc >= 0:
+            if (r, cc) in exclude:
+                break
+            t = grid[r][cc].middle
+            if t is not None and t.color == color:
+                run.insert(0, (r, cc))
+                cc -= 1
+            else:
+                break
+        return run
+
+    for color, hpos in raw_h_lines:
+        if len(hpos) < 3:
+            continue
+        for r, c in hpos:
+            for dr in (-1, 1):
+                nr = r + dr
+                if not (0 <= nr < rows):
+                    continue
+                t = grid[nr][c].middle
+                if t is None or t.color != color or (nr, c) in hpos:
+                    continue
+                arm = _col_run(nr, c, color, hpos)
+                if len(arm) >= 2:
+                    arms.append((color, set(arm)))
+
+    for color, vpos in raw_v_lines:
+        if len(vpos) < 3:
+            continue
+        for r, c in vpos:
+            for dc in (-1, 1):
+                nc = c + dc
+                if not (0 <= nc < cols):
+                    continue
+                t = grid[r][nc].middle
+                if t is None or t.color != color or (r, nc) in vpos:
+                    continue
+                arm = _row_run(r, nc, color, vpos)
+                if len(arm) >= 2:
+                    arms.append((color, set(arm)))
+
+    return arms
+
+
+def _middle_color(board, r, c):
+    t = board.get_middle(r, c)
+    if t is None:
+        return None
+    return t.color if t.color is not None else get_color(t.tile_id)
+
+
+def _has_four_in_line(pos_set, color, board):
+    rows, cols = {}, {}
+    for r, c in pos_set:
+        if _middle_color(board, r, c) != color:
+            continue
+        rows.setdefault(r, []).append(c)
+        cols.setdefault(c, []).append(r)
+    for cs in rows.values():
+        for seg in _find_consecutive_segments(sorted(cs)):
+            if len(seg) >= 4:
+                return True
+    for rs in cols.values():
+        for seg in _find_consecutive_segments(sorted(rs)):
+            if len(seg) >= 4:
+                return True
+    return False
+
+
+def _has_2x2_in_set(pos_set, color, board):
+    for r, c in pos_set:
+        if _middle_color(board, r, c) != color:
+            continue
+        if _check_2x2(board, r, c, color):
+            return True
+        if r > 0 and _check_2x2(board, r - 1, c, color):
+            return True
+        if c > 0 and _check_2x2(board, r, c - 1, color):
+            return True
+        if r > 0 and c > 0 and _check_2x2(board, r - 1, c - 1, color):
+            return True
+    return False
+
+
+def _forms_three_with_block(board, arm_pos, block_pos, color):
+    """2×2 旁延伸：arm 與 block 內兩格共線湊成 3 連。"""
+    ar, ac = arm_pos
+    shared = 0
+    for br, bc in block_pos:
+        if br == ar and abs(bc - ac) == 1:
+            shared += 1
+        elif bc == ac and abs(br - ar) == 1:
+            shared += 1
+    return shared >= 2
+
+
+def collect_extended_elimination(board, mg):
+    """
+    設計文件「延伸消除」：在 match 群組外再多消同色格。
+    FIVE_PLUS / L_T / BLOCK_2x2 適用；純 THREE 不延伸。
+    """
+    pos = set(mg.positions)
+    color = mg.color
+    extra = set()
+    pr, pc = mg.pivot
+
+    if mg.pattern == 'FIVE_PLUS':
+        for dr, dc in ((-1, 0), (1, 0)):
+            nr, nc = pr + dr, pc + dc
+            if board.in_bounds(nr, nc) and (nr, nc) not in pos:
+                if _middle_color(board, nr, nc) == color:
+                    extra.add((nr, nc))
+
+    elif mg.pattern == 'L_T':
+        for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            nr, nc = pr + dr, pc + dc
+            if not board.in_bounds(nr, nc) or (nr, nc) in pos:
+                continue
+            if _middle_color(board, nr, nc) != color:
+                continue
+            trial = pos | {(nr, nc)}
+            if _has_four_in_line(trial, color, board) or _has_2x2_in_set(trial, color, board):
+                extra.add((nr, nc))
+
+    elif mg.pattern == 'BLOCK_2x2':
+        for r, c in pos:
+            for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nr, nc = r + dr, c + dc
+                if not board.in_bounds(nr, nc) or (nr, nc) in pos:
+                    continue
+                if _middle_color(board, nr, nc) != color:
+                    continue
+                if _forms_three_with_block(board, (nr, nc), pos, color):
+                    extra.add((nr, nc))
+
+    return extra
 
 
 def _find_consecutive_segments(sorted_vals):
@@ -379,6 +565,7 @@ def resolve(board: Board, track_goals=True, goals_current=None, goals_required=N
         powerup_spawns = []       # [(powerup_id, (r,c))]
         triggered_powerups = []   # 消除範圍內被觸發的道具 [(r,c, tile_id)]
         damaged_single = set()    # 追蹤已在本輪受過單次消除的 instance_id
+        wc_adj_damaged = set()    # 礦泉水櫃：相鄰消除每 match 每 instance 最多 1 血
 
         for mg in match_groups:
             # 決定是否生成道具
@@ -404,6 +591,18 @@ def resolve(board: Board, track_goals=True, goals_current=None, goals_required=N
                     continue
 
                 # 元素 / 可消除物件
+                to_clear.add((r, c))
+
+            # 延伸消除（設計文件 B 節：5 連/炸彈 L/T/2×2 紙飛機）
+            for r, c in collect_extended_elimination(board, mg):
+                tile = board.get_middle(r, c)
+                if tile is None:
+                    continue
+                cell = board.get_cell(r, c)
+                if cell.upper and cell.upper.tile_id.startswith('Rope'):
+                    continue
+                if is_powerup(tile.tile_id):
+                    triggered_powerups.append((r, c, tile.tile_id))
                 to_clear.add((r, c))
 
             # 鄰邊消除：每個消除格的上下左右鄰格
@@ -473,8 +672,15 @@ def resolve(board: Board, track_goals=True, goals_current=None, goals_required=N
                     _BC_KILL_COLOR[tile.instance_id] = bc_kill_color
 
             actual_dmg = dmg
-            if defn['elimination_type'] == 'single':
-                # 單次消除：一次消除行為只扣 1
+            if tile.tile_id.startswith('WaterChiller'):
+                # 相鄰消除：每 match 每 instance 最多 -1（道具另走 activate_powerup，可多格）
+                key = tile.instance_id or (r, c)
+                if key in wc_adj_damaged:
+                    continue
+                wc_adj_damaged.add(key)
+                actual_dmg = 1
+            elif defn['elimination_type'] == 'single':
+                # 飲料櫃等：同一 match 內 instance 去重
                 key = tile.instance_id or (r, c)
                 if key in damaged_single:
                     continue
@@ -776,8 +982,70 @@ def get_powerup_targets(board: Board, r, c, powerup_id, goals_required=None):
     return []
 
 
+def _cell_trpr_weight(board, r, c, goals_required=None, seen_instances=None):
+    """單格障礙物/元素的紙飛機權重（多格 instance 用 seen_instances 去重）。"""
+    cell = board.get_cell(r, c)
+    if cell.is_void:
+        return 0
+
+    weight = 0
+
+    def _add_tile(tile, layer_key='middle'):
+        nonlocal weight
+        if tile is None:
+            return
+        if seen_instances is not None and getattr(tile, 'instance_id', None):
+            if tile.instance_id in seen_instances:
+                return
+        defn = get_def(tile.tile_id)
+        if defn is None:
+            return
+        w = 0
+        cat = defn['category']
+        if cat == 'element':
+            w = TRPR_TARGET_WEIGHTS.get('element', 1)
+        elif cat == 'powerup':
+            w = TRPR_TARGET_WEIGHTS.get('powerup', 0)
+        elif cat in ('obstacle', 'manufacturer'):
+            for prefix, pw in TRPR_TARGET_WEIGHTS.items():
+                if tile.tile_id.startswith(prefix):
+                    w = pw
+                    break
+            else:
+                w = 10
+        if w <= 0:
+            return
+        if goals_required and tile.tile_id in goals_required:
+            w += TRPR_GOAL_BONUS
+        if tile.health == 1 and is_obstacle(tile.tile_id):
+            w += TRPR_LAST_HIT_BONUS
+        weight += w
+        if seen_instances is not None and getattr(tile, 'instance_id', None):
+            seen_instances.add(tile.instance_id)
+
+    _add_tile(cell.middle)
+    _add_tile(cell.upper, 'upper')
+    if cell.bottom:
+        defn_b = get_def(cell.bottom.tile_id)
+        if defn_b and defn_b.get('can_inplace_elim'):
+            _add_tile(cell.bottom, 'bottom')
+
+    return weight
+
+
+def _sum_trpr_weight_in_cells(board, cells, goals_required=None):
+    """加總多格權重（2×2 instance 只算一次）。"""
+    seen = set()
+    total = 0
+    for r, c in cells:
+        if not board.in_bounds(r, c):
+            continue
+        total += _cell_trpr_weight(board, r, c, goals_required, seen)
+    return total
+
+
 def _find_trpr_target(board, src_r, src_c, goals_required=None):
-    """找紙飛機的飛行目標（最高權重的障礙物）"""
+    """找紙飛機的飛行目標（單格最高權重障礙物）。"""
     best_pos = None
     best_weight = -1
 
@@ -785,49 +1053,33 @@ def _find_trpr_target(board, src_r, src_c, goals_required=None):
         for c in range(board.cols):
             if r == src_r and c == src_c:
                 continue
-            tile = board.get_middle(r, c)
-            if tile is None:
-                continue
-            defn = get_def(tile.tile_id)
-            if defn is None:
-                continue
-
-            weight = 0
-            cat = defn['category']
-            if cat == 'element':
-                weight = TRPR_TARGET_WEIGHTS.get('element', 1)
-            elif cat == 'powerup':
-                weight = TRPR_TARGET_WEIGHTS.get('powerup', 0)
-            elif cat == 'obstacle' or cat == 'manufacturer':
-                # 嘗試用前綴匹配權重
-                for prefix, w in TRPR_TARGET_WEIGHTS.items():
-                    if tile.tile_id.startswith(prefix):
-                        weight = w
-                        break
-                else:
-                    weight = 10  # 預設障礙物權重
-
-            # 通關目標加權
-            if goals_required and tile.tile_id in goals_required:
-                weight += TRPR_GOAL_BONUS
-            # 血量=1 加權
-            if tile.health == 1 and is_obstacle(tile.tile_id):
-                weight += TRPR_LAST_HIT_BONUS
-
-            # 上層物件也算
-            cell = board.get_cell(r, c)
-            if cell.upper:
-                upper_def = get_def(cell.upper.tile_id)
-                if upper_def:
-                    for prefix, w in TRPR_TARGET_WEIGHTS.items():
-                        if cell.upper.tile_id.startswith(prefix):
-                            weight += w
-                            break
-
+            weight = _cell_trpr_weight(board, r, c, goals_required)
             if weight > best_weight:
                 best_weight = weight
                 best_pos = (r, c)
 
+    return best_pos
+
+
+def _find_trpr_target_for_combo(board, src_r, src_c, powerup_id, goals_required=None):
+    """紙飛機+道具：選落點使施放道具後覆蓋到的障礙物權重總和最大。"""
+    best_pos = None
+    best_score = -1
+
+    for r in range(board.rows):
+        for c in range(board.cols):
+            if r == src_r and c == src_c:
+                continue
+            if board.get_cell(r, c).is_void:
+                continue
+            blast = get_powerup_targets(board, r, c, powerup_id, goals_required)
+            score = _sum_trpr_weight_in_cells(board, blast, goals_required)
+            if score > best_score:
+                best_score = score
+                best_pos = (r, c)
+
+    if best_pos is None:
+        return _find_trpr_target(board, src_r, src_c, goals_required)
     return best_pos
 
 
@@ -973,6 +1225,7 @@ def _process_powerup_chain(board, triggered_list, already_cleared,
         processed.add((r, c))
 
     trpr_pending = []  # 紙飛機飛行階段（需要重力填充後才執行）
+    bc_damaged_iids = set()  # 飲料櫃：每次道具啟動 instance 只扣 1 血
 
     while queue:
         pr, pc, pid = queue.popleft()
@@ -994,7 +1247,18 @@ def _process_powerup_chain(board, triggered_list, already_cleared,
             # 道具消除
             defn = get_def(tile.tile_id)
             if defn and defn.get('can_prop_elim', True):
-                if _apply_damage_to_middle(board, tr, tc, 1):
+                if tile.tile_id.startswith('BeverageChiller'):
+                    if tile.instance_id in bc_damaged_iids:
+                        pass
+                    else:
+                        bc_damaged_iids.add(tile.instance_id)
+                        if _apply_damage_to_middle(board, tr, tc, 1):
+                            _count_elimination(tile.tile_id, total_eliminated)
+                            if track_goals and goals_current is not None and goals_required is not None:
+                                if tile.tile_id in goals_required:
+                                    goals_current[tile.tile_id] = goals_current.get(tile.tile_id, 0) + 1
+                            board.clear_middle(tr, tc)
+                elif _apply_damage_to_middle(board, tr, tc, 1):
                     _count_elimination(tile.tile_id, total_eliminated)
                     if track_goals and goals_current is not None and goals_required is not None:
                         if tile.tile_id in goals_required:
@@ -1112,7 +1376,11 @@ def combine_powerups(board: Board, r1, c1, r2, c2,
         _apply_trpr_base(board, cr, cc, track_goals, goals_current, goals_required_dict)
         board.apply_gravity()
         board.fill_top()
-        fly_target = _find_trpr_target(board, cr, cc, goals_required)
+        fly_target = _find_trpr_target_for_combo(
+            board, cr, cc,
+            pid1 if _cat(pid1) == 'ROCKET' else pid2,
+            goals_required,
+        )
         if fly_target:
             fr, fc = fly_target
             rocket_id = pid1 if _cat(pid1) == 'ROCKET' else pid2
@@ -1124,7 +1392,7 @@ def combine_powerups(board: Board, r1, c1, r2, c2,
         _apply_trpr_base(board, cr, cc, track_goals, goals_current, goals_required_dict)
         board.apply_gravity()
         board.fill_top()
-        fly_target = _find_trpr_target(board, cr, cc, goals_required)
+        fly_target = _find_trpr_target_for_combo(board, cr, cc, 'TNT', goals_required)
         if fly_target:
             fr, fc = fly_target
             targets = set(get_powerup_targets(board, fr, fc, 'TNT'))
