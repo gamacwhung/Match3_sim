@@ -9,6 +9,7 @@ class_name LevelData
 @export var star_thresholds: Array[int] = [1000, 3000, 5000]
 @export var objectives: Array[Dictionary] = []
 @export var obstacle_data: Array[Dictionary] = []
+@export var bottom_obstacle_data: Array[Dictionary] = []
 @export var blocked_cells: Array[Vector2i] = []
 
 # 下層 Puddle 等「不 blocking 但開局不放糖」的格 — fill_initial 要當作 blocked,

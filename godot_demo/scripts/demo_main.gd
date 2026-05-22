@@ -171,11 +171,13 @@ func _start_level(idx: int) -> void:
 		var obs_map = ObstacleScript.build_obstacle_map(
 			level_data.obstacle_data, level_data.grid_width, level_data.grid_height
 		)
-		# 注意:實體障礙的 cell 已經在 JsonLevelLoader 加進 blocked_cells,
-		# 所以 fill_initial 一開始就不會在那放糖。不再需要事後清掉。
-		# (HP=0 時 game_board._damage_obstacle 會把 cell 從 blocked_cells 解封,
-		# cascade 的 gravity 自然會補糖。)
 		board.set_obstacle_map(obs_map)
+
+	if level_data.bottom_obstacle_data.size() > 0:
+		var bottom_map = ObstacleScript.build_obstacle_map(
+			level_data.bottom_obstacle_data, level_data.grid_width, level_data.grid_height
+		)
+		board.set_bottom_obstacle_map(bottom_map)
 
 	hud = hud_scene.instantiate()
 	scene_container.add_child(hud)

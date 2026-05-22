@@ -146,8 +146,35 @@ func _draw() -> void:
 			var shade = Color(0.18, 0.14, 0.28) if (x + y) % 2 == 0 else Color(0.22, 0.17, 0.32)
 			draw_rect(cell_rect, shade, true)
 
-	# 障礙物
 	var obs_map = board.get_obstacle_map()
+	# 下層水窪 — 先畫在底色上(半透明,中層元素仍可見)
+	# 1) 從 bottom_obstacle_map 畫
+	var bottom_map: Dictionary = board.bottom_obstacle_map
+	for pos in bottom_map:
+		var obs_p = bottom_map[pos]
+		var tid_p = str(obs_p.get("tile_id", ""))
+		var rect_p = Rect2(
+			offset + Vector2(pos.x * cs, pos.y * cs) + Vector2(2, 2),
+			Vector2(cs - 4, cs - 4)
+		)
+		var key_p = _resolve_sprite_key(tid_p, obs_p.get("hp", 1))
+		if OBSTACLE_TEXTURES.has(key_p):
+			draw_texture_rect(OBSTACLE_TEXTURES[key_p], rect_p, false, Color(1, 1, 1, 0.72))
+	# 2) 相容舊的 obs_map 中殘留的 bottom layer(不應再有,保險起見)
+	for pos in obs_map:
+		var obs_p = obs_map[pos]
+		var tid_p = str(obs_p.get("tile_id", ""))
+		if obs_p.get("layer", "") != "bottom" and not tid_p.begins_with("Puddle"):
+			continue
+		var rect_p = Rect2(
+			offset + Vector2(pos.x * cs, pos.y * cs) + Vector2(2, 2),
+			Vector2(cs - 4, cs - 4)
+		)
+		var key_p = _resolve_sprite_key(tid_p, obs_p.get("hp", 1))
+		if OBSTACLE_TEXTURES.has(key_p):
+			draw_texture_rect(OBSTACLE_TEXTURES[key_p], rect_p, false, Color(1, 1, 1, 0.72))
+
+	# 中層 / 上層障礙物(略過 bottom Puddle、泥巴另處理遮罩)
 	# 多格 instance dedupe — 同個 instance_id 只畫一次(在 anchor 位置畫整張大 sprite)
 	var drawn_instances: Dictionary = {}
 	for pos in obs_map:
@@ -186,6 +213,10 @@ func _draw() -> void:
 		# 優先 sprite 渲染(JsonLevelLoader 載入路徑)
 		if obs.has("tile_id"):
 			var tid = obs["tile_id"]
+			if obs.get("layer", "") == "bottom" or str(tid).begins_with("Puddle"):
+				continue
+			if str(tid).begins_with("Mud"):
+				continue
 			var hp = obs.get("hp", 1)
 			# BeverageChiller 有 bottle_colors → 用分層 composite (body + 4 罐子 + 門)
 			# 沒有就 fallback 走原來 lv*/closed 單張圖。
@@ -196,10 +227,12 @@ func _draw() -> void:
 				_draw_postmark_composite(rect, obs, pos)
 				sprite_drawn = true
 			else:
-				var sprite_key = _resolve_sprite_key(tid, hp)
+				var sprite_key = _resolve_sprite_key(tid, hp, obs)
 				if OBSTACLE_TEXTURES.has(sprite_key):
 					draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], rect, false)
 					sprite_drawn = true
+					if str(tid).begins_with("SalmonCan") and str(obs.get("salmon_state", "sealed")) == "sealed":
+						draw_rect(rect, Color(0.05, 0.05, 0.08, 0.35), true)
 				# 礦泉水櫃 — 「門」設計(user 確認):HP=max(closed)時門關著,
 				# 1 hit 開門 → HP=10..1 已經是開門狀態,就不用再疊門了。
 				# closed.png 本身有畫門,但對比比較弱;額外疊一層 WaterChiller_door 強調「門關著」,
@@ -231,6 +264,18 @@ func _draw() -> void:
 			"jelly":
 				var jelly_alpha = 0.2 + obs["hp"] * 0.15
 				draw_rect(rect, Color(0.9, 0.3, 0.5, jelly_alpha), true)
+
+	# 泥巴 — 不透明上層，完全蓋住中層元素(candy.visible 也會關掉)
+	for pos in obs_map:
+		var obs_m = obs_map[pos]
+		if not str(obs_m.get("tile_id", "")).begins_with("Mud"):
+			continue
+		var rect_m = Rect2(
+			offset + Vector2(pos.x * cs, pos.y * cs) + Vector2(2, 2),
+			Vector2(cs - 4, cs - 4)
+		)
+		if OBSTACLE_TEXTURES.has("Mud"):
+			draw_texture_rect(OBSTACLE_TEXTURES["Mud"], rect_m, false)
 
 
 # 官方風格郵戳 — bundle(明信片疊) + 01(抬起) / 02(蓋下) / victory(通關後倒下+已蓋章疊)
@@ -271,7 +316,7 @@ func _draw_postmark_composite(rect: Rect2, obs: Dictionary, grid_pos: Vector2i) 
 
 
 # tile_id + 當前 HP → sprite key,對齊 match3_board_component/asset_map.py 的邏輯
-static func _resolve_sprite_key(tile_id: String, hp: int) -> String:
+static func _resolve_sprite_key(tile_id: String, hp: int, _obs: Dictionary = {}) -> String:
 	# Crt 紙箱:HP 1~4 對應 Crt1~Crt4
 	if tile_id.begins_with("Crt"):
 		return "Crt%d" % clamp(hp, 1, 4)
@@ -327,36 +372,34 @@ func _draw_beverage_chiller_composite(rect: Rect2, anchor_pos: Vector2i, size_ce
 	# 2) 罐子 — 按 hp 決定要畫幾個,從「右下→左上」的順序保留(被砸掉的先從右下消失)
 	# Note:讓 「left-top is the most-recently destroyed」的逆順序 → 用 instance_cells
 	# 排序 by (-r, -c) 後取前 hp 個 cell 來畫(其餘空著)。
-	var hp: int = obs.get("hp", 0)
 	var max_hp: int = obs.get("max_hp", 4)
-	var n_show: int = clamp(hp, 0, max_hp)
 	var cells: Array = obs.get("instance_cells", [])
 	var bottle_colors: Dictionary = obs.get("bottle_colors", {})
-	# 排序 — 左上優先保留 (按 r asc, c asc),反之最後消除
+	var bottle_alive: Dictionary = obs.get("bottle_alive", {})
 	var sorted_cells: Array = cells.duplicate()
 	sorted_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
 		if a.y != b.y:
 			return a.y < b.y
 		return a.x < b.x
 	)
-	for i in n_show:
-		if i >= sorted_cells.size():
-			break
-		var cell: Vector2i = sorted_cells[i] as Vector2i
-		var color_id: String = str(bottle_colors.get(cell, ""))
+	for cell in sorted_cells:
+		var cell_v: Vector2i = cell as Vector2i
+		if bottle_alive.has(cell_v) and not bool(bottle_alive[cell_v]):
+			continue
+		var color_id: String = str(bottle_colors.get(cell_v, ""))
 		if not BEVERAGE_BOTTLE_TEXTURE_KEY.has(color_id):
 			continue
 		var key: String = BEVERAGE_BOTTLE_TEXTURE_KEY[color_id]
 		if not OBSTACLE_TEXTURES.has(key):
 			continue
-		# 該 cell 的世界座標 — 對應 instance 內 1 格
-		var cell_top_left = offset + Vector2(cell.x * cs, cell.y * cs)
+		var cell_top_left = offset + Vector2(cell_v.x * cs, cell_v.y * cs)
 		var cell_rect = Rect2(cell_top_left + Vector2(2, 2), Vector2(cs - 4, cs - 4))
 		# 罐子稍微縮小一點,避免溢出格邊
 		var inset := Vector2(cs * 0.10, cs * 0.10)
 		cell_rect = Rect2(cell_top_left + inset, Vector2(cs, cs) - inset * 2.0)
 		draw_texture_rect(OBSTACLE_TEXTURES[key], cell_rect, false)
 
-	# 3) 門 — 只在「未受任何傷害」才畫(closed 狀態),被打過一下就破掉看到瓶子
+	# 3) 門 — 只在關門狀態才畫
+	var hp: int = obs.get("hp", 0)
 	if hp >= max_hp and OBSTACLE_TEXTURES.has("BeverageChiller_door"):
 		draw_texture_rect(OBSTACLE_TEXTURES["BeverageChiller_door"], rect, false, Color(1, 1, 1, 0.92))

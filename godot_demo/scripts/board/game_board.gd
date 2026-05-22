@@ -5,6 +5,13 @@ const CandyScript = preload("res://scripts/candy/candy.gd")
 const CandyFactory = preload("res://scripts/candy/candy_factory.gd")
 const SpecialCandy = preload("res://scripts/candy/special_candy.gd")
 
+## 元素 index → 飲料櫃瓶子顏色名（對齊 Python / official_format）
+const CANDY_IDX_TO_COLOR_NAME: Array[String] = ["Red", "Grn", "Blu", "Yel"]
+
+const EXPLODE_MODE_MATCH: int = 0
+const EXPLODE_MODE_SPECIAL: int = 1
+const EXPLODE_MODE_PLANE: int = 2
+
 @export var grid_width: int = 9
 @export var grid_height: int = 9
 @export var cell_size: float = 70.0
@@ -18,9 +25,16 @@ var candy_scene: PackedScene = preload("res://scenes/candy.tscn")
 var filler: Node
 var board_offset: Vector2 = Vector2.ZERO
 var blocked_cells: Array[Vector2i] = []
+## 本輪 _explode_cells 的模式；罐頭僅接受 SPECIAL/PLANE 傷害
+var _obstacle_damage_mode: int = EXPLODE_MODE_MATCH
 var obstacle_map: Dictionary = {}
+var bottom_obstacle_map: Dictionary = {}
 
 var selected_candy: CandyScript = null
+var selected_movable_obs: Vector2i = Vector2i(-1, -1)
+var _obs_drag_from: Vector2i = Vector2i(-1, -1)
+var _obs_dragging: bool = false
+var _obs_drag_start_global: Vector2 = Vector2.ZERO
 var is_processing: bool = false
 var cascade_level: int = 0
 
@@ -41,6 +55,28 @@ signal candies_destroyed(count: int, color: int)
 
 func _ready() -> void:
 	_calculate_offset()
+	var vp := get_viewport()
+	if vp and not vp.size_changed.is_connected(_on_viewport_resized):
+		vp.size_changed.connect(_on_viewport_resized)
+
+
+func _on_viewport_resized() -> void:
+	if grid_width <= 0 or grid_height <= 0:
+		return
+	_relayout_board_positions()
+
+
+func _relayout_board_positions() -> void:
+	_calculate_offset()
+	if filler:
+		filler.board_offset = board_offset
+		for x in grid_width:
+			for y in grid_height:
+				var candy = filler.get_candy_at(Vector2i(x, y))
+				if candy:
+					candy.position = filler.grid_to_world(Vector2i(x, y))
+	board_bg.queue_redraw()
+
 
 func _process(delta: float) -> void:
 	if filler == null or is_processing or _hint_shown:
@@ -56,6 +92,8 @@ func _reset_hint_timer() -> void:
 
 func _show_hint() -> void:
 	var move = MatchFinder.find_hint_move(filler.grid, grid_width, grid_height, blocked_cells)
+	if move.size() < 2:
+		move = _find_movable_swap_hint()
 	if move.size() < 2:
 		return
 	_hint_shown = true
@@ -90,6 +128,7 @@ func init_board(level_data: Resource = null) -> void:
 		blocked_cells = level_data.blocked_cells.duplicate()
 	_calculate_offset()
 	filler = filler_node
+	call_deferred("_relayout_board_positions")
 
 	# 開局時要跳過填糖的格 = 真正 blocked + 預置道具位置。
 	# (Puddle 是下層裝飾物,本身允許糖在上面,所以初始化會跟一般格一樣填糖;
@@ -110,6 +149,7 @@ func init_board(level_data: Resource = null) -> void:
 	_draw_board_background()
 	filler.fill_initial()
 	_connect_candy_signals()
+	_sync_candy_layer_visibility()
 
 	var retry_count = 0
 	while MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, init_skip).size() > 0 and retry_count < 50:
@@ -165,6 +205,7 @@ func _powerup_type_to_candy_type(name_str: String) -> int:
 func _clear_board() -> void:
 	for child in candy_container.get_children():
 		child.queue_free()
+	bottom_obstacle_map.clear()
 
 func _draw_board_background() -> void:
 	board_bg.queue_redraw()
@@ -187,6 +228,8 @@ func _on_candy_selected(candy: CandyScript) -> void:
 		return
 	_reset_hint_timer()
 
+	_clear_selected_movable_obs()
+
 	if selected_candy == null:
 		selected_candy = candy
 		candy.set_selected(true)
@@ -206,7 +249,13 @@ func _on_candy_selected(candy: CandyScript) -> void:
 
 	var dist = (candy.grid_pos - selected_candy.grid_pos).abs()
 	if (dist.x == 1 and dist.y == 0) or (dist.x == 0 and dist.y == 1):
-		_try_swap(selected_candy, candy)
+		var adj_obs = candy.grid_pos
+		if _is_movable_obstacle_at(adj_obs):
+			_try_swap_with_movable_obstacle(selected_candy, adj_obs)
+		elif _is_movable_obstacle_at(selected_candy.grid_pos):
+			_try_swap_with_movable_obstacle(candy, selected_candy.grid_pos)
+		else:
+			_try_swap(selected_candy, candy)
 	else:
 		selected_candy.set_selected(false)
 		selected_candy = candy
@@ -254,6 +303,7 @@ func _activate_special_directly(candy: CandyScript) -> void:
 	
 	await get_tree().create_timer(0.3).timeout
 	await _cascade_loop()
+	_sync_candy_layer_visibility()
 	_post_turn_check()
 
 func _on_candy_swiped(candy: CandyScript, direction: Vector2i) -> void:
@@ -276,7 +326,7 @@ func _on_candy_swiped(candy: CandyScript, direction: Vector2i) -> void:
 			# + 不能 swap 到自己的 cell 已經有其他 obstacle(避免 Puddle/Rope 被覆寫掉)
 			if _is_movable_obstacle(tid_obs) \
 				and not _is_candy_locked(candy.grid_pos) \
-				and not obstacle_map.has(candy.grid_pos):
+				and _can_candy_swap_with_movable(candy.grid_pos):
 				if selected_candy:
 					selected_candy.set_selected(false)
 					selected_candy = null
@@ -284,6 +334,15 @@ func _on_candy_swiped(candy: CandyScript, direction: Vector2i) -> void:
 		return
 	var target_candy = filler.get_candy_at(target_pos)
 	if target_candy == null:
+		# 盤內 playable 空格：元素/道具可移入（需能形成 match 才成立）
+		if not _is_playable_cell(tpos):
+			return
+		if _is_candy_locked(candy.grid_pos):
+			return
+		if selected_candy:
+			selected_candy.set_selected(false)
+			selected_candy = null
+		_try_move_into_empty(candy, tpos)
 		return
 	if _is_candy_locked(candy.grid_pos) or _is_candy_locked(target_pos):
 		return
@@ -292,6 +351,184 @@ func _on_candy_swiped(candy: CandyScript, direction: Vector2i) -> void:
 		selected_candy = null
 	_try_swap(candy, target_candy)
 
+func _is_playable_cell(pos: Vector2i) -> bool:
+	return pos.x >= 0 and pos.x < grid_width and pos.y >= 0 and pos.y < grid_height \
+		and pos not in blocked_cells
+
+
+func _global_to_grid(global_pos: Vector2) -> Vector2i:
+	var local := to_local(global_pos) - board_offset
+	var gx := int(local.x / cell_size)
+	var gy := int(local.y / cell_size)
+	if gx < 0 or gx >= grid_width or gy < 0 or gy >= grid_height:
+		return Vector2i(-1, -1)
+	return Vector2i(gx, gy)
+
+
+func _is_movable_obstacle_at(pos: Vector2i) -> bool:
+	if not obstacle_map.has(pos):
+		return false
+	return _is_movable_obstacle(str(obstacle_map[pos].get("tile_id", "")))
+
+
+func _can_candy_swap_with_movable(from_pos: Vector2i) -> bool:
+	if filler.get_candy_at(from_pos) == null:
+		return false
+	if not obstacle_map.has(from_pos):
+		return true
+	var tid := str(obstacle_map[from_pos].get("tile_id", ""))
+	if tid.begins_with("Puddle") or tid.begins_with("Rope") or tid.begins_with("Mud"):
+		return true
+	return _is_movable_obstacle(tid)
+
+
+func _clear_selected_movable_obs() -> void:
+	selected_movable_obs = Vector2i(-1, -1)
+	board_bg.queue_redraw()
+
+
+func _input(event: InputEvent) -> void:
+	if is_processing or filler == null:
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		var gpos: Vector2 = event.global_position
+		var grid_pos := _global_to_grid(gpos)
+		if event.pressed:
+			# 該格只有桶/錐、沒有糖時才當成障礙物拖動（避免搶糖果點擊）
+			if _is_movable_obstacle_at(grid_pos) and filler.get_candy_at(grid_pos) == null:
+				_obs_drag_from = grid_pos
+				_obs_dragging = true
+				_obs_drag_start_global = gpos
+				_on_movable_obstacle_pressed(grid_pos)
+		elif _obs_dragging:
+			_obs_dragging = false
+			_obs_drag_from = Vector2i(-1, -1)
+	elif event is InputEventMouseMotion and _obs_dragging:
+		var diff: Vector2 = event.global_position - _obs_drag_start_global
+		if diff.length() > cell_size * 0.35:
+			_obs_dragging = false
+			var dir := Vector2i.ZERO
+			if abs(diff.x) > abs(diff.y):
+				dir = Vector2i(1, 0) if diff.x > 0 else Vector2i(-1, 0)
+			else:
+				dir = Vector2i(0, 1) if diff.y > 0 else Vector2i(0, -1)
+			_on_movable_obstacle_swiped(_obs_drag_from, dir)
+			_obs_drag_from = Vector2i(-1, -1)
+
+
+func _on_movable_obstacle_pressed(obs_pos: Vector2i) -> void:
+	_reset_hint_timer()
+	if selected_candy:
+		var dist := (selected_candy.grid_pos - obs_pos).abs()
+		if (dist.x == 1 and dist.y == 0) or (dist.x == 0 and dist.y == 1):
+			selected_candy.set_selected(false)
+			var c := selected_candy
+			selected_candy = null
+			_try_swap_with_movable_obstacle(c, obs_pos)
+			return
+		selected_candy.set_selected(false)
+		selected_candy = null
+	if selected_movable_obs == obs_pos:
+		_clear_selected_movable_obs()
+		return
+	selected_movable_obs = obs_pos
+	board_bg.queue_redraw()
+
+
+func _on_movable_obstacle_swiped(obs_pos: Vector2i, direction: Vector2i) -> void:
+	if not _is_movable_obstacle_at(obs_pos):
+		return
+	_reset_hint_timer()
+	_clear_selected_movable_obs()
+	var target := obs_pos + direction
+	if target.x < 0 or target.x >= grid_width or target.y < 0 or target.y >= grid_height:
+		return
+	var target_candy = filler.get_candy_at(target)
+	if target_candy and not _is_candy_locked(target_candy.grid_pos) \
+			and _can_candy_swap_with_movable(target_candy.grid_pos):
+		_try_swap_with_movable_obstacle(target_candy, obs_pos)
+	elif _is_playable_cell(target):
+		_run_swap_movable_into_empty(obs_pos, target)
+
+
+func _find_movable_swap_hint() -> Array[Vector2i]:
+	if filler == null:
+		return []
+	for obs_pos in obstacle_map:
+		if not _is_movable_obstacle_at(obs_pos):
+			continue
+		for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var candy_pos: Vector2i = obs_pos + dir
+			if candy_pos.x < 0 or candy_pos.x >= grid_width or candy_pos.y < 0 or candy_pos.y >= grid_height:
+				continue
+			var candy = filler.get_candy_at(candy_pos)
+			if candy == null:
+				continue
+			if _would_match_after_movable_swap(candy_pos, obs_pos):
+				return [candy_pos, obs_pos]
+	return []
+
+
+func _would_match_after_movable_swap(candy_pos: Vector2i, obs_pos: Vector2i) -> bool:
+	if not _can_candy_swap_with_movable(candy_pos):
+		return false
+	if obstacle_map.has(candy_pos) and str(obstacle_map[candy_pos].get("tile_id", "")).begins_with("Puddle"):
+		return false
+	var candy = filler.get_candy_at(candy_pos)
+	if candy == null:
+		return false
+	var obs = obstacle_map[obs_pos]
+	filler.set_candy_at(candy_pos, null)
+	filler.set_candy_at(obs_pos, candy)
+	candy.grid_pos = obs_pos
+	obstacle_map.erase(obs_pos)
+	obstacle_map[candy_pos] = obs
+	var blocked_snapshot := blocked_cells.duplicate()
+	if obs_pos in blocked_cells:
+		blocked_cells.erase(obs_pos)
+	if candy_pos not in blocked_cells:
+		blocked_cells.append(candy_pos)
+	var found := MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells).size() > 0
+	# revert
+	filler.set_candy_at(obs_pos, null)
+	filler.set_candy_at(candy_pos, candy)
+	candy.grid_pos = candy_pos
+	obstacle_map.erase(candy_pos)
+	obstacle_map[obs_pos] = obs
+	blocked_cells.clear()
+	for b in blocked_snapshot:
+		blocked_cells.append(b)
+	return found
+
+
+func _run_swap_movable_into_empty(obs_pos: Vector2i, empty_pos: Vector2i) -> void:
+	if not _is_movable_obstacle_at(obs_pos) or not _is_playable_cell(empty_pos):
+		return
+	if filler.get_candy_at(empty_pos) != null:
+		return
+	var obs = obstacle_map[obs_pos]
+	obstacle_map.erase(obs_pos)
+	if obs_pos in blocked_cells:
+		blocked_cells.erase(obs_pos)
+	obstacle_map[empty_pos] = obs
+	blocked_cells.append(empty_pos)
+	board_bg.queue_redraw()
+	var matches := MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
+	if matches.is_empty():
+		obstacle_map.erase(empty_pos)
+		blocked_cells.erase(empty_pos)
+		obstacle_map[obs_pos] = obs
+		blocked_cells.append(obs_pos)
+		board_bg.queue_redraw()
+		return
+	is_processing = true
+	_reset_hint_timer()
+	GameManager.use_move()
+	cascade_level = 0
+	await _process_matches(matches, [obs_pos, empty_pos])
+	_post_turn_check()
+
+
 func _is_candy_locked(pos: Vector2i) -> bool:
 	if obstacle_map.has(pos):
 		var obs = obstacle_map[pos]
@@ -299,9 +536,53 @@ func _is_candy_locked(pos: Vector2i) -> bool:
 			return true
 	return false
 
+
+func _has_mud_at(pos: Vector2i) -> bool:
+	if not obstacle_map.has(pos):
+		return false
+	return str(obstacle_map[pos].get("tile_id", "")).begins_with("Mud")
+
+
+## 泥巴完全遮住中層元素；繩索/水窪不藏元素（繩索僅鎖操作）
+func _sync_candy_layer_visibility() -> void:
+	if filler == null:
+		return
+	for x in grid_width:
+		for y in grid_height:
+			var c = filler.get_candy_at(Vector2i(x, y))
+			if c == null:
+				continue
+			c.visible = not _has_mud_at(Vector2i(x, y))
+
+
+func _try_move_into_empty(candy: CandyScript, empty_pos: Vector2i) -> void:
+	is_processing = true
+	_reset_hint_timer()
+	var from_pos = candy.grid_pos
+	var world_to = filler.grid_to_world(empty_pos)
+	AudioManager.play_swap_sound()
+	filler.remove_candy_at(from_pos)
+	filler.set_candy_at(empty_pos, candy)
+	var tw = candy.animate_to(world_to)
+	if tw:
+		await tw.finished
+	var matches = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
+	if matches.is_empty():
+		filler.remove_candy_at(empty_pos)
+		filler.set_candy_at(from_pos, candy)
+		var back = filler.grid_to_world(from_pos)
+		var tw2 = candy.animate_to(back)
+		if tw2:
+			await tw2.finished
+		is_processing = false
+		return
+	await _process_matches(matches, [from_pos, empty_pos])
+	_post_turn_check()
+
 func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 	is_processing = true
 	_reset_hint_timer()
+	_clear_selected_movable_obs()
 	if selected_candy:
 		selected_candy.set_selected(false)
 		selected_candy = null
@@ -413,12 +694,16 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 func _try_swap_with_movable_obstacle(candy: CandyScript, obs_pos: Vector2i) -> void:
 	is_processing = true
 	_reset_hint_timer()
+	_clear_selected_movable_obs()
 	if selected_candy:
 		selected_candy.set_selected(false)
 		selected_candy = null
 	AudioManager.play_swap_sound()
 
 	var candy_pos: Vector2i = candy.grid_pos
+	if obstacle_map.has(candy_pos) and str(obstacle_map[candy_pos].get("tile_id", "")).begins_with("Puddle"):
+		is_processing = false
+		return
 	var world_candy: Vector2 = filler.grid_to_world(candy_pos)
 	var world_obs: Vector2 = filler.grid_to_world(obs_pos)
 	var obs = obstacle_map[obs_pos]
@@ -566,6 +851,7 @@ func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript, drag_de
 
 	await get_tree().create_timer(0.3).timeout
 	await _cascade_loop()
+	_sync_candy_layer_visibility()
 	_post_turn_check()
 
 
@@ -612,18 +898,16 @@ func _animate_color_bomb_sequence(targets: Array, bomb_pos: Vector2i, transform_
 	_explode_cells(targets, mode)
 
 func _destroy_candy_at(pos: Vector2i, color_for_signal: int, mode: int = EXPLODE_MODE_MATCH) -> void:
-	# mode 跟 _explode_cells 共用:
-	#   MATCH   — adj + inplace(按 _ELIM_RULES)
-	#   SPECIAL — 該格 obstacle 直接扣 HP(無視 inplace 規則),不擴散到 4 鄰
-	#   PLANE   — 同 SPECIAL
 	var c = filler.get_candy_at(pos)
 	if c and not c.is_being_destroyed:
 		match mode:
 			EXPLODE_MODE_PLANE, EXPLODE_MODE_SPECIAL:
 				if obstacle_map.has(pos):
 					_damage_obstacle(pos)
+				if bottom_obstacle_map.has(pos):
+					_damage_bottom_obstacle(pos)
 			_:
-				_trigger_obstacle_adjacent(pos)
+				_trigger_obstacle_adjacent(pos, c.candy_color)
 		effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), c.candy_color)
 		filler.remove_candy_at(pos)
 		c.animate_destroy()
@@ -655,9 +939,6 @@ func _destroy_candy_at(pos: Vector2i, color_for_signal: int, mode: int = EXPLODE
 #             只要在 target 範圍內就 obstacle 直接扣 HP(無視 _ELIM_RULES 的 inplace 設定),
 #             但「不擴散到 4 鄰」— 鄰邊 obstacle 不會被波及。
 #   PLANE   — 同 SPECIAL,留作未來細分用(目前行為與 SPECIAL 一致)
-const EXPLODE_MODE_MATCH: int = 0
-const EXPLODE_MODE_SPECIAL: int = 1
-const EXPLODE_MODE_PLANE: int = 2
 
 
 func _explode_cells(targets: Array, mode: int = EXPLODE_MODE_MATCH) -> void:
@@ -665,6 +946,7 @@ func _explode_cells(targets: Array, mode: int = EXPLODE_MODE_MATCH) -> void:
 	# mode 行為見上方常數註解。
 	# 遞增 _damage_tick_id → 同一個 _explode_cells call 內所有 Chiller/Stamp 的傷害
 	# 都跟這個 tick 比對 → 同一瞬間只算 1 次(per-match dedup)。
+	_obstacle_damage_mode = mode
 	_damage_tick_id += 1
 	var chain_queue: Array = []
 	for tp in targets:
@@ -674,17 +956,18 @@ func _explode_cells(targets: Array, mode: int = EXPLODE_MODE_MATCH) -> void:
 			# 空格 → 看 mode 決定要不要打 obstacle
 			match mode:
 				EXPLODE_MODE_PLANE, EXPLODE_MODE_SPECIAL:
-					# 道具觸發:該格 obstacle 直接扣 HP(無視 inplace 規則),
-					# 視覺上也算「該格爆破」→ 給一個淡淡的衝擊閃光
 					if obstacle_map.has(pos):
 						_damage_obstacle(pos)
 						effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), 0)
+					if bottom_obstacle_map.has(pos):
+						_damage_bottom_obstacle(pos)
+						if not obstacle_map.has(pos):
+							effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), 0)
 				_:
-					# MATCH → adjacent + inplace
-					_trigger_obstacle_adjacent(pos)
+					_trigger_obstacle_adjacent(pos, -1)
 			continue
 		var ct = c.candy_type
-		var color = c.candy_color
+		var color: int = c.candy_color
 		if ct != CandyScript.CandyType.NORMAL:
 			# 是 special candy → 加入連鎖佇列,先記下,destroy 後再觸發 effect
 			chain_queue.append({"pos": pos, "type": ct, "color": color})
@@ -694,8 +977,10 @@ func _explode_cells(targets: Array, mode: int = EXPLODE_MODE_MATCH) -> void:
 				# 該格 obstacle 直接打(無視 inplace 規則),不擴散到 4 鄰
 				if obstacle_map.has(pos):
 					_damage_obstacle(pos)
+				if bottom_obstacle_map.has(pos):
+					_damage_bottom_obstacle(pos)
 			_:
-				_trigger_obstacle_adjacent(pos)
+				_trigger_obstacle_adjacent(pos, color)
 		effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), color)
 		filler.remove_candy_at(pos)
 		c.animate_destroy()
@@ -757,8 +1042,11 @@ func _chain_trigger(ct: int, pos: Vector2i, color: int) -> void:
 					var c2 = filler.get_candy_at(p)
 					if c2 and not c2.is_being_destroyed and c2.candy_color == picked:
 						sub_targets.append(p)
-	# 道具觸發產生的連鎖消除:只 inplace,不擴散到鄰邊 obstacle
-	_explode_cells(sub_targets, EXPLODE_MODE_SPECIAL)
+	# 道具連鎖:條紋/包裝/彩球 = 原地炸(SPECIAL);紙飛機 4 鄰 = 相鄰消除(MATCH)
+	var chain_mode := EXPLODE_MODE_SPECIAL
+	if ct == CandyScript.CandyType.SPIRAL:
+		chain_mode = EXPLODE_MODE_MATCH
+	_explode_cells(sub_targets, chain_mode)
 
 
 # 延後 delay 秒後觸發 _explode_cells(targets)。用於紙飛機飛行動畫:等飛機落地再爆。
@@ -787,7 +1075,8 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 			effect_spawner_node.spawn_shockwave(filler.grid_to_world(mid_pos))
 			_destroy_candy_at(pos_a, candy_a.candy_color, EXPLODE_MODE_SPECIAL)
 			_destroy_candy_at(pos_b, candy_b.candy_color, EXPLODE_MODE_SPECIAL)
-			_explode_cells(SpecialCandy.get_cross_targets(mid_pos, grid_width, grid_height), EXPLODE_MODE_SPECIAL)
+			# 十字 4 鄰 = 相鄰消除語意(MATCH),不是道具原地炸(SPECIAL)
+			_explode_cells(SpecialCandy.get_cross_targets(mid_pos, grid_width, grid_height), EXPLODE_MODE_MATCH)
 
 		"double_wrapped":
 			# 7×7 big explosion (TNT + TNT,半徑 3)
@@ -829,7 +1118,7 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 				var tp = mid_pos + offset
 				if tp.x >= 0 and tp.x < grid_width and tp.y >= 0 and tp.y < grid_height:
 					nbors.append(tp)
-			_explode_cells(nbors, EXPLODE_MODE_SPECIAL)
+			_explode_cells(nbors, EXPLODE_MODE_MATCH)
 			# 飛 3 台紙飛機(平行起飛,弧形飛到 top3 目標)
 			var picks = _pick_top_plane_targets(3, [mid_pos, pos_a, pos_b])
 			var from_w: Vector2 = filler.grid_to_world(mid_pos)
@@ -853,9 +1142,10 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 				var tp = mid_pos + offset
 				if tp.x >= 0 and tp.x < grid_width and tp.y >= 0 and tp.y < grid_height:
 					nbors_w.append(tp)
-			_explode_cells(nbors_w, EXPLODE_MODE_SPECIAL)
+			_explode_cells(nbors_w, EXPLODE_MODE_MATCH)
 			await get_tree().create_timer(0.15).timeout
-			var picks_w = _pick_top_plane_targets(1, [mid_pos, pos_a, pos_b])
+			var excl: Array[Vector2i] = [mid_pos, pos_a, pos_b]
+			var picks_w = _pick_top_plane_targets_for_combo(1, excl, "wrapped")
 			if picks_w.size() > 0:
 				var tgt: Vector2i = picks_w[0]
 				var to_w2: Vector2 = filler.grid_to_world(tgt)
@@ -878,9 +1168,10 @@ func _handle_special_combo(candy_a: CandyScript, candy_b: CandyScript, effect: S
 				var tp = mid_pos + offset
 				if tp.x >= 0 and tp.x < grid_width and tp.y >= 0 and tp.y < grid_height:
 					nbors_s.append(tp)
-			_explode_cells(nbors_s, EXPLODE_MODE_SPECIAL)
+			_explode_cells(nbors_s, EXPLODE_MODE_MATCH)
 			await get_tree().create_timer(0.15).timeout
-			var picks_s = _pick_top_plane_targets(1, [mid_pos, pos_a, pos_b])
+			var excl_s: Array[Vector2i] = [mid_pos, pos_a, pos_b]
+			var picks_s = _pick_top_plane_targets_for_combo(1, excl_s, striped_kind)
 			if picks_s.size() > 0:
 				var tgt: Vector2i = picks_s[0]
 				var to_w3: Vector2 = filler.grid_to_world(tgt)
@@ -916,13 +1207,20 @@ func _process_matches(matches: Array[Dictionary], swap_cells: Array[Vector2i] = 
 				special_pos = swap_cells[1]
 			elif swap_cells[0] in cells:
 				special_pos = swap_cells[0]
+		# 延伸消除（設計 B 節：5 連/炸彈/2×2；T 形四格已併入 cells）
+		if filler:
+			for ep in MatchFinder.collect_extended_elimination(
+					filler.grid, grid_width, grid_height, cells, shape, special_pos,
+					match_color, blocked_cells):
+				if ep not in cells:
+					cells.append(ep)
 		var special_type = -1
 
 		# 對齊 Python 設計優先級:FIVE_PLUS > L_T > FOUR > 2x2 > THREE
 		# 對應 yuehpo candy_type:COLOR_BOMB(LtBl) / WRAPPED(TNT) / STRIPED(Soda) / WRAPPED 暫代(TrPr)
 		if shape == "five":
 			special_type = CandyScript.CandyType.COLOR_BOMB
-		elif shape == "special":  # L_T (跨方向 h_run>=3 且 v_run>=3)
+		elif shape == "special":  # L_T (h≥3 且 v≥2，含橫三+下一格)
 			special_type = CandyScript.CandyType.WRAPPED
 		elif shape == "four":
 			if match_data.get("direction", "horizontal") == "horizontal":
@@ -940,7 +1238,7 @@ func _process_matches(matches: Array[Dictionary], swap_cells: Array[Vector2i] = 
 			if candy:
 				if candy.candy_type != CandyScript.CandyType.NORMAL and candy.candy_type != CandyScript.CandyType.COLOR_BOMB:
 					_trigger_special_candy(candy)
-				_trigger_obstacle_adjacent(cell)
+				_trigger_obstacle_adjacent(cell, match_color)
 				effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(cell), candy.candy_color)
 				GameManager.update_objective("collect", candy.candy_color, 1)
 				candies_destroyed.emit(1, candy.candy_color)
@@ -1060,32 +1358,111 @@ func _is_plane_objective_tile(tile_id: String) -> bool:
 	return false
 
 
+func _obs_plane_weight(obs: Dictionary) -> int:
+	var tid := str(obs.get("tile_id", ""))
+	var base_w := 0
+	for prefix in _PLANE_WEIGHT_BY_PREFIX.keys():
+		if tid.begins_with(prefix):
+			base_w = _PLANE_WEIGHT_BY_PREFIX[prefix]
+			break
+	if base_w <= 0:
+		return 0
+	if int(obs.get("hp", 1)) == 1:
+		base_w += 1
+	if _is_plane_objective_tile(tid):
+		base_w += 100
+	return base_w
+
+
 func _compute_plane_target_weights() -> Dictionary:
 	# 回傳 {Vector2i pos: int weight}。多格 instance 只回傳一個 representative cell。
 	var weights: Dictionary = {}
 	var seen_inst: Dictionary = {}
 	for pos in obstacle_map.keys():
 		var obs = obstacle_map[pos]
-		var tid = str(obs.get("tile_id", ""))
 		var inst_id = str(obs.get("instance_id", ""))
 		if inst_id != "" and seen_inst.has(inst_id):
 			continue
-		var base_w = 0
-		for prefix in _PLANE_WEIGHT_BY_PREFIX.keys():
-			if tid.begins_with(prefix):
-				base_w = _PLANE_WEIGHT_BY_PREFIX[prefix]
-				break
-		if base_w <= 0:
+		var w := _obs_plane_weight(obs)
+		if w <= 0:
 			continue
-		var hp = int(obs.get("hp", 1))
-		if hp == 1:
-			base_w += 1
-		if _is_plane_objective_tile(tid):
-			base_w += 100
-		weights[pos] = base_w
+		weights[pos] = w
 		if inst_id != "":
 			seen_inst[inst_id] = true
 	return weights
+
+
+## 道具在落點引爆時會打到的格（SPECIAL 模式：炸彈 5×5、火箭整行/列、飛機僅落點）
+func _powerup_blast_cells_at(center: Vector2i, detonate_kind: String) -> Array[Vector2i]:
+	var uniq: Dictionary = {}
+	uniq[center] = true
+	match detonate_kind:
+		"wrapped":
+			for tp in SpecialCandy.get_wrapped_targets(center, grid_width, grid_height):
+				uniq[tp] = true
+		"striped_h":
+			for tp in SpecialCandy.get_striped_h_targets(center, grid_width):
+				uniq[tp] = true
+		"striped_v":
+			for tp in SpecialCandy.get_striped_v_targets(center, grid_height):
+				uniq[tp] = true
+		"spiral":
+			pass
+	var out: Array[Vector2i] = []
+	for k in uniq.keys():
+		out.append(k as Vector2i)
+	return out
+
+
+func _sum_obstacle_weights_in_cells(cells: Array[Vector2i]) -> int:
+	var total := 0
+	var seen_inst: Dictionary = {}
+	for pos in cells:
+		if not obstacle_map.has(pos):
+			continue
+		var obs = obstacle_map[pos]
+		var inst_id = str(obs.get("instance_id", ""))
+		if inst_id != "":
+			if seen_inst.has(inst_id):
+				continue
+			seen_inst[inst_id] = true
+		total += _obs_plane_weight(obs)
+	return total
+
+
+## 紙飛機+道具：依「落點施放道具後能覆蓋到的障礙物權重總和」選目標
+func _pick_top_plane_targets_for_combo(
+		n: int, exclude: Array[Vector2i], detonate_kind: String
+) -> Array[Vector2i]:
+	var scored: Array[Dictionary] = []
+	for x in grid_width:
+		for y in grid_height:
+			var p := Vector2i(x, y)
+			if p in exclude:
+				continue
+			var blast := _powerup_blast_cells_at(p, detonate_kind)
+			var score := _sum_obstacle_weights_in_cells(blast)
+			if score > 0:
+				scored.append({"pos": p, "score": score})
+	scored.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a["score"]) > int(b["score"])
+	)
+	var picks: Array[Vector2i] = []
+	for entry in scored:
+		var p: Vector2i = entry["pos"]
+		if p in picks:
+			continue
+		picks.append(p)
+		if picks.size() >= n:
+			break
+	if picks.size() < n:
+		var fallback := _pick_top_plane_targets(n - picks.size(), exclude + picks)
+		for fp in fallback:
+			if fp not in picks:
+				picks.append(fp)
+			if picks.size() >= n:
+				break
+	return picks
 
 
 func _pick_top_plane_targets(n: int, exclude: Array[Vector2i] = []) -> Array[Vector2i]:
@@ -1186,37 +1563,69 @@ func _trigger_manufacturers_adjacent_to_cells(cells: Array[Vector2i]) -> void:
 			_damage_obstacle(adj)
 
 
-func _trigger_obstacle_adjacent(pos: Vector2i) -> void:
-	# 一般 match 消除走這條:adjacent + inplace
-	# 打 4 鄰 — 只對 can_adjacent_elim 的 obstacle 才打
+func _trigger_obstacle_adjacent(pos: Vector2i, match_color_idx: int = -1) -> void:
+	var color_name := _color_name_from_candy_idx(match_color_idx)
 	for dir in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
 		var adj = pos + dir
 		if obstacle_map.has(adj):
 			var adj_obs = obstacle_map[adj]
 			var adj_tid = adj_obs.get("tile_id", "")
 			if _elim_rule(adj_tid, "adj"):
-				_damage_obstacle(adj)
-	# 打自身 — 只對 can_inplace_elim 的 obstacle 才打(下層 Puddle、上層 Rope)
+				_damage_obstacle(adj, color_name)
 	if obstacle_map.has(pos):
 		var obs = obstacle_map[pos]
 		var tid = obs.get("tile_id", "")
 		if _elim_rule(tid, "inplace"):
-			_damage_obstacle(pos)
+			_damage_obstacle(pos, color_name)
+	# bottom layer (Puddle): 糖在上面被 match 消除時 inplace 打水窪
+	if bottom_obstacle_map.has(pos):
+		var bobs = bottom_obstacle_map[pos]
+		var btid: String = str(bobs.get("tile_id", ""))
+		if _elim_rule(btid, "inplace"):
+			_damage_bottom_obstacle(pos)
 
 
+static func _color_name_from_candy_idx(idx: int) -> String:
+	if idx >= 0 and idx < CANDY_IDX_TO_COLOR_NAME.size():
+		return CANDY_IDX_TO_COLOR_NAME[idx]
+	return ""
 
-func _damage_obstacle(pos: Vector2i) -> void:
+
+func _damage_bottom_obstacle(pos: Vector2i) -> void:
+	if not bottom_obstacle_map.has(pos):
+		return
+	var obs = bottom_obstacle_map[pos]
+	var tid: String = str(obs.get("tile_id", ""))
+	obs["hp"] -= 1
+	AudioManager.play_obstacle_break_sound()
+	if obs["hp"] <= 0:
+		bottom_obstacle_map.erase(pos)
+		GameManager.update_objective("clear_" + obs.get("type", "jelly"), -1, 1, tid)
+		_fly_goal_feedback(pos, tid)
+	board_bg.queue_redraw()
+
+
+func _damage_obstacle(pos: Vector2i, adj_color_name: String = "") -> void:
 	if not obstacle_map.has(pos):
 		return
 	var obs = obstacle_map[pos]
 	var tid: String = str(obs.get("tile_id", ""))
 
-	# 「同一瞬間只能算 1 次」的障礙物(user 確認):
-	#   - WaterChiller / BeverageChiller — 一個 match 同瞬間只扣 1 滴血(不管打到幾格)
-	#   - Stamp(manufacturer)— 一個 match 同瞬間只 +1 蓋章進 GOAL
-	# 實作:_damage_tick_id 在每次 _explode_cells 開頭遞增,
-	#   shared obs dict 記錄 _last_damage_tick;若相同 tick → 跳過,不重複算。
-	if _is_per_match_dedup(tid):
+	if tid.begins_with("SalmonCan") \
+			and _obstacle_damage_mode != EXPLODE_MODE_SPECIAL \
+			and _obstacle_damage_mode != EXPLODE_MODE_PLANE:
+		return
+
+	# 飲料櫃：相鄰須對色 + 殺對色瓶；同一 match instance 去重
+	if tid.begins_with("BeverageChiller"):
+		if not _try_damage_beverage_chiller(obs, adj_color_name):
+			return
+		_apply_obstacle_hp_after_hit(obs, pos, tid)
+		return
+
+	# 同一瞬間去重：飲料櫃(已處理)、郵戳、礦泉水(關門或 match)；
+	# 開門後道具範圍每格各算一次（不去重）
+	if _should_per_match_dedup(tid, obs, _obstacle_damage_mode):
 		if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
 			return
 		obs["_last_damage_tick"] = _damage_tick_id
@@ -1240,39 +1649,92 @@ func _damage_obstacle(pos: Vector2i) -> void:
 		board_bg.queue_redraw()
 		return
 
-	# 一般障礙物 — 扣 1 滴血
-	obs["hp"] -= 1
+	_apply_obstacle_hp_after_hit(obs, pos, tid)
+
+
+func _try_damage_beverage_chiller(obs: Dictionary, adj_color_name: String) -> bool:
+	var max_hp: int = int(obs.get("max_hp", 5))
+	var hp: int = int(obs.get("hp", 0))
+	if _should_per_match_dedup("BeverageChiller", obs, _obstacle_damage_mode):
+		if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
+			return false
+		obs["_last_damage_tick"] = _damage_tick_id
+
+	var bottle_colors: Dictionary = obs.get("bottle_colors", {})
+	if not obs.has("bottle_alive"):
+		obs["bottle_alive"] = {}
+	var bottle_alive: Dictionary = obs["bottle_alive"]
+	for cell in obs.get("instance_cells", []):
+		if not bottle_alive.has(cell):
+			bottle_alive[cell] = true
+
+	var is_powerup := (
+		_obstacle_damage_mode == EXPLODE_MODE_SPECIAL
+		or _obstacle_damage_mode == EXPLODE_MODE_PLANE
+	)
+
+	if is_powerup:
+		if hp >= max_hp:
+			pass
+		else:
+			var killed := false
+			for cell in obs.get("instance_cells", []):
+				if bottle_alive.get(cell, true):
+					bottle_alive[cell] = false
+					killed = true
+					break
+			if not killed:
+				return false
+	elif adj_color_name == "":
+		return false
+	elif hp >= max_hp:
+		var ok := false
+		for cell in obs.get("instance_cells", []):
+			if not bottle_alive.get(cell, true):
+				continue
+			if str(bottle_colors.get(cell, "")) == adj_color_name:
+				ok = true
+				break
+		if not ok:
+			return false
+	else:
+		var target: Vector2i = Vector2i(-1, -1)
+		for cell in obs.get("instance_cells", []):
+			if bottle_alive.get(cell, true) and str(bottle_colors.get(cell, "")) == adj_color_name:
+				target = cell
+				break
+		if target.x < 0:
+			return false
+		bottle_alive[target] = false
+
+	obs["hp"] = hp - 1
+	return true
+
+
+func _apply_obstacle_hp_after_hit(obs: Dictionary, pos: Vector2i, tid: String) -> void:
+	if not tid.begins_with("BeverageChiller"):
+		obs["hp"] -= 1
+	if tid.begins_with("SalmonCan") and obs["hp"] > 0:
+		obs["salmon_state"] = "open"
 	AudioManager.play_obstacle_break_sound()
 
-	# Goal 計法分兩種(對齊官方 Goal Count 意義):
-	#   hits 模式:每次扣血都 +1 GOAL
-	#     - WaterChiller / BeverageChiller / Barrel / TrafficCone
-	#       → 官方 goal = 總 HP 數,等同「總攻擊次數」。
-	#   instance 模式:HP 歸 0 才 +1 GOAL  
-	#     - Crt / Puddle / Pool / SalmonCan / Mud / Rope / Roadblock
-	#       → 官方 goal = 「物件 instance 數」(不論 HP 多寡)。
 	if _is_hits_mode_obstacle(tid):
 		GameManager.update_objective("clear_" + obs["type"], -1, 1, tid)
 		_fly_goal_feedback(pos, tid)
 
 	if obs["hp"] <= 0:
-		# 一格 vs. 多格 instance — 共享 dict 帶 instance_cells,把整個 instance 一起 erase
 		var cells_to_clear: Array = obs.get("instance_cells", [pos])
 		if cells_to_clear.is_empty():
 			cells_to_clear = [pos]
-		# instance 模式才在 HP=0 補 GOAL(hits 模式上面已經逐次加過了)
 		if not _is_hits_mode_obstacle(tid):
 			GameManager.update_objective("clear_" + obs["type"], -1, 1, tid)
 			_fly_goal_feedback(pos, tid)
-		# 實體障礙(Crt/Barrel/WaterChiller 等)初始時 cell 都 blocked(沒糖)。
-		# 打掉後解封,下一次 _cascade_loop 的 apply_gravity 會自動補糖。
-		# filler.blocked_cells 跟 game_board.blocked_cells 共用同一個 array(reference),
-		# 所以 erase 一次就好。
 		for cell in cells_to_clear:
 			obstacle_map.erase(cell)
 			if cell in blocked_cells:
 				blocked_cells.erase(cell)
 	board_bg.queue_redraw()
+	_sync_candy_layer_visibility()
 
 
 # 官方 Goal Count 對障礙物的意義分兩派(見 _damage_obstacle 註解):
@@ -1289,17 +1751,22 @@ static func _is_hits_mode_obstacle(tile_id: String) -> bool:
 	)
 
 
-# 同一個 match (= 一次 _explode_cells call) 內,這些障礙物只算 1 次傷害(user 確認):
-#   - WaterChiller / BeverageChiller 的「門」=1 滴血,
-#     一個 match 不管打到 2x2 內幾格,只開一次門
-#   - Stamp(明信片)— 一個 match 只蓋 1 章
-# 連鎖時下一個 _explode_cells call 又算 1 次,所以連鎖還是會持續扣血/蓋章。
-static func _is_per_match_dedup(tile_id: String) -> bool:
-	return (
-		tile_id.begins_with("WaterChiller")
-		or tile_id.begins_with("BeverageChiller")
-		or tile_id == "Stamp"
-	)
+# 同一個 match / _explode_cells tick 內去重：
+#   - 飲料櫃、郵戳 — 每 instance 只算 1 次
+#   - 礦泉水 — 關門或 match 相鄰只算 1 次；開門後道具每格各算 1 次
+static func _should_per_match_dedup(tile_id: String, obs: Dictionary, damage_mode: int = EXPLODE_MODE_MATCH) -> bool:
+	if tile_id == "Stamp":
+		return true
+	if tile_id.begins_with("BeverageChiller"):
+		return true
+	if tile_id.begins_with("WaterChiller"):
+		var hp: int = int(obs.get("hp", 0))
+		var max_hp: int = int(obs.get("max_hp", 11))
+		if damage_mode == EXPLODE_MODE_SPECIAL or damage_mode == EXPLODE_MODE_PLANE:
+			if hp < max_hp:
+				return false
+		return true
+	return false
 
 
 # 可移動障礙物 = Barrel + TrafficCone — 跟道具/元素一樣會掉(user 確認)。
@@ -1432,6 +1899,10 @@ func _shuffle_board() -> void:
 
 func set_obstacle_map(obs: Dictionary) -> void:
 	obstacle_map = obs
+	board_bg.queue_redraw()
+
+func set_bottom_obstacle_map(obs: Dictionary) -> void:
+	bottom_obstacle_map = obs
 	board_bg.queue_redraw()
 
 func get_obstacle_map() -> Dictionary:

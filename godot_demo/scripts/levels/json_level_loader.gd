@@ -168,8 +168,6 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 	# game_board.init_board 會在 fill_initial 之後 spawn 對應 special candy。
 	var pre_placed_specials_arr: Array[Dictionary] = []
 	# 下層 Puddle 但 middle 沒被 blocking 障礙佔住的格 — 開局留空(糖不掉到水窪上)
-	var puddle_only_arr: Array[Vector2i] = []
-
 	# Pass 1:middle layer 的 void → blocked_cells;tile_id 含 "#" → 多格 instance
 	#         非元素 tile → obstacle
 	#
@@ -236,6 +234,7 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 				else:
 					var instance_cells: Array[Vector2i] = []
 					var bottle_map: Dictionary = {}   # Vector2i → "Red"/"Grn"/"Blu"/"Yel"
+					var bottle_alive_map: Dictionary = {}  # Vector2i → bool
 					shared = {
 						"type": obs_type,
 						"hp": hp,
@@ -244,11 +243,13 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 						"instance_id": key,
 						"instance_cells": instance_cells,
 						"bottle_colors": bottle_map,
+						"bottle_alive": bottle_alive_map,
 					}
 					shared_by_key[key] = shared
 				shared["instance_cells"].append(pos)
 				if bottle_color != "":
 					shared["bottle_colors"][pos] = bottle_color
+					shared["bottle_alive"][pos] = true
 				# 每個 cell 都把 shared 加進 obstacle_arr(同個 dict reference)
 				obstacle_arr.append({
 					"pos": [pos.x, pos.y],
@@ -265,6 +266,8 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 				}
 				if obs_type == "manufacturer":
 					entry["stamp_state"] = "idle"
+				if tile_id.begins_with("SalmonCan"):
+					entry["salmon_state"] = "sealed"
 				obstacle_arr.append(entry)
 
 			# 實體障礙也加進 blocked_cells → fill_initial 不會放糖,
@@ -301,7 +304,8 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 				if _is_blocking_obstacle(tid):
 					blocked_arr.append(pos)
 
-	# Pass 3:bottom layer 的 Puddle — 同樣 block + obstacle
+	# Pass 3:bottom layer 的 Puddle — 獨立存放，不受 middle blocking 影響
+	var bottom_obstacle_arr: Array[Dictionary] = []
 	for r in range(min(bottom_grid.size(), rows)):
 		var row_data = bottom_grid[r]
 		if typeof(row_data) != TYPE_ARRAY:
@@ -313,27 +317,20 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 			if raw == "" or raw == "null" or raw == "void":
 				continue
 			var pos = Vector2i(c, r)
-			if pos in blocked_arr:
-				continue
 			var tid = raw.split("#", true, 1)[0]
 			var obs_type = _resolve_obstacle_type(tid)
 			if obs_type:
-				obstacle_arr.append({
+				bottom_obstacle_arr.append({
 					"pos": [c, r],
 					"type": obs_type,
 					"hp": _resolve_obstacle_hp(tid),
 					"tile_id": tid,
 					"layer": "bottom",
 				})
-				if _is_blocking_obstacle(tid):
-					blocked_arr.append(pos)
-				elif tid.begins_with("Puddle"):
-					# 下層 Puddle:不 blocking,但開局留空(糖不要疊在水窪上)
-					puddle_only_arr.append(pos)
 
 	level.blocked_cells = blocked_arr
 	level.obstacle_data = obstacle_arr
-	level.puddle_only_cells = puddle_only_arr
+	level.bottom_obstacle_data = bottom_obstacle_arr
 	level.pre_placed_specials = pre_placed_specials_arr
 
 	# 補齊目標 metadata(2×2 櫃=「台數」,不是格子數)
@@ -381,8 +378,8 @@ static func _resolve_obstacle_hp(tile_id: String) -> int:
 			return n
 	# 預設 HP — 對應視覺狀態 + 對齊官方 Goal:
 	#   WaterChiller HP=11(門關著)→ 1 hit 開門 → HP=10..1 對應 lv10..lv1
-	#       hits 模式 + per-match dedup → 1 match 只扣 1 滴血(不管打到幾格)
-	#   BeverageChiller HP=5(門關著)→ 同理,4 顆罐子
+	#       相鄰 match 每 instance 只扣 1；開門後道具範圍內每格各扣 1
+	#   BeverageChiller HP=5(門關著)→ 相鄰須對色；開門後殺對色瓶；match 內 instance 去重
 	#   Barrel HP=1 — user 確認,每個桶子單發即破
 	#   TrafficCone 沒帶 _lv 時當 lv1 → HP=1
 	#   Pool 沒帶 _lv 時當「滿池 lv5」 — instance 模式,5 hits 才整池消失
@@ -390,6 +387,8 @@ static func _resolve_obstacle_hp(tile_id: String) -> int:
 		return 11
 	if tile_id.begins_with("BeverageChiller"):
 		return 5
+	if tile_id.begins_with("SalmonCan"):
+		return 2
 	if tile_id == "Pool" or tile_id == "Pool_lv1":
 		return 5
 	# Crt1, Crt2, Crt3, Crt4 等沒有 _lv 字尾:取最後一位數字
