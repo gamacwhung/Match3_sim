@@ -163,6 +163,7 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 
 	# typed arrays — 同 objectives,直接 append 進 typed array 再賦值
 	var blocked_arr: Array[Vector2i] = []
+	var void_arr: Array[Vector2i] = []
 	var obstacle_arr: Array[Dictionary] = []
 	# 開局就放在盤面上的特殊糖(Soda0d / TNT / TrPr / LtBl ...);loader 識別出來、
 	# game_board.init_board 會在 fill_initial 之後 spawn 對應 special candy。
@@ -187,9 +188,10 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 			var pos = Vector2i(c, r)
 			if raw == "" or raw == "null":
 				continue
-			if raw == "void":
-				blocked_arr.append(pos)
-				continue
+		if raw == "void":
+			blocked_arr.append(pos)
+			void_arr.append(pos)
+			continue
 
 			# 拆 instance_tag (e.g. "Pool_lv3#1")
 			var tile_id = raw
@@ -329,6 +331,7 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 				})
 
 	level.blocked_cells = blocked_arr
+	level.void_cells = void_arr
 	level.obstacle_data = obstacle_arr
 	level.bottom_obstacle_data = bottom_obstacle_arr
 	level.pre_placed_specials = pre_placed_specials_arr

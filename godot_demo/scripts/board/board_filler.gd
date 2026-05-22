@@ -9,6 +9,7 @@ var height: int = 9
 var cell_size: float = 70.0
 var board_offset: Vector2 = Vector2.ZERO
 var blocked_cells: Array[Vector2i] = []
+var void_cells: Dictionary = {}  # Vector2i → true; 不存在的格子，糖可穿過
 var candy_scene: PackedScene
 var candy_container: Node2D
 var num_colors: int = 6
@@ -190,17 +191,20 @@ func apply_gravity() -> Array[Tween]:
 
 
 # 把第 x 欄的糖往下推一格 — 回傳是否有動。
-# 由下往上掃:每顆糖看正下方是不是空(且不是 blocked),空就放下去。
-# 同一輪內每顆糖最多動一格,呼叫端 while 迴圈會反覆呼叫直到無法再動。
+# void 格子會被跳過（糖穿過它直接落到下一個有效格）
 func _column_drop(x: int) -> bool:
 	var moved = false
 	for y in range(height - 2, -1, -1):
 		var c = grid[x][y]
 		if c == null:
 			continue
-		if not _can_fall_to(x, y + 1):
+		# 找下方最近的可落點（跳過 void）
+		var target_y = y + 1
+		while target_y < height and void_cells.has(Vector2i(x, target_y)):
+			target_y += 1
+		if not _can_fall_to(x, target_y):
 			continue
-		grid[x][y + 1] = c
+		grid[x][target_y] = c
 		grid[x][y] = null
 		moved = true
 	return moved
@@ -218,23 +222,31 @@ func _can_fall_to(x: int, y: int) -> bool:
 # 從 (x, 0) 到 (x, y) 之間有沒有 blocked 障礙物截斷 — 若有則目標 (x, y) 在 cavity 裡,
 # 普通 fill_empty_cells 無法從頂部補它,要靠斜落補。
 # 若回傳 true 表示「頂部下得來」,斜落應該避讓(讓新糖從頂部補)。
+# void 格子不算障礙（糖可穿過 void）。
 func _reachable_from_top(x: int, y: int) -> bool:
 	for ty in range(y):
-		if Vector2i(x, ty) in blocked_cells:
+		var p = Vector2i(x, ty)
+		if p in blocked_cells and not void_cells.has(p):
 			return false
 	return true
 
 
 # 計算所有能從盤面頂部到達的非 blocked 格子（考慮直落 + 斜落）
 # 用 BFS：從所有頂部可進入格向下擴展（下、左下、右下）
+# void 格子允許穿過但不標記為 reachable（不放糖）
 func _compute_reachable_cells() -> Dictionary:
 	var reachable: Dictionary = {}
+	var visited: Dictionary = {}
 	var queue: Array[Vector2i] = []
-	# 種子：row 0 中所有非 blocked 的格
+	# 種子：row 0 中所有非 blocked 的格（void 也可作為入口通道）
 	for x in width:
 		var p = Vector2i(x, 0)
 		if p not in blocked_cells:
 			reachable[p] = true
+			visited[p] = true
+			queue.append(p)
+		elif void_cells.has(p):
+			visited[p] = true
 			queue.append(p)
 	# BFS 向下擴展
 	var head = 0
@@ -248,9 +260,13 @@ func _compute_reachable_cells() -> Dictionary:
 			if nx < 0 or nx >= width or ny >= height:
 				continue
 			var np = Vector2i(nx, ny)
-			if np in blocked_cells:
+			if visited.has(np):
 				continue
-			if reachable.has(np):
+			visited[np] = true
+			if void_cells.has(np):
+				queue.append(np)
+				continue
+			if np in blocked_cells:
 				continue
 			reachable[np] = true
 			queue.append(np)
@@ -271,11 +287,14 @@ func fill_empty_cells() -> Array[Tween]:
 	var tweens: Array[Tween] = []
 	for x in width:
 		# 從上往下掃,只收「上方沒有 blocked 截斷」的空格
+		# void 格不算障礙（糖可穿過），只有實體障礙才截斷路徑
 		var reachable_empty_ys: Array[int] = []
 		var path_clear = true
 		for y in height:
-			if Vector2i(x, y) in blocked_cells:
-				path_clear = false
+			var p = Vector2i(x, y)
+			if p in blocked_cells:
+				if not void_cells.has(p):
+					path_clear = false
 				continue
 			if grid[x][y] == null and path_clear:
 				reachable_empty_ys.append(y)

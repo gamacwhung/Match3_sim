@@ -11,6 +11,7 @@ class_name LevelData
 @export var obstacle_data: Array[Dictionary] = []
 @export var bottom_obstacle_data: Array[Dictionary] = []
 @export var blocked_cells: Array[Vector2i] = []
+@export var void_cells: Array[Vector2i] = []  # 不存在的格子，糖可穿過掉落
 
 # 下層 Puddle 等「不 blocking 但開局不放糖」的格 — fill_initial 要當作 blocked,
 # 但實際遊戲中允許糖從上方掉落經過/停靠在這些格上。

@@ -166,6 +166,13 @@ func init_board(level_data: Resource = null) -> void:
 	# 之後 _damage_obstacle 在 blocked_cells 上 erase 一次,兩邊都會同步看到改變
 	filler.blocked_cells = blocked_cells
 
+	# void_cells — 不存在的格，糖可穿過
+	if level_data and level_data.void_cells.size() > 0:
+		var vc: Dictionary = {}
+		for p in level_data.void_cells:
+			vc[p] = true
+		filler.void_cells = vc
+
 	# 頂部 Spawner — 把 spawner_data 傳入 filler
 	if level_data and level_data.spawner_data.size() > 0:
 		filler.set_spawners(level_data.spawner_data)
