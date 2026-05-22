@@ -1692,9 +1692,14 @@ func _try_damage_beverage_chiller(obs: Dictionary, adj_color_name: String) -> bo
 		or _obstacle_damage_mode == EXPLODE_MODE_PLANE
 	)
 
+	# dedup 先做：同一 tick 內同一 instance 只受一次傷害（不管幾格被命中）
+	if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
+		return false
+	obs["_last_damage_tick"] = _damage_tick_id
+
 	if is_powerup:
 		if hp >= max_hp:
-			pass
+			pass  # 道具直接開門（扣 1 HP）
 		else:
 			var killed := false
 			for cell in obs.get("instance_cells", []):
@@ -1726,12 +1731,6 @@ func _try_damage_beverage_chiller(obs: Dictionary, adj_color_name: String) -> bo
 			return false
 		bottle_alive[target] = false
 
-	# 色彩/道具驗證通過後再做 dedup（避免錯色先卡住同 tick 的正確色）
-	if _should_per_match_dedup("BeverageChiller", obs, _obstacle_damage_mode):
-		if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
-			return false
-		obs["_last_damage_tick"] = _damage_tick_id
-
 	obs["hp"] = hp - 1
 	return true
 
@@ -1758,8 +1757,50 @@ func _apply_obstacle_hp_after_hit(obs: Dictionary, pos: Vector2i, tid: String) -
 			obstacle_map.erase(cell)
 			if cell in blocked_cells:
 				blocked_cells.erase(cell)
+		# Pool 打爆後在 2x2 範圍 + 周圍 8 格生成 Puddle_lv1
+		if tid.begins_with("Pool"):
+			_spawn_pool_puddles(cells_to_clear)
 	board_bg.queue_redraw()
 	_sync_candy_layer_visibility()
+
+
+func _spawn_pool_puddles(pool_cells: Array) -> void:
+	# Pool 打爆後在 2x2 本體 + 上下左右各擴展一格（共最多 12 格）生成 Puddle_lv1
+	var puddle_positions: Array[Vector2i] = []
+	# 收集 2x2 本體
+	for cell in pool_cells:
+		var p: Vector2i = cell as Vector2i
+		puddle_positions.append(p)
+	# 收集周圍 8 格（2x2 的外圍）
+	var pool_set: Dictionary = {}
+	for p in puddle_positions:
+		pool_set[p] = true
+	var neighbors: Array[Vector2i] = []
+	for p in puddle_positions:
+		for off in [Vector2i(-1,0), Vector2i(1,0), Vector2i(0,-1), Vector2i(0,1)]:
+			var np: Vector2i = p + off
+			if pool_set.has(np):
+				continue
+			if np.x < 0 or np.x >= grid_width or np.y < 0 or np.y >= grid_height:
+				continue
+			if not pool_set.has(np):
+				pool_set[np] = true
+				neighbors.append(np)
+	puddle_positions.append_array(neighbors)
+	# 只在沒有障礙物的格子生成 Puddle
+	for p in puddle_positions:
+		if obstacle_map.has(p):
+			continue
+		if p in blocked_cells:
+			continue
+		var puddle_data: Dictionary = {
+			"type": "jelly",
+			"hp": 1,
+			"max_hp": 1,
+			"tile_id": "Puddle_lv1",
+			"layer": "bottom",
+		}
+		bottom_obstacle_map[p] = puddle_data
 
 
 # 官方 Goal Count 對障礙物的意義分兩派(見 _damage_obstacle 註解):

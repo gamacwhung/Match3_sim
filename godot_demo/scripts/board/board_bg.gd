@@ -19,6 +19,9 @@ const OBSTACLE_TEXTURES: Dictionary = {
 	"TrafficCone_lv1": preload("res://resources/sprites/TrafficCone_lv1.png"),
 	"TrafficCone_lv2": preload("res://resources/sprites/TrafficCone_lv2.png"),
 	"SalmonCan": preload("res://resources/sprites/SalmonCan.png"),
+	"SalmonCan_body": preload("res://resources/sprites/SalmonCan_body.png"),
+	"SalmonCan_top1": preload("res://resources/sprites/SalmonCan_top1.png"),
+	"SalmonCan_top2": preload("res://resources/sprites/SalmonCan_top2.png"),
 	"Mud": preload("res://resources/sprites/Mud.png"),
 	"Rope_lv1": preload("res://resources/sprites/Rope_lv1.png"),
 	"Rope_lv2": preload("res://resources/sprites/Rope_lv2.png"),
@@ -123,6 +126,7 @@ func _draw() -> void:
 	var h = board.grid_height
 	var cs = board.cell_size
 	var blocked = board.blocked_cells
+	var obs_map = board.get_obstacle_map()
 
 	# 外框 — 用 board_bg 紋理(平鋪在整個盤面範圍 + 邊距)做木紋外圈
 	var border = 12.0
@@ -136,20 +140,20 @@ func _draw() -> void:
 	draw_rect(inner_rect, Color(0.05, 0.04, 0.10, 1.0), true)
 	draw_rect(bg_rect, Color(0.4, 0.3, 0.6, 0.6), false, 3.0)
 
-	# 棋盤底色:斜紋
+	# 棋盤底色:所有盤面格子都畫（void 除外）
+	# void = 在 blocked 裡但不在 obstacle_map/bottom_obstacle_map 裡的格子
+	var bottom_map: Dictionary = board.bottom_obstacle_map
 	for x in w:
 		for y in h:
-			if Vector2i(x, y) in blocked:
+			var pos_v = Vector2i(x, y)
+			if pos_v in blocked and not obs_map.has(pos_v) and not bottom_map.has(pos_v):
 				continue
 			var cell_pos = offset + Vector2(x * cs, y * cs)
 			var cell_rect = Rect2(cell_pos + Vector2(2, 2), Vector2(cs - 4, cs - 4))
 			var shade = Color(0.18, 0.14, 0.28) if (x + y) % 2 == 0 else Color(0.22, 0.17, 0.32)
 			draw_rect(cell_rect, shade, true)
 
-	var obs_map = board.get_obstacle_map()
-	# 下層水窪 — 先畫在底色上(半透明,中層元素仍可見)
-	# 1) 從 bottom_obstacle_map 畫
-	var bottom_map: Dictionary = board.bottom_obstacle_map
+	# 下層水窪 — 畫在底色上，不降低透明度（只是疊在糖果下面的圖層）
 	for pos in bottom_map:
 		var obs_p = bottom_map[pos]
 		var tid_p = str(obs_p.get("tile_id", ""))
@@ -159,8 +163,8 @@ func _draw() -> void:
 		)
 		var key_p = _resolve_sprite_key(tid_p, obs_p.get("hp", 1))
 		if OBSTACLE_TEXTURES.has(key_p):
-			draw_texture_rect(OBSTACLE_TEXTURES[key_p], rect_p, false, Color(1, 1, 1, 0.72))
-	# 2) 相容舊的 obs_map 中殘留的 bottom layer(不應再有,保險起見)
+			draw_texture_rect(OBSTACLE_TEXTURES[key_p], rect_p, false)
+	# 相容舊的 obs_map 中殘留的 bottom layer(不應再有,保險起見)
 	for pos in obs_map:
 		var obs_p = obs_map[pos]
 		var tid_p = str(obs_p.get("tile_id", ""))
@@ -172,7 +176,7 @@ func _draw() -> void:
 		)
 		var key_p = _resolve_sprite_key(tid_p, obs_p.get("hp", 1))
 		if OBSTACLE_TEXTURES.has(key_p):
-			draw_texture_rect(OBSTACLE_TEXTURES[key_p], rect_p, false, Color(1, 1, 1, 0.72))
+			draw_texture_rect(OBSTACLE_TEXTURES[key_p], rect_p, false)
 
 	# 中層 / 上層障礙物(略過 bottom Puddle、泥巴另處理遮罩)
 	# 多格 instance dedupe — 同個 instance_id 只畫一次(在 anchor 位置畫整張大 sprite)
@@ -228,11 +232,18 @@ func _draw() -> void:
 				sprite_drawn = true
 			else:
 				var sprite_key = _resolve_sprite_key(tid, hp, obs)
-				if OBSTACLE_TEXTURES.has(sprite_key):
+				# SalmonCan: body + top1(sealed) / top2(open) 複合渲染
+				if str(tid).begins_with("SalmonCan") and OBSTACLE_TEXTURES.has("SalmonCan_body"):
+					draw_texture_rect(OBSTACLE_TEXTURES["SalmonCan_body"], rect, false)
+					var salmon_state = str(obs.get("salmon_state", "sealed"))
+					if salmon_state == "sealed" and OBSTACLE_TEXTURES.has("SalmonCan_top1"):
+						draw_texture_rect(OBSTACLE_TEXTURES["SalmonCan_top1"], rect, false)
+					elif OBSTACLE_TEXTURES.has("SalmonCan_top2"):
+						draw_texture_rect(OBSTACLE_TEXTURES["SalmonCan_top2"], rect, false)
+					sprite_drawn = true
+				elif OBSTACLE_TEXTURES.has(sprite_key):
 					draw_texture_rect(OBSTACLE_TEXTURES[sprite_key], rect, false)
 					sprite_drawn = true
-					if str(tid).begins_with("SalmonCan") and str(obs.get("salmon_state", "sealed")) == "sealed":
-						draw_rect(rect, Color(0.05, 0.05, 0.08, 0.35), true)
 				# 礦泉水櫃 — 「門」設計(user 確認):HP=max(closed)時門關著,
 				# 1 hit 開門 → HP=10..1 已經是開門狀態,就不用再疊門了。
 				# closed.png 本身有畫門,但對比比較弱;額外疊一層 WaterChiller_door 強調「門關著」,
