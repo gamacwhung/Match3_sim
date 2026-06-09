@@ -79,11 +79,17 @@ func update_objective(obj_type: String, color: int = -1, amount: int = 1, tile_i
 
 
 # 抽 family prefix:截掉尾巴數字(Crt1 → Crt) 跟 _lv* 字尾(Puddle_lv2 → Puddle)
+# 以及狀態字尾如 _closed/_open(WaterChiller_closed → WaterChiller)
 static func _tile_family(tile_id: String) -> String:
 	var s = tile_id.split("#")[0]   # 去 instance tag
 	var lv_idx = s.find("_lv")
 	if lv_idx >= 0:
 		return s.substr(0, lv_idx)
+	# 去掉 _closed / _open 狀態後綴
+	for suffix in ["_closed", "_open"]:
+		if s.ends_with(suffix):
+			s = s.substr(0, s.length() - suffix.length())
+			break
 	# 截掉尾巴連續數字(Crt1 → Crt、Crt12 → Crt)
 	var i = s.length()
 	while i > 0 and s.substr(i - 1, 1).is_valid_int():

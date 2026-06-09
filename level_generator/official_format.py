@@ -412,6 +412,8 @@ def _parse_spawners(official: dict, W: int, H: int) -> list[dict]:
             fill_cells.add(idx)
 
     spawners = []
+    # 計算每個 TargetFills 區域內的總 CreateRatio（含普通糖果 Set）
+    # 用來做機率競爭
     for s in sets:
         elements = s.get('Elements', [])
         has_obstacle = any(e.get('Id', 0) >= 21 for e in elements)
@@ -419,7 +421,6 @@ def _parse_spawners(official: dict, W: int, H: int) -> list[dict]:
             continue
 
         target_fills = s.get('TargetFills', [])
-        # 只取 FillType=1 且在 TargetFills 中的格子的 col
         spawn_cols = set()
         for idx in target_fills:
             if idx in fill_cells and idx < W * H:
@@ -428,6 +429,12 @@ def _parse_spawners(official: dict, W: int, H: int) -> list[dict]:
 
         if not spawn_cols:
             continue
+
+        # 找同 TargetFills 的所有 Set 的 CreateRatio 加總
+        total_weight = 0
+        for other_s in sets:
+            if other_s.get('TargetFills', []) == target_fills:
+                total_weight += other_s.get('CreateRatio', 1)
 
         elems_out = []
         for e in elements:
@@ -447,6 +454,7 @@ def _parse_spawners(official: dict, W: int, H: int) -> list[dict]:
             'spawn_cols': sorted(spawn_cols),
             'elements': elems_out,
             'set_ratio': s.get('CreateRatio', 1),
+            'total_weight': total_weight,
         })
 
     return spawners

@@ -190,8 +190,8 @@ func _update_objective_icons(objectives: Array) -> void:
 		var w: Dictionary = _objective_widgets[key]
 		var cur: int = int(obj.get("current", 0))
 		var tgt: int = int(obj.get("target", 0))
-		var done := cur >= tgt and tgt > 0
-		var remaining := max(0, tgt - cur)
+		var done: bool = cur >= tgt and tgt > 0
+		var remaining: int = maxi(0, tgt - cur)
 		var goal_kind: String = str(obj.get("goal_kind", ""))
 		var n_inst: int = int(obj.get("board_instances", 0))
 
@@ -220,17 +220,17 @@ func _format_objective_count(obj: Dictionary, cur: int, tgt: int, remaining: int
 	var n_inst: int = int(obj.get("board_instances", 0))
 	if kind == "hits" and n_inst > 0:
 		# 2×2 櫃:目標數=總敲擊次數,不是格子數;標示盤上有幾「台」
-		var lines := "%d / %d 次" % [cur, tgt]
+		var lines: String = "%d / %d 次" % [cur, tgt]
 		if not done and remaining > 0:
 			lines += "\n還差 %d 次" % remaining
 		lines += "\n（%d 台 2×2）" % n_inst
 		return lines
 	if kind == "triggers":
-		var lines_t := "%d / %d 次" % [cur, tgt]
+		var lines_t: String = "%d / %d 次" % [cur, tgt]
 		if not done and remaining > 0:
 			lines_t += "\n還差 %d 次" % remaining
 		return lines_t
-	var lines_i := "%d / %d" % [cur, tgt]
+	var lines_i: String = "%d / %d" % [cur, tgt]
 	if not done and remaining > 0:
 		lines_i += "\n還差 %d" % remaining
 	return lines_i
@@ -240,10 +240,10 @@ func play_objective_fly(from_global: Vector2, family: String) -> void:
 	var tex: Texture2D = POSTMARK_CARD_TEX if family == "Stamp" else _icon_for_family(family, "")
 	if tex == null:
 		return
-	var target := _objective_fly_target(family)
-	var start_scale := 0.055 if family == "Stamp" else 0.04
-	var end_scale := 0.032 if family == "Stamp" else 0.028
-	var duration := 0.78 if family == "Stamp" else 0.72
+	var target: Vector2 = _objective_fly_target(family)
+	var start_scale: float = 0.055 if family == "Stamp" else 0.04
+	var end_scale: float = 0.032 if family == "Stamp" else 0.028
+	var duration: float = 0.78 if family == "Stamp" else 0.72
 
 	var sprite = Sprite2D.new()
 	sprite.texture = tex
@@ -252,7 +252,7 @@ func play_objective_fly(from_global: Vector2, family: String) -> void:
 	sprite.z_index = 120
 	add_child(sprite)
 
-	var mid := from_global.lerp(target, 0.45) + Vector2(0, -42)
+	var mid: Vector2 = from_global.lerp(target, 0.45) + Vector2(0, -42)
 	var tw = create_tween()
 	tw.tween_property(sprite, "global_position", mid, duration * 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_property(sprite, "global_position", target, duration * 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)

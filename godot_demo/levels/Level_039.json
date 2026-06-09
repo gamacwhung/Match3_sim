@@ -400,7 +400,8 @@
           "ratio": 1
         }
       ],
-      "set_ratio": 1
+      "set_ratio": 1,
+      "total_weight": 2
     }
   ]
 }

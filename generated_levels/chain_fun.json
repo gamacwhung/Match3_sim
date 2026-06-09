@@ -1,0 +1,113 @@
+{
+  "name": "紙箱清理大作戰",
+  "description": "底部堆滿了紙箱，利用連鎖反應來清理它們！",
+  "rows": 9,
+  "cols": 9,
+  "num_colors": 4,
+  "max_steps": 32,
+  "goals": {
+    "Crt1": 15,
+    "Crt2": 15
+  },
+  "board": [
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      "Crt1",
+      "Crt1",
+      "Crt1",
+      "Crt1",
+      "Crt1",
+      null,
+      null
+    ],
+    [
+      "Crt1",
+      "Crt1",
+      "Crt1",
+      "Crt2",
+      "Crt2",
+      "Crt2",
+      "Crt1",
+      "Crt1",
+      "Crt1"
+    ],
+    [
+      "Crt1",
+      "Crt2",
+      "Crt1",
+      "Crt2",
+      "Crt1",
+      "Crt2",
+      "Crt1",
+      "Crt2",
+      "Crt1"
+    ],
+    [
+      "Crt2",
+      "Crt1",
+      "Crt2",
+      "Crt1",
+      "Crt2",
+      "Crt1",
+      "Crt2",
+      "Crt1",
+      "Crt2"
+    ],
+    [
+      "Crt2",
+      "Crt2",
+      "Crt2",
+      "Crt2",
+      "Crt2",
+      "Crt2",
+      "Crt2",
+      "Crt2",
+      "Crt2"
+    ]
+  ]
+}

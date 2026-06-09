@@ -10,6 +10,7 @@ var cell_size: float = 70.0
 var board_offset: Vector2 = Vector2.ZERO
 var blocked_cells: Array[Vector2i] = []
 var void_cells: Dictionary = {}  # Vector2i → true; 不存在的格子，糖可穿過
+var movable_obstacle_cells: Dictionary = {}  # Vector2i → true; 可移動障礙物佔的格（BFS 可穿越）
 var candy_scene: PackedScene
 var candy_container: Node2D
 var num_colors: int = 6
@@ -17,6 +18,7 @@ var num_colors: int = 6
 # Spawner 機制
 var spawner_data: Array[Dictionary] = []
 var _spawner_counters: Array[int] = []  # 每個 spawner 的累計 fill 計數
+var obstacle_map_ref: Dictionary = {}   # game_board.obstacle_map 的 reference
 
 func setup(w: int, h: int, c_size: float, offset: Vector2, container: Node2D, scene: PackedScene, blocked: Array[Vector2i] = []) -> void:
 	width = w
@@ -223,10 +225,11 @@ func _can_fall_to(x: int, y: int) -> bool:
 # 普通 fill_empty_cells 無法從頂部補它,要靠斜落補。
 # 若回傳 true 表示「頂部下得來」,斜落應該避讓(讓新糖從頂部補)。
 # void 格子不算障礙（糖可穿過 void）。
+# 可移動障礙物（Barrel/TrafficCone）不算截斷 — 它們會自行向下掉落讓路。
 func _reachable_from_top(x: int, y: int) -> bool:
 	for ty in range(y):
 		var p = Vector2i(x, ty)
-		if p in blocked_cells and not void_cells.has(p):
+		if p in blocked_cells and not void_cells.has(p) and not movable_obstacle_cells.has(p):
 			return false
 	return true
 
@@ -238,14 +241,14 @@ func _compute_reachable_cells() -> Dictionary:
 	var reachable: Dictionary = {}
 	var visited: Dictionary = {}
 	var queue: Array[Vector2i] = []
-	# 種子：row 0 中所有非 blocked 的格（void 也可作為入口通道）
+	# 種子：row 0 中所有非 blocked 的格（void 和可移動障礙物也可作為入口通道）
 	for x in width:
 		var p = Vector2i(x, 0)
 		if p not in blocked_cells:
 			reachable[p] = true
 			visited[p] = true
 			queue.append(p)
-		elif void_cells.has(p):
+		elif void_cells.has(p) or movable_obstacle_cells.has(p):
 			visited[p] = true
 			queue.append(p)
 	# BFS 向下擴展
@@ -264,6 +267,9 @@ func _compute_reachable_cells() -> Dictionary:
 				continue
 			visited[np] = true
 			if void_cells.has(np):
+				queue.append(np)
+				continue
+			if movable_obstacle_cells.has(np):
 				queue.append(np)
 				continue
 			if np in blocked_cells:
@@ -288,12 +294,13 @@ func fill_empty_cells() -> Array[Tween]:
 	for x in width:
 		# 從上往下掃,只收「上方沒有 blocked 截斷」的空格
 		# void 格不算障礙（糖可穿過），只有實體障礙才截斷路徑
+		# 可移動障礙物（Barrel/TrafficCone）不截斷 — 它們會自行掉落讓路
 		var reachable_empty_ys: Array[int] = []
 		var path_clear = true
 		for y in height:
 			var p = Vector2i(x, y)
 			if p in blocked_cells:
-				if not void_cells.has(p):
+				if not void_cells.has(p) and not movable_obstacle_cells.has(p):
 					path_clear = false
 				continue
 			if grid[x][y] == null and path_clear:
@@ -326,24 +333,70 @@ func _try_spawn_obstacle(col: int) -> String:
 		var spawn_cols: Array = s.get("spawn_cols", [])
 		if col not in spawn_cols:
 			continue
-		_spawner_counters[idx] += 1
+		# 檢查目標是否已滿足（盤面數量 + goal 已達成數 >= goal 目標）
+		var elements: Array = s.get("elements", [])
+		if _spawner_goal_satisfied(elements):
+			continue
+		# 機率生成：set_ratio / total_weight
 		var set_ratio: int = int(s.get("set_ratio", 1))
-		if _spawner_counters[idx] >= set_ratio:
-			_spawner_counters[idx] = 0
-			# 從 elements 中按 ratio 加權隨機選取
-			var elements: Array = s.get("elements", [])
-			if elements.size() == 0:
-				continue
-			var total_ratio: int = 0
-			for e in elements:
-				total_ratio += int(e.get("ratio", 1))
-			var roll: int = randi() % total_ratio
-			var accum: int = 0
-			for e in elements:
-				accum += int(e.get("ratio", 1))
-				if roll < accum:
-					return str(e.get("tile_id", ""))
+		var total_weight: int = int(s.get("total_weight", set_ratio))
+		if total_weight <= 0:
+			total_weight = set_ratio
+		var roll: float = randf()
+		if roll >= float(set_ratio) / float(total_weight):
+			continue
+		# 在 elements 中按 ratio 加權隨機選擇
+		if elements.size() == 0:
+			continue
+		var total_ratio: int = 0
+		for e in elements:
+			total_ratio += int(e.get("ratio", 1))
+		var elem_roll: int = randi() % total_ratio
+		var accum: int = 0
+		for e in elements:
+			accum += int(e.get("ratio", 1))
+			if elem_roll < accum:
+				return str(e.get("tile_id", ""))
 	return ""
+
+
+func _spawner_goal_satisfied(elements: Array) -> bool:
+	for e in elements:
+		var tile_id: String = str(e.get("tile_id", ""))
+		if tile_id == "":
+			continue
+		var family: String = GameManager._tile_family(tile_id)
+		# 找對應的 objective
+		for obj in GameManager.level_objectives:
+			var obj_family: String = GameManager._tile_family(str(obj.get("tile_id", "")))
+			if obj_family != family:
+				continue
+			var target: int = int(obj.get("target", 0))
+			var current: int = int(obj.get("current", 0))
+			# 計算盤面上同 family 的障礙物數量
+			var on_board: int = _count_family_on_board(family)
+			if current + on_board >= target:
+				return true
+	return false
+
+
+func _count_family_on_board(family: String) -> int:
+	var count: int = 0
+	var counted_instances: Dictionary = {}
+	for pos in obstacle_map_ref:
+		var obs: Dictionary = obstacle_map_ref[pos]
+		var tid: String = str(obs.get("tile_id", ""))
+		var obs_family: String = GameManager._tile_family(tid)
+		if obs_family != family:
+			continue
+		# 多格 instance 只算一次
+		var inst_id: String = str(obs.get("instance_id", ""))
+		if inst_id != "":
+			if counted_instances.has(inst_id):
+				continue
+			counted_instances[inst_id] = true
+		count += 1
+	return count
 
 func remove_candy_at(pos: Vector2i) -> Node2D:
 	if pos.x < 0 or pos.x >= width or pos.y < 0 or pos.y >= height:

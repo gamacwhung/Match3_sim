@@ -64,6 +64,7 @@ ALL_GOAL_KEYS = list(GOAL_HINT_MAP.values())
 
 # 支援視覺輸入的模型
 VISION_MODELS = {
+    'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash',
     'gpt-4o', 'gpt-4o-mini',
     'gpt-5.4-2026-03-05', 'gpt-5.3-chat-latest',
     'claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001',
@@ -348,17 +349,28 @@ def main():
         model_display = st.selectbox('AI 模型', get_available_models(), index=0)
         model = model_id_from_display(model_display)
         provider = get_model_provider(model)
-        key_label = 'OPENAI_API_KEY' if provider == 'openai' else 'ANTHROPIC_API_KEY'
+        if provider == 'google':
+            key_label = 'GOOGLE_API_KEY'
+        elif provider == 'anthropic':
+            key_label = 'ANTHROPIC_API_KEY'
+        else:
+            key_label = 'OPENAI_API_KEY'
         ss_key = f'ui_{key_label}'
 
         config_has_key = _get_key(provider) is not None and not st.session_state.get(ss_key)
         if config_has_key:
             st.caption(f'✅ {key_label} 已設定（config.py）')
         else:
+            placeholder = 'AIza...' if provider == 'google' else 'sk-...'
+            help_text = (
+                '取得方式：https://aistudio.google.com/apikey'
+                if provider == 'google' else
+                '填入後僅存在此瀏覽器 session，不會被儲存'
+            )
             entered = st.text_input(
                 key_label, value=st.session_state.get(ss_key, ''),
-                type='password', placeholder='sk-...',
-                help='填入後僅存在此瀏覽器 session，不會被儲存',
+                type='password', placeholder=placeholder,
+                help=help_text,
             )
             if entered != st.session_state.get(ss_key, ''):
                 st.session_state[ss_key] = entered

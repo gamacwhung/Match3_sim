@@ -188,10 +188,10 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 			var pos = Vector2i(c, r)
 			if raw == "" or raw == "null":
 				continue
-		if raw == "void":
-			blocked_arr.append(pos)
-			void_arr.append(pos)
-			continue
+			if raw == "void":
+				blocked_arr.append(pos)
+				void_arr.append(pos)
+				continue
 
 			# 拆 instance_tag (e.g. "Pool_lv3#1")
 			var tile_id = raw
@@ -361,6 +361,7 @@ static func parse_level_dict(data: Dictionary) -> Resource:
 					"spawn_cols": spawn_cols,
 					"elements": elements,
 					"set_ratio": set_ratio,
+					"total_weight": int(s.get("total_weight", set_ratio)),
 				})
 	level.spawner_data = spawner_arr
 

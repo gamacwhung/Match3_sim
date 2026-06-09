@@ -474,6 +474,14 @@ static func _find_root(parent: Array, i: int) -> int:
 # ===========================================================================
 
 static func has_possible_moves(grid: Array, width: int, height: int, blocked: Array[Vector2i] = []) -> bool:
+	# 有道具（非 NORMAL）就一定有 move 可以操作
+	for y in height:
+		for x in width:
+			if Vector2i(x, y) in blocked:
+				continue
+			var c = grid[x][y]
+			if c != null and c.candy_type != c.CandyType.NORMAL:
+				return true
 	return find_hint_move(grid, width, height, blocked).size() > 0
 
 

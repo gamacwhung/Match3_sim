@@ -2,21 +2,20 @@
 AI 模擬測試器
 
 對關卡跑多場遊戲，統計勝率和步數分布。
-使用 ThreadPoolExecutor 並行執行，各遊戲互相獨立。
+使用 ProcessPoolExecutor 並行執行，各遊戲互相獨立。
 """
 
 import sys
 import os
 import json
 import tempfile
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'scripts'))
 
 from match3_env import Match3Env
-from basic_agent import BasicAgent
-from run_sim import run_one_game
 
 
 @dataclass
@@ -45,13 +44,26 @@ class SimulationResults:
 
 def _run_single_game(level_file_path: str) -> dict:
     """
-    單場遊戲，建立獨立的 Env + Agent（thread-safe）。
-    level_file_path 由呼叫者寫好並共用，無需每次建立 tempfile。
+    單場遊戲，使用進階 ai_player（啟發式貪心搜索）。
     """
+    from ai_player import find_best_action
+
     env = Match3Env(level_file=level_file_path)
-    agent = BasicAgent()
-    win, steps, progress = run_one_game(env, agent, verbose=False)
-    return {'win': win, 'steps': steps, 'goals_progress': progress}
+    env.reset()
+    steps = 0
+    info = {}
+    while not env.done:
+        action = find_best_action(env)
+        if action is None:
+            env.board.shuffle()
+            action = find_best_action(env)
+            if action is None:
+                break
+        _, _, done, info = env.step(action)
+        steps += 1
+        if steps > 200:
+            break
+    return {'win': env.win, 'steps': steps, 'goals_progress': info.get('goals_progress', {})}
 
 
 def run_simulation_batch(
@@ -88,7 +100,7 @@ def run_simulation_batch(
         results_raw = []
         futures = []
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
             for _ in range(n_games):
                 futures.append(executor.submit(_run_single_game, tmp_path))
 

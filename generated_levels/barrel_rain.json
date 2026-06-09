@@ -1,65 +1,22 @@
 {
-  "name": "Level_95",
-  "description": "匯入自官方關卡 #95",
-  "rows": 7,
+  "name": "木桶與水漥",
+  "description": "小心不斷從上方落下的木桶，同時清除盤面底部的積水！",
+  "rows": 9,
   "cols": 9,
   "num_colors": 4,
-  "max_steps": 23,
+  "max_steps": 30,
   "goals": {
-    "Barrel": 80
+    "Barrel": 45,
+    "Puddle_lv1": 27
   },
   "board": {
     "middle": [
       [
-        "Barrel",
-        "Barrel",
-        "Barrel",
-        "Barrel",
-        null,
-        "Barrel",
-        "Barrel",
-        "Barrel",
-        "Barrel"
-      ],
-      [
-        "Barrel",
-        "Barrel",
-        "Barrel",
-        null,
-        null,
-        null,
-        "Barrel",
-        "Barrel",
-        "Barrel"
-      ],
-      [
-        "Barrel",
-        "Barrel",
         null,
         null,
         null,
         null,
         null,
-        "Barrel",
-        "Barrel"
-      ],
-      [
-        "Barrel",
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        "Barrel"
-      ],
-      [
-        null,
-        null,
-        null,
-        null,
-        "Barrel",
         null,
         null,
         null,
@@ -70,7 +27,51 @@
         null,
         null,
         null,
-        "Barrel",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        "TrafficCone_lv1",
+        null,
+        null,
+        null,
+        "TrafficCone_lv1",
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        "TrafficCone_lv1",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "TrafficCone_lv1",
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
         null,
         null,
         null,
@@ -81,65 +82,8 @@
         null,
         null,
         null,
-        "Barrel",
         null,
         null,
-        null,
-        null
-      ]
-    ],
-    "upper": [
-      [
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1"
-      ],
-      [
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        null,
-        null,
-        null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1"
-      ],
-      [
-        "Rope_lv1",
-        "Rope_lv1",
-        null,
-        "Rope_lv1",
-        null,
-        "Rope_lv1",
-        null,
-        "Rope_lv1",
-        "Rope_lv1"
-      ],
-      [
-        "Rope_lv1",
-        null,
-        null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        null,
-        null,
-        "Rope_lv1"
-      ],
-      [
-        null,
-        null,
-        null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
         null,
         null,
         null
@@ -148,9 +92,9 @@
         null,
         null,
         null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
+        null,
+        null,
+        null,
         null,
         null,
         null
@@ -159,9 +103,9 @@
         null,
         null,
         null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
+        null,
+        null,
+        null,
         null,
         null,
         null
@@ -224,15 +168,37 @@
         null
       ],
       [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1"
+      ],
+      [
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1"
+      ],
+      [
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1",
+        "Puddle_lv1"
       ],
       [
         null,
@@ -254,6 +220,7 @@
         1,
         2,
         3,
+        4,
         5,
         6,
         7,
@@ -265,8 +232,8 @@
           "ratio": 1
         }
       ],
-      "set_ratio": 1,
-      "total_weight": 1
+      "set_ratio": 3,
+      "total_weight": 3
     }
   ]
 }

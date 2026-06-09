@@ -1,7 +1,8 @@
 """
-AI 關卡生成器 — 支援 Anthropic Claude 和 OpenAI GPT
+AI 關卡生成器 — 支援 Google Gemini、Anthropic Claude、OpenAI GPT
 
 根據選擇的模型自動路由到對應的 API：
+- gemini-* 模型 → Google Gen AI SDK（需要 GOOGLE_API_KEY）
 - claude-* 模型 → Anthropic API（需要 ANTHROPIC_API_KEY）
 - gpt-* / o1-* / o3-* 模型 → OpenAI API（需要 OPENAI_API_KEY）
 """
@@ -17,10 +18,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 _GUIDE_PATH = pathlib.Path(__file__).parent.parent / 'docs' / 'level_design_guide.md'
 
-DEFAULT_MODEL = 'gpt-5.4-2026-03-05'
+DEFAULT_MODEL = 'gemini-2.5-pro'
 
 # 模型清單：(display_name, model_id, provider)
 MODEL_LIST = [
+    # Google Gemini（Google Cloud Day 預設）
+    ('Gemini 2.5 Pro', 'gemini-2.5-pro', 'google'),
+    ('Gemini 2.5 Flash', 'gemini-2.5-flash', 'google'),
+    ('Gemini 3.1 Pro Preview', 'gemini-3.1-pro-preview', 'google'),
+    ('Gemini 3.5 Flash', 'gemini-3.5-flash', 'google'),
+    ('Gemini 2.0 Flash', 'gemini-2.0-flash-001', 'google'),
     # OpenAI
     ('GPT-5.4 (2026-03-05)', 'gpt-5.4-2026-03-05', 'openai'),
     ('GPT-5.3 chat latest', 'gpt-5.3-chat-latest', 'openai'),
@@ -40,6 +47,8 @@ def get_model_provider(model: str) -> str:
         if mid == model:
             return provider
     # fallback: 根據前綴猜測
+    if model.startswith('gemini-'):
+        return 'google'
     if model.startswith('claude-'):
         return 'anthropic'
     return 'openai'
@@ -66,7 +75,18 @@ def _get_key(provider: str) -> str | None:
     3. Streamlit secrets（雲端部署用）
     4. 環境變數（fallback）
     """
-    key_name = 'ANTHROPIC_API_KEY' if provider == 'anthropic' else 'OPENAI_API_KEY'
+    if provider == 'google':
+        key_name = 'GOOGLE_API_KEY'
+    elif provider == 'anthropic':
+        key_name = 'ANTHROPIC_API_KEY'
+    elif provider == 'gcp_project':
+        key_name = 'GCP_PROJECT_ID'
+    elif provider == 'gcp_location':
+        key_name = 'GCP_LOCATION'
+    elif provider == 'gcp_credentials':
+        key_name = 'GCP_CREDENTIALS_FILE'
+    else:
+        key_name = 'OPENAI_API_KEY'
     ss_key = f'ui_{key_name}'  # session_state 的 key
 
     # 1. UI 輸入
@@ -166,6 +186,83 @@ def extract_json_from_response(text: str) -> dict | None:
         except json.JSONDecodeError:
             pass
     return None
+
+
+# ---------------------------------------------------------------------------
+# Google Gemini 呼叫
+# ---------------------------------------------------------------------------
+
+def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, image_media_type) -> str:
+    from google import genai
+    from google.genai import types
+
+    # 優先使用 Vertex AI（有 PROJECT_ID 時）；否則用 API Key
+    project_id = _get_key('gcp_project')
+    api_key = _get_key('google')
+
+    if project_id:
+        # 設定 SA credentials（如果有的話）
+        cred_file = _get_key('gcp_credentials')
+        if cred_file:
+            cred_path = pathlib.Path(__file__).resolve().parent.parent / cred_file
+            if cred_path.exists():
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(cred_path)
+        # Vertex AI 模式
+        location = _get_key('gcp_location') or 'us-central1'
+        client = genai.Client(vertexai=True, project=project_id, location=location)
+    elif api_key:
+        # AI Studio 模式：用 API Key
+        client = genai.Client(api_key=api_key)
+    else:
+        raise ValueError(
+            '找不到 Google AI 認證。請擇一設定：\n'
+            '  A) GOOGLE_API_KEY（AI Studio）\n'
+            '  B) GCP_PROJECT_ID + GCP_CREDENTIALS_FILE（Vertex AI）\n'
+            '取得 API Key：https://aistudio.google.com/apikey'
+        )
+
+    # 組裝 contents：把 chat history 轉成 Gemini 格式
+    contents = []
+    for msg in messages:
+        role = 'user' if msg['role'] == 'user' else 'model'
+        content = msg['content']
+        if isinstance(content, list):
+            parts = []
+            for block in content:
+                if isinstance(block, dict):
+                    if block.get('type') == 'text':
+                        parts.append(types.Part.from_text(text=block['text']))
+                    elif block.get('type') == 'image':
+                        src = block.get('source', {})
+                        if src.get('type') == 'base64':
+                            import base64 as b64mod
+                            img_data = b64mod.b64decode(src['data'])
+                            parts.append(types.Part.from_bytes(
+                                data=img_data, mime_type=src['media_type']
+                            ))
+            contents.append(types.Content(role=role, parts=parts))
+        else:
+            contents.append(types.Content(
+                role=role,
+                parts=[types.Part.from_text(text=content)]
+            ))
+
+    # 最後一條 user 訊息加入圖片
+    if image_bytes and contents and contents[-1].role == 'user':
+        contents[-1].parts.append(
+            types.Part.from_bytes(data=image_bytes, mime_type=image_media_type)
+        )
+
+    response = client.models.generate_content(
+        model=model,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            max_output_tokens=4096,
+            temperature=0.9,
+        ),
+    )
+    return response.text
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +398,9 @@ def generate_level(
     # 加入使用者訊息（純文字，圖片在呼叫時注入）
     chat_history.append({'role': 'user', 'content': user_message})
 
-    if provider == 'anthropic':
+    if provider == 'google':
+        assistant_text = _call_gemini(model, system_prompt, chat_history, image_bytes, image_media_type)
+    elif provider == 'anthropic':
         assistant_text = _call_anthropic(model, system_prompt, chat_history, image_bytes, image_media_type)
     else:
         assistant_text = _call_openai(model, system_prompt, chat_history, image_bytes, image_media_type)

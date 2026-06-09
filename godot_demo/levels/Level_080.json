@@ -362,7 +362,8 @@
           "ratio": 1
         }
       ],
-      "set_ratio": 4
+      "set_ratio": 4,
+      "total_weight": 4
     }
   ]
 }

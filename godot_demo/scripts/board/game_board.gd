@@ -47,17 +47,65 @@ var _hint_shown: bool = false
 # Chiller / Stamp 等障礙物在同一個 tick 內只能算 1 次傷害。
 var _damage_tick_id: int = 0
 # 同一個 match 群組內,Stamp 目標只 +1 次(但每個相鄰郵戳都可播蓋章動畫)
-var _stamp_goal_last_tick: int = -1
+var _stamp_goal_last_tick: Dictionary = {}  # {Vector2i: int} per-stamp dedup
+# 同一批多架紙飛機選目標時的去重列表（避免全飛向同一目標）
+var _plane_batch_claimed: Array[Vector2i] = []
 
 signal board_ready
 signal turn_completed
 signal candies_destroyed(count: int, color: int)
+
+# Autoplay 相關
+var _autoplay_moves: Array = []
+var _autoplay_running: bool = false
+var _autoplay_delay: float = 0.8
 
 func _ready() -> void:
 	_calculate_offset()
 	var vp := get_viewport()
 	if vp and not vp.size_changed.is_connected(_on_viewport_resized):
 		vp.size_changed.connect(_on_viewport_resized)
+
+
+## Autoplay: 外部傳入動作序列,自動逐步執行並播放動畫
+func start_autoplay(moves: Array, delay: float = 0.8) -> void:
+	_autoplay_moves = moves
+	_autoplay_delay = delay
+	_autoplay_running = true
+	_run_autoplay()
+
+
+func _run_autoplay() -> void:
+	for move in _autoplay_moves:
+		if not _autoplay_running:
+			break
+		# 等前一步完成
+		while is_processing:
+			await get_tree().create_timer(0.1).timeout
+		await get_tree().create_timer(_autoplay_delay).timeout
+
+		var move_type: String = str(move.get("type", "swap"))
+		if move_type == "swap":
+			var pos1 = move.get("pos1", [0, 0])
+			var pos2 = move.get("pos2", [0, 0])
+			var p1 := Vector2i(int(pos1[0]), int(pos1[1]))
+			var p2 := Vector2i(int(pos2[0]), int(pos2[1]))
+			var candy_a = filler.get_candy_at(p1)
+			var candy_b = filler.get_candy_at(p2)
+			if candy_a and candy_b:
+				_try_swap(candy_a, candy_b)
+			elif candy_a and _is_movable_obstacle_at(p2):
+				_try_swap_with_movable_obstacle(candy_a, p2)
+			elif candy_b and _is_movable_obstacle_at(p1):
+				_try_swap_with_movable_obstacle(candy_b, p1)
+		elif move_type == "activate":
+			var pos = move.get("pos", [0, 0])
+			var p := Vector2i(int(pos[0]), int(pos[1]))
+			var candy = filler.get_candy_at(p)
+			if candy and candy.candy_type != CandyScript.CandyType.NORMAL:
+				_activate_special_directly(candy)
+
+	_autoplay_running = false
 
 
 func _on_viewport_resized() -> void:
@@ -146,10 +194,26 @@ func init_board(level_data: Resource = null) -> void:
 	filler.setup(grid_width, grid_height, cell_size, board_offset, candy_container, candy_scene, init_skip)
 	if level_data and level_data.num_colors > 0:
 		filler.num_colors = level_data.num_colors
+
+	# void_cells — 不存在的格，糖可穿過（必須在 fill_initial 前設定）
+	if level_data and level_data.void_cells.size() > 0:
+		var vc: Dictionary = {}
+		for p in level_data.void_cells:
+			vc[p] = true
+		filler.void_cells = vc
+
+	# 可移動障礙物的格（Barrel/TrafficCone）：BFS 可穿越（必須在 fill_initial 前設定）
+	var movable_cells: Dictionary = {}
+	for pos in obstacle_map:
+		var obs: Dictionary = obstacle_map[pos]
+		var tid: String = str(obs.get("tile_id", ""))
+		if _is_movable_obstacle(tid):
+			movable_cells[pos] = true
+	filler.movable_obstacle_cells = movable_cells
+
 	_draw_board_background()
 	filler.fill_initial()
 	_connect_candy_signals()
-	_sync_candy_layer_visibility()
 
 	var retry_count = 0
 	while MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, init_skip).size() > 0 and retry_count < 50:
@@ -161,21 +225,17 @@ func init_board(level_data: Resource = null) -> void:
 		_connect_candy_signals()
 		retry_count += 1
 
+	_sync_candy_layer_visibility()
+
 	# Puddle/預置道具格 fill_initial 完之後就解封 — 之後 gravity 允許糖落上去
 	# 重要:filler.blocked_cells 必須跟 game_board.blocked_cells 共用同一個 array reference,
 	# 之後 _damage_obstacle 在 blocked_cells 上 erase 一次,兩邊都會同步看到改變
 	filler.blocked_cells = blocked_cells
 
-	# void_cells — 不存在的格，糖可穿過
-	if level_data and level_data.void_cells.size() > 0:
-		var vc: Dictionary = {}
-		for p in level_data.void_cells:
-			vc[p] = true
-		filler.void_cells = vc
-
 	# 頂部 Spawner — 把 spawner_data 傳入 filler
 	if level_data and level_data.spawner_data.size() > 0:
 		filler.set_spawners(level_data.spawner_data)
+		filler.obstacle_map_ref = obstacle_map
 		if not filler.obstacle_spawned.is_connected(_on_obstacle_spawned):
 			filler.obstacle_spawned.connect(_on_obstacle_spawned)
 
@@ -218,7 +278,6 @@ func _powerup_type_to_candy_type(name_str: String) -> int:
 func _clear_board() -> void:
 	for child in candy_container.get_children():
 		child.queue_free()
-	bottom_obstacle_map.clear()
 
 func _draw_board_background() -> void:
 	board_bg.queue_redraw()
@@ -315,7 +374,8 @@ func _activate_special_directly(candy: CandyScript) -> void:
 	await get_tree().create_timer(0.3).timeout
 	await _cascade_loop()
 	_sync_candy_layer_visibility()
-	_post_turn_check()
+	if _deferred_queue.size() == 0:
+		_post_turn_check()
 
 func _on_candy_swiped(candy: CandyScript, direction: Vector2i) -> void:
 	if is_processing:
@@ -521,15 +581,19 @@ func _run_swap_movable_into_empty(obs_pos: Vector2i, empty_pos: Vector2i) -> voi
 	obstacle_map.erase(obs_pos)
 	if obs_pos in blocked_cells:
 		blocked_cells.erase(obs_pos)
+	filler.movable_obstacle_cells.erase(obs_pos)
 	obstacle_map[empty_pos] = obs
 	blocked_cells.append(empty_pos)
+	filler.movable_obstacle_cells[empty_pos] = true
 	board_bg.queue_redraw()
 	var matches := MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
 	if matches.is_empty():
 		obstacle_map.erase(empty_pos)
 		blocked_cells.erase(empty_pos)
+		filler.movable_obstacle_cells.erase(empty_pos)
 		obstacle_map[obs_pos] = obs
 		blocked_cells.append(obs_pos)
+		filler.movable_obstacle_cells[obs_pos] = true
 		board_bg.queue_redraw()
 		return
 	is_processing = true
@@ -537,7 +601,8 @@ func _run_swap_movable_into_empty(obs_pos: Vector2i, empty_pos: Vector2i) -> voi
 	GameManager.use_move()
 	cascade_level = 0
 	await _process_matches(matches, [obs_pos, empty_pos])
-	_post_turn_check()
+	if _deferred_queue.size() == 0:
+		_post_turn_check()
 
 
 func _is_candy_locked(pos: Vector2i) -> bool:
@@ -588,7 +653,8 @@ func _try_move_into_empty(candy: CandyScript, empty_pos: Vector2i) -> void:
 		is_processing = false
 		return
 	await _process_matches(matches, [from_pos, empty_pos])
-	_post_turn_check()
+	if _deferred_queue.size() == 0:
+		_post_turn_check()
 
 func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 	is_processing = true
@@ -623,7 +689,8 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 		GameManager.use_move()
 		cascade_level = 0
 		await _handle_special_combo(candy_a, candy_b, combo["effect"])
-		_post_turn_check()
+		if _deferred_queue.size() == 0:
+			_post_turn_check()
 		return
 
 	var matches = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
@@ -651,7 +718,8 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 			_chain_trigger(sp_type, drag_dest, sp_color)
 			await get_tree().create_timer(0.3).timeout
 			await _cascade_loop()
-			_post_turn_check()
+			if _deferred_queue.size() == 0:
+				_post_turn_check()
 			return
 		# 兩邊都是 normal candy 又沒 match → 真的無效,換回去
 		AudioManager.play_swap_back_sound()
@@ -694,7 +762,8 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 	#    若道具效果剛把某些 match cell 也炸掉了,_process_matches 內部 get_candy_at == null 自然 skip。
 	await _process_matches(matches, [pos_a, pos_b])
 
-	_post_turn_check()
+	if _deferred_queue.size() == 0:
+		_post_turn_check()
 
 
 # Swap 糖果與可移動障礙物(Barrel / TrafficCone)— user 確認:
@@ -729,6 +798,8 @@ func _try_swap_with_movable_obstacle(candy: CandyScript, obs_pos: Vector2i) -> v
 		blocked_cells.erase(obs_pos)
 	if not (candy_pos in blocked_cells):
 		blocked_cells.append(candy_pos)
+	filler.movable_obstacle_cells.erase(obs_pos)
+	filler.movable_obstacle_cells[candy_pos] = true
 
 	# 動畫
 	var tween_a = candy.animate_to(world_obs, 0.2)
@@ -753,6 +824,8 @@ func _try_swap_with_movable_obstacle(candy: CandyScript, obs_pos: Vector2i) -> v
 			blocked_cells.erase(candy_pos)
 		if not (obs_pos in blocked_cells):
 			blocked_cells.append(obs_pos)
+		filler.movable_obstacle_cells.erase(candy_pos)
+		filler.movable_obstacle_cells[obs_pos] = true
 		var tween_back = candy.animate_to(world_candy, 0.2)
 		board_bg.queue_redraw()
 		await tween_back.finished
@@ -771,12 +844,14 @@ func _try_swap_with_movable_obstacle(candy: CandyScript, obs_pos: Vector2i) -> v
 		_chain_trigger(sp_type, obs_pos, sp_color)
 		await get_tree().create_timer(0.3).timeout
 		await _cascade_loop()
-		_post_turn_check()
+		if _deferred_queue.size() == 0:
+			_post_turn_check()
 		return
 
 	# 有 match → 正常 match 流程
 	await _process_matches(matches, [candy_pos, obs_pos])
-	_post_turn_check()
+	if _deferred_queue.size() == 0:
+		_post_turn_check()
 
 
 func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript, drag_dest: Vector2i = Vector2i(-1, -1)) -> void:
@@ -863,7 +938,8 @@ func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript, drag_de
 	await get_tree().create_timer(0.3).timeout
 	await _cascade_loop()
 	_sync_candy_layer_visibility()
-	_post_turn_check()
+	if _deferred_queue.size() == 0:
+		_post_turn_check()
 
 
 # 光球主動畫:
@@ -908,7 +984,9 @@ func _animate_color_bomb_sequence(targets: Array, bomb_pos: Vector2i, transform_
 	if transform_to < 0:
 		_explode_cells_no_chain(targets)
 	else:
+		_plane_batch_claimed.clear()
 		_explode_cells(targets, EXPLODE_MODE_SPECIAL)
+		_plane_batch_claimed.clear()
 
 func _destroy_candy_at(pos: Vector2i, color_for_signal: int, mode: int = EXPLODE_MODE_MATCH) -> void:
 	var c = filler.get_candy_at(pos)
@@ -962,6 +1040,7 @@ func _explode_cells(targets: Array, mode: int = EXPLODE_MODE_MATCH) -> void:
 	_obstacle_damage_mode = mode
 	_damage_tick_id += 1
 	var chain_queue: Array = []
+	var destroyed_cells: Array[Vector2i] = []
 	for tp in targets:
 		var pos: Vector2i = tp as Vector2i
 		var c = filler.get_candy_at(pos)
@@ -976,6 +1055,7 @@ func _explode_cells(targets: Array, mode: int = EXPLODE_MODE_MATCH) -> void:
 						_damage_bottom_obstacle(pos)
 						if not obstacle_map.has(pos):
 							effect_spawner_node.spawn_destroy_effect(filler.grid_to_world(pos), 0)
+					destroyed_cells.append(pos)
 				_:
 					_trigger_obstacle_adjacent(pos, -1)
 			continue
@@ -998,6 +1078,10 @@ func _explode_cells(targets: Array, mode: int = EXPLODE_MODE_MATCH) -> void:
 		filler.remove_candy_at(pos)
 		c.animate_destroy()
 		candies_destroyed.emit(1, color)
+		destroyed_cells.append(pos)
+	# SPECIAL/PLANE 模式也要觸發相鄰的 manufacturer(Stamp)
+	if mode != EXPLODE_MODE_MATCH and destroyed_cells.size() > 0:
+		_trigger_manufacturers_adjacent_to_cells(destroyed_cells)
 	# 連鎖:對每個被波及的 special candy 觸發其 effect
 	# (此時該 special candy 已 remove,_chain_trigger 不會再 destroy 自己)
 	for ch in chain_queue:
@@ -1049,15 +1133,18 @@ func _chain_trigger(ct: int, pos: Vector2i, color: int) -> void:
 				var tp = pos + offset
 				if tp.x >= 0 and tp.x < grid_width and tp.y >= 0 and tp.y < grid_height:
 					sub_targets.append(tp)
-			# 飛到目的地,只消落點 1 格(不展開)
-			var picks_spiral = _pick_top_plane_targets(1, [pos])
+			# 飛到目的地,只消落點 1 格(不展開)；排除同批已被選走的目標
+			var excl_plane: Array[Vector2i] = [pos]
+			for claimed in _plane_batch_claimed:
+				if claimed not in excl_plane:
+					excl_plane.append(claimed)
+			var picks_spiral = _pick_top_plane_targets(1, excl_plane)
 			if picks_spiral.size() > 0:
 				var tgt_spiral: Vector2i = picks_spiral[0]
+				_plane_batch_claimed.append(tgt_spiral)
 				var from_ws: Vector2 = filler.grid_to_world(pos)
 				var to_ws: Vector2 = filler.grid_to_world(tgt_spiral)
 				effect_spawner_node.spawn_plane_flight(from_ws, to_ws, color, 1.0)
-				# 落地前一瞬先 spawn impact (~0.95s) → 0.05s 後再 _explode_cells,
-				# 視覺上「飛機抵達 → 砰一聲明顯特效 → 該格消除」順序清楚。
 				_deferred_plane_impact(to_ws, 0.92)
 				_deferred_explode([tgt_spiral], 1.0, EXPLODE_MODE_PLANE)
 		CandyScript.CandyType.COLOR_BOMB:
@@ -1082,9 +1169,36 @@ func _chain_trigger(ct: int, pos: Vector2i, color: int) -> void:
 # 延後 delay 秒後觸發 _explode_cells(targets)。用於紙飛機飛行動畫:等飛機落地再爆。
 # 用 timer + 一次性 callback,避免阻塞當前 frame。
 # mode 跟 _explode_cells 一致:MATCH / SPECIAL / PLANE。
+# 使用 _deferred_queue 確保延遲爆炸不會和主 cascade 並行。
+var _deferred_queue: Array[Dictionary] = []
+var _deferred_running: bool = false
+
 func _deferred_explode(targets: Array, delay: float, mode: int = EXPLODE_MODE_MATCH) -> void:
+	_deferred_queue.append({"targets": targets, "mode": mode, "ready": false})
+	var idx = _deferred_queue.size() - 1
 	var t = get_tree().create_timer(delay)
-	t.timeout.connect(func(): _explode_cells(targets, mode))
+	t.timeout.connect(func():
+		if idx < _deferred_queue.size():
+			_deferred_queue[idx]["ready"] = true
+		_try_flush_deferred_queue()
+	)
+
+func _try_flush_deferred_queue() -> void:
+	if _deferred_running:
+		return
+	_deferred_running = true
+	while _deferred_queue.size() > 0 and _deferred_queue[0].get("ready", false):
+		var entry = _deferred_queue.pop_front()
+		if not is_instance_valid(self):
+			break
+		if GameManager.current_state == GameManager.GameState.LEVEL_COMPLETE:
+			break
+		_explode_cells(entry["targets"], entry["mode"])
+		await _cascade_loop()
+		_sync_candy_layer_visibility()
+	_deferred_running = false
+	if _deferred_queue.size() == 0:
+		_post_turn_check()
 
 
 # 延後 delay 秒後 spawn 飛機落地特效(衝擊環 + 火光 + 閃光)。
@@ -1311,8 +1425,8 @@ func _cascade_loop() -> void:
 	while safety < (grid_width + grid_height) * 2:
 		safety += 1
 
-		# 可移動障礙物先掉一輪(讓 candy 之後可以順著填補)
-		var obs_moved = _apply_movable_obstacle_gravity()
+		# 可移動障礙物和 candy 同步下落
+		var obs_tweens = _apply_movable_obstacle_gravity()
 
 		var gravity_tweens = filler.apply_gravity()
 		var fill_tweens = filler.fill_empty_cells()
@@ -1325,9 +1439,9 @@ func _cascade_loop() -> void:
 					if c:
 						_connect_single_candy(c)
 
-		var all_tweens = gravity_tweens + fill_tweens
-		# 沒有任何 tween + 沒有任何 obstacle 移動 → 盤面 stable,結束 cascade
-		if all_tweens.size() == 0 and not obs_moved:
+		var all_tweens = obs_tweens + gravity_tweens + fill_tweens
+		# 沒有任何 tween → 盤面 stable,結束 cascade
+		if all_tweens.size() == 0:
 			break
 
 		# 等 tween 完(sequential await,但 tween 本身平行跑)
@@ -1340,9 +1454,14 @@ func _cascade_loop() -> void:
 
 	var new_matches = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
 	if new_matches.size() > 0:
+		# cascade 中途如果已達成勝利，提前通知（勝利畫面先出現，動畫背景繼續）
+		if GameManager.current_state != GameManager.GameState.LEVEL_COMPLETE and GameManager.check_win_condition():
+			GameManager.complete_level()
 		cascade_level += 1
 		AudioManager.play_cascade_sound(cascade_level)
 		await _process_matches(new_matches)
+	# 主 cascade 結束，處理排隊中的延遲爆炸
+	_try_flush_deferred_queue()
 
 func _trigger_special_candy(candy: CandyScript) -> void:
 	# 觸發 candy 本身的 effect (不消除 candy 自己 — 由 caller 處理)。
@@ -1671,9 +1790,10 @@ func _damage_obstacle(pos: Vector2i, adj_color_name: String = "") -> void:
 				board_bg.trigger_stamp_flash(pos)
 			effect_spawner_node.spawn_stamp_trigger(filler.grid_to_world(pos))
 			_schedule_stamp_return_idle(pos, 0.55)
-		# 同一 match 群組只 +1 GOAL;每個相鄰郵戳仍播動畫
-		if _damage_tick_id != _stamp_goal_last_tick:
-			_stamp_goal_last_tick = _damage_tick_id
+		# 同一 match 群組,同一個 Stamp 只 +1 GOAL;不同 Stamp 各自計算
+		var last_tick_for_pos: int = int(_stamp_goal_last_tick.get(pos, -1))
+		if _damage_tick_id != last_tick_for_pos:
+			_stamp_goal_last_tick[pos] = _damage_tick_id
 			GameManager.update_objective("clear_" + obs["type"], -1, 1, tid)
 			_fly_goal_feedback(pos, tid)
 		board_bg.queue_redraw()
@@ -1699,14 +1819,13 @@ func _try_damage_beverage_chiller(obs: Dictionary, adj_color_name: String) -> bo
 		or _obstacle_damage_mode == EXPLODE_MODE_PLANE
 	)
 
-	# dedup 先做：同一 tick 內同一 instance 只受一次傷害（不管幾格被命中）
-	if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
-		return false
-	obs["_last_damage_tick"] = _damage_tick_id
-
 	if is_powerup:
+		# dedup：同一 tick 同一 instance 只受一次
+		if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
+			return false
+		obs["_last_damage_tick"] = _damage_tick_id
 		if hp >= max_hp:
-			pass  # 道具直接開門（扣 1 HP）
+			pass
 		else:
 			var killed := false
 			for cell in obs.get("instance_cells", []):
@@ -1719,6 +1838,7 @@ func _try_damage_beverage_chiller(obs: Dictionary, adj_color_name: String) -> bo
 	elif adj_color_name == "":
 		return false
 	elif hp >= max_hp:
+		# 關門狀態：先驗證顏色是否匹配
 		var ok := false
 		for cell in obs.get("instance_cells", []):
 			if not bottle_alive.get(cell, true):
@@ -1728,7 +1848,12 @@ func _try_damage_beverage_chiller(obs: Dictionary, adj_color_name: String) -> bo
 				break
 		if not ok:
 			return false
+		# 顏色匹配，dedup
+		if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
+			return false
+		obs["_last_damage_tick"] = _damage_tick_id
 	else:
+		# 開門狀態：找對色的活瓶子殺掉
 		var target: Vector2i = Vector2i(-1, -1)
 		for cell in obs.get("instance_cells", []):
 			if bottle_alive.get(cell, true) and str(bottle_colors.get(cell, "")) == adj_color_name:
@@ -1736,6 +1861,10 @@ func _try_damage_beverage_chiller(obs: Dictionary, adj_color_name: String) -> bo
 				break
 		if target.x < 0:
 			return false
+		# 有效 hit，dedup
+		if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
+			return false
+		obs["_last_damage_tick"] = _damage_tick_id
 		bottle_alive[target] = false
 
 	obs["hp"] = hp - 1
@@ -1764,6 +1893,8 @@ func _apply_obstacle_hp_after_hit(obs: Dictionary, pos: Vector2i, tid: String) -
 			obstacle_map.erase(cell)
 			if cell in blocked_cells:
 				blocked_cells.erase(cell)
+			if filler.movable_obstacle_cells.has(cell):
+				filler.movable_obstacle_cells.erase(cell)
 		# Pool 打爆後在 2x2 範圍 + 周圍 8 格生成 Puddle_lv1
 		if tid.begins_with("Pool"):
 			_spawn_pool_puddles(cells_to_clear)
@@ -1814,13 +1945,9 @@ func _spawn_pool_puddles(pool_cells: Array) -> void:
 #   hits 模式 = 每扣 1 滴血就 +1 GOAL(因為 goal 數 = HP 總和)
 #   instance 模式 = 該 instance 整顆破才 +1 GOAL(因為 goal 數 = 物件數)
 static func _is_hits_mode_obstacle(tile_id: String) -> bool:
-	# Chiller — 多 HP,有 per-match dedup,每 match +1 GOAL(只算 1 次)
-	# Barrel / TrafficCone — HP=1,instance==hits 結果一樣;保留在 hits 模式維持語意一致
 	return (
 		tile_id.begins_with("WaterChiller")
 		or tile_id.begins_with("BeverageChiller")
-		or tile_id.begins_with("Barrel")
-		or tile_id.begins_with("TrafficCone")
 	)
 
 
@@ -1849,17 +1976,17 @@ static func _is_movable_obstacle(tile_id: String) -> bool:
 	return tile_id.begins_with("Barrel") or tile_id.begins_with("TrafficCone")
 
 
-# 把可移動障礙物往下挪一格 — 持續到無法再動。回傳是否有動過。
-# 演算法:多輪 column-drop bottom-up,跟糖的重力類似。
-# 為了 demo 簡化,**不做平移動畫**:obstacle 改 data + board_bg.queue_redraw 立刻顯示在新位置。
-# 多格 instance(理論上不該被標 movable,我們也防一下)skip。
-func _apply_movable_obstacle_gravity() -> bool:
-	var any_moved = false
+# 把可移動障礙物往下挪到最底 — 回傳 tween 列表，跟 candy 一起 await。
+# 演算法跟糖的重力類似：多輪 column-drop bottom-up。
+func _apply_movable_obstacle_gravity() -> Array[Tween]:
+	var tweens: Array[Tween] = []
+	# 記錄每個障礙物的原始位置 → 最終位置
+	var start_positions: Dictionary = {}  # final_pos → original_pos
+
 	var iter = 0
 	while iter < grid_height * 2:
 		iter += 1
 		var moved_this_round = false
-		# 由下往上掃 — 跟 candy gravity 一樣方向
 		for y in range(grid_height - 2, -1, -1):
 			for x in range(grid_width):
 				var pos = Vector2i(x, y)
@@ -1869,30 +1996,45 @@ func _apply_movable_obstacle_gravity() -> bool:
 				var tid = str(obs.get("tile_id", ""))
 				if not _is_movable_obstacle(tid):
 					continue
-				# 防呆:多格 instance 暫不支援(Barrel/Cone 應該都是單格)
 				var cells: Array = obs.get("instance_cells", [])
 				if cells.size() > 1:
 					continue
 				var below = Vector2i(x, y + 1)
 				if below.y >= grid_height:
 					continue
-				# 下方必須:不 blocked、沒糖
 				if below in blocked_cells:
 					continue
 				if filler.get_candy_at(below) != null:
 					continue
-				# 移動 data
+				if obstacle_map.has(below):
+					continue
+				# 追蹤原始位置
+				var orig: Vector2i = start_positions.get(pos, pos)
+				start_positions.erase(pos)
+				start_positions[below] = orig
+				# 直落
 				obstacle_map[below] = obs
 				obstacle_map.erase(pos)
 				blocked_cells.erase(pos)
 				blocked_cells.append(below)
+				filler.movable_obstacle_cells.erase(pos)
+				filler.movable_obstacle_cells[below] = true
 				moved_this_round = true
-				any_moved = true
 		if not moved_this_round:
 			break
-	if any_moved:
+
+	# 為所有移動過的障礙物建立 tween（時長跟 candy 一致）
+	for final_pos in start_positions:
+		var from_pos: Vector2i = start_positions[final_pos]
+		var dist = absi(final_pos.y - from_pos.y)
+		if dist > 0:
+			var duration = filler._fall_duration(dist)
+			var tw = board_bg.notify_obstacle_moved(from_pos, final_pos, duration)
+			if tw:
+				tweens.append(tw)
+	if tweens.size() > 0:
 		board_bg.queue_redraw()
-	return any_moved
+	return tweens
 
 func _schedule_stamp_return_idle(grid_pos: Vector2i, delay: float) -> void:
 	await get_tree().create_timer(delay).timeout
@@ -1923,10 +2065,14 @@ func _post_turn_check() -> void:
 	GameManager.reset_combo()
 	_reset_hint_timer()
 
+	if GameManager.current_state == GameManager.GameState.LEVEL_COMPLETE:
+		is_processing = false
+		turn_completed.emit()
+		return
+
 	if GameManager.check_win_condition():
 		_mark_all_stamps_victory()
 		board_bg.queue_redraw()
-		await get_tree().create_timer(0.55).timeout
 		GameManager.complete_level()
 		is_processing = false
 		turn_completed.emit()
@@ -1945,30 +2091,36 @@ func _post_turn_check() -> void:
 	turn_completed.emit()
 
 func _shuffle_board() -> void:
-	var candies: Array = []
-	for x in grid_width:
-		for y in grid_height:
-			if filler.get_candy_at(Vector2i(x, y)) != null:
-				candies.append(filler.get_candy_at(Vector2i(x, y)))
+	var retry := 0
+	while retry < 30:
+		retry += 1
+		var candies: Array = []
+		for x in grid_width:
+			for y in grid_height:
+				if filler.get_candy_at(Vector2i(x, y)) != null:
+					candies.append(filler.get_candy_at(Vector2i(x, y)))
 
-	candies.shuffle()
-	var idx = 0
-	for x in grid_width:
-		for y in grid_height:
-			if Vector2i(x, y) in blocked_cells:
-				continue
-			if idx < candies.size():
-				filler.set_candy_at(Vector2i(x, y), candies[idx])
-				candies[idx].grid_pos = Vector2i(x, y)
-				candies[idx].animate_to(filler.grid_to_world(Vector2i(x, y)), 0.3)
-				idx += 1
+		candies.shuffle()
+		var idx = 0
+		for x in grid_width:
+			for y in grid_height:
+				if Vector2i(x, y) in blocked_cells:
+					continue
+				if idx < candies.size():
+					filler.set_candy_at(Vector2i(x, y), candies[idx])
+					candies[idx].grid_pos = Vector2i(x, y)
+					candies[idx].animate_to(filler.grid_to_world(Vector2i(x, y)), 0.3)
+					idx += 1
 
-	await get_tree().create_timer(0.4).timeout
+		await get_tree().create_timer(0.4).timeout
 
-	if MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells).size() > 0:
-		cascade_level = 0
-		var matches = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
-		await _process_matches(matches)
+		if MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells).size() > 0:
+			cascade_level = 0
+			var matches = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
+			await _process_matches(matches)
+
+		if MatchFinder.has_possible_moves(filler.grid, grid_width, grid_height, blocked_cells):
+			break
 
 func set_obstacle_map(obs: Dictionary) -> void:
 	obstacle_map = obs
@@ -1998,4 +2150,6 @@ func _on_obstacle_spawned(pos: Vector2i, tile_id: String) -> void:
 	obstacle_map[pos] = obs_data
 	if not pos in blocked_cells:
 		blocked_cells.append(pos)
+	if _is_movable_obstacle(tile_id):
+		filler.movable_obstacle_cells[pos] = true
 	board_bg.queue_redraw()

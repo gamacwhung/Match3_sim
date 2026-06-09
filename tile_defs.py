@@ -114,9 +114,10 @@ _reg('TrafficCone_lv2',
      blocks_fall=False)
 
 # ======================== 障礙物 — 罐頭 (SalmonCan) ========================
+# 2 HP；開局 sealed，僅道具(炸彈/火箭/紙飛機)可傷；第 1 下開蓋、第 2 下清除
 _reg('SalmonCan',
-     health=1,
-     can_adjacent_elim=False, can_prop_elim=True,  # 只能道具消除
+     health=2,
+     can_adjacent_elim=False, can_prop_elim=True,
      can_inplace_elim=False)
 
 # ======================== 障礙物 — 礦泉水櫃 (WaterChiller) ========================
@@ -132,8 +133,8 @@ for _lv in range(1, 11):
          can_adjacent_elim=True, can_prop_elim=True)
 
 # ======================== 障礙物 — 飲料櫃 (BeverageChiller) ========================
-# 統一血量 5(關門=lv5)。每回合最多扣 1 血(single elim,不論幾格鄰邊),
-# HP=5 時任意色都能扣;HP<5 時只能匹配 required_colors 才能扣血。
+# 統一血量 5(關門=lv5)。相鄰消除須對色並殺對色瓶；同一 match 內 instance 去重。
+# HP=5 時對色才開門；HP<5 時對色殺該色瓶。道具每次啟動 instance 最多 -1。
 # 圖隨 HP 變:HP=5 顯示 closed/lv5 圖,HP=4..1 顯示 open lv4..lv1。
 _reg('BeverageChiller_closed',
      health=5, elimination_type='single',

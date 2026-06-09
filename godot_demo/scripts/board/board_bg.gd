@@ -80,6 +80,9 @@ const STAMP_FLASH_DURATION: float = 0.28
 var board: Node2D
 # 郵戳蓋章閃爍 — grid pos → 結束時間(秒)
 var _stamp_flash_until: Dictionary = {}
+# 障礙物掉落動畫 — grid pos → 剩餘 pixel offset (Vector2)；tween-based
+var _obs_fall_offset: Dictionary = {}
+var _obs_fall_tweens: Array[Tween] = []
 
 
 func _ready() -> void:
@@ -94,7 +97,27 @@ func trigger_stamp_flash(grid_pos: Vector2i) -> void:
 	queue_redraw()
 
 
-func _process(_delta: float) -> void:
+func notify_obstacle_moved(from_pos: Vector2i, to_pos: Vector2i, duration: float = 0.15) -> Tween:
+	if board == null:
+		return null
+	var cs: float = board.cell_size
+	var pixel_diff = Vector2((from_pos.x - to_pos.x) * cs, (from_pos.y - to_pos.y) * cs)
+	_obs_fall_offset[to_pos] = pixel_diff
+	queue_redraw()
+	var tw = create_tween()
+	tw.tween_method(func(t: float):
+		_obs_fall_offset[to_pos] = pixel_diff * (1.0 - t)
+		queue_redraw()
+	, 0.0, 1.0, duration)
+	tw.tween_callback(func():
+		_obs_fall_offset.erase(to_pos)
+		queue_redraw()
+	)
+	_obs_fall_tweens.append(tw)
+	return tw
+
+
+func _process(delta: float) -> void:
 	var now = Time.get_ticks_msec() / 1000.0
 	var changed := false
 	for pos in _stamp_flash_until.keys():
@@ -208,8 +231,12 @@ func _draw() -> void:
 			size_cells = Vector2i(max_x - min_x + 1, max_y - min_y + 1)
 
 		var top_left = offset + Vector2(anchor_pos.x * cs, anchor_pos.y * cs)
+		# 掉落動畫偏移
+		var fall_off := Vector2.ZERO
+		if inst_id == "" and _obs_fall_offset.has(pos):
+			fall_off = _obs_fall_offset[pos]
 		var rect = Rect2(
-			top_left + Vector2(2, 2),
+			top_left + Vector2(2, 2) + fall_off,
 			Vector2(size_cells.x * cs - 4, size_cells.y * cs - 4)
 		)
 
@@ -252,12 +279,6 @@ func _draw() -> void:
 					draw_texture_rect(OBSTACLE_TEXTURES["WaterChiller_door"], rect, false, Color(1, 1, 1, 0.6))
 
 		if sprite_drawn:
-			# HP > 1 時加上小 HP 標記(放在 anchor 右下)
-			var hp = obs.get("hp", 1)
-			if hp > 1:
-				var label_pos = top_left + Vector2(size_cells.x * cs - 14, size_cells.y * cs - 14)
-				draw_circle(label_pos, 9, Color(0, 0, 0, 0.75))
-				_draw_hp_text(label_pos, hp)
 			continue
 
 		# Fallback:yuehpo 原本的程序畫法

@@ -246,7 +246,8 @@
           "ratio": 1
         }
       ],
-      "set_ratio": 99
+      "set_ratio": 99,
+      "total_weight": 99
     }
   ]
 }

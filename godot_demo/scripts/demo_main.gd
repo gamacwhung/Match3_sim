@@ -46,7 +46,81 @@ func _ready() -> void:
 		var audio = get_node_or_null("/root/AudioManager")
 		if audio and audio.has_method("start_bgm"):
 			audio.start_bgm()
+
+	# Web: 檢查 URL 參數是否帶 level JSON
+	if OS.has_feature("web"):
+		var level_json = JavaScriptBridge.eval("""
+			(function() {
+				var params = new URLSearchParams(window.location.search);
+				var lz = params.get('level_lz');
+				if (lz) {
+					try { return decodeURIComponent(atob(lz)); } catch(e) { return ''; }
+				}
+				var raw = params.get('level');
+				if (raw) {
+					try { return decodeURIComponent(raw); } catch(e) { return ''; }
+				}
+				return '';
+			})()
+		""")
+		if level_json is String and level_json.length() > 2:
+			var json = JSON.new()
+			if json.parse(level_json) == OK:
+				var data = json.data
+				if data is Dictionary:
+					_start_level_from_dict(data)
+					# 檢查 autoplay 參數
+					_check_url_autoplay()
+					return
+
+	# 註冊 JS callback 讓外部 iframe 可以動態載入關卡
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window._godotLevelJson = '';")
+
 	_show_level_select()
+
+
+func _check_url_autoplay() -> void:
+	if not OS.has_feature("web"):
+		return
+	var autoplay_json = JavaScriptBridge.eval("""
+		(function() {
+			var params = new URLSearchParams(window.location.search);
+			var ap = params.get('autoplay');
+			if (ap) {
+				try { return atob(ap); } catch(e) { return ''; }
+			}
+			return '';
+		})()
+	""")
+	if autoplay_json is String and autoplay_json.length() > 2:
+		var json = JSON.new()
+		if json.parse(autoplay_json) == OK and json.data is Array:
+			# 延遲一點讓盤面初始化完成
+			await get_tree().create_timer(1.0).timeout
+			if current_board and current_board.has_method("start_autoplay"):
+				current_board.start_autoplay(json.data, 0.8)
+
+
+func _process(_delta: float) -> void:
+	if not OS.has_feature("web"):
+		return
+	# 動態載入關卡
+	var pending = JavaScriptBridge.eval("window._godotLevelJson || ''")
+	if pending is String and pending.length() > 2:
+		JavaScriptBridge.eval("window._godotLevelJson = '';")
+		var json = JSON.new()
+		if json.parse(pending) == OK and json.data is Dictionary:
+			_start_level_from_dict(json.data)
+
+	# Autoplay: 接收動作序列
+	var autoplay = JavaScriptBridge.eval("window._godotAutoplayMoves || ''")
+	if autoplay is String and autoplay.length() > 2:
+		JavaScriptBridge.eval("window._godotAutoplayMoves = '';")
+		var json2 = JSON.new()
+		if json2.parse(autoplay) == OK and json2.data is Array:
+			if current_board and current_board.has_method("start_autoplay"):
+				current_board.start_autoplay(json2.data, 0.8)
 
 
 func _show_level_select(from_game: bool = false) -> void:
@@ -141,6 +215,49 @@ func _clear_current() -> void:
 	current_board = null
 
 
+func _start_level_from_dict(data: Dictionary) -> void:
+	"""從 URL 參數傳入的 level dict 直接載入遊戲"""
+	_clear_current()
+	var level_data = JsonLevelLoader.parse_level_dict(data)
+	if level_data == null:
+		push_error("DemoMain: parse_level_dict failed from URL param")
+		_show_level_select()
+		return
+
+	if level_data.level_id <= 0:
+		level_data.level_id = 999
+
+	GameManager.start_level(level_data)
+
+	var board = game_board_scene.instantiate()
+	scene_container.add_child(board)
+	current_scene = board
+	current_board = board
+
+	if level_data.obstacle_data.size() > 0:
+		var obs_map = ObstacleScript.build_obstacle_map(
+			level_data.obstacle_data, level_data.grid_width, level_data.grid_height
+		)
+		board.set_obstacle_map(obs_map)
+
+	if level_data.bottom_obstacle_data.size() > 0:
+		var bottom_map = ObstacleScript.build_obstacle_map(
+			level_data.bottom_obstacle_data, level_data.grid_width, level_data.grid_height
+		)
+		board.set_bottom_obstacle_map(bottom_map)
+
+	board.init_board(level_data)
+
+	hud = hud_scene.instantiate()
+	scene_container.add_child(hud)
+	hud.setup(level_data)
+
+	_show_menu_button()
+
+	GameManager.level_completed.connect(_on_level_completed)
+	GameManager.level_failed.connect(_on_level_failed)
+
+
 func _start_level(idx: int) -> void:
 	_clear_current()
 	if _level_paths.is_empty():
@@ -165,8 +282,7 @@ func _start_level(idx: int) -> void:
 	current_scene = board
 	current_board = board
 
-	board.init_board(level_data)
-
+	# obstacle_map 必須在 init_board 前設定，fill_initial 的 BFS 需要知道可移動障礙物位置
 	if level_data.obstacle_data.size() > 0:
 		var obs_map = ObstacleScript.build_obstacle_map(
 			level_data.obstacle_data, level_data.grid_width, level_data.grid_height
@@ -178,6 +294,8 @@ func _start_level(idx: int) -> void:
 			level_data.bottom_obstacle_data, level_data.grid_width, level_data.grid_height
 		)
 		board.set_bottom_obstacle_map(bottom_map)
+
+	board.init_board(level_data)
 
 	hud = hud_scene.instantiate()
 	scene_container.add_child(hud)

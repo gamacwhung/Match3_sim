@@ -1,5 +1,6 @@
 # API 金鑰設定（不要上傳）
 config.py
+hip-caster-*.json
 
 # Python
 __pycache__/
@@ -34,6 +35,16 @@ godot_fresh*.png
 godot_new_*.png
 godot_loaded*.png
 streamlit_iframe*.png
+lvl26_*.png
+select_*.png
+after_*.png
+back_to_select*.png
+current_level.png
+fresh_load.png
+in_game_*.png
+level_check.png
+single_click.png
+tnt_activated.png
 qa_summary.html
 
 # Godot editor cache

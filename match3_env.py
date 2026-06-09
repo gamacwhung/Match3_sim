@@ -8,11 +8,32 @@ Action 格式:
 
 import json
 import pathlib
+import re
 from board import Board, Tile
 from tile_defs import (
     get_def, is_element, is_powerup, is_obstacle, TILE_REGISTRY,
 )
 import match_engine
+
+
+# 障礙物 tile_id → goal key 正規化
+_GOAL_KEY_PATTERNS = [
+    (re.compile(r'^Crt\d+$'), 'Crt'),
+    (re.compile(r'^Puddle_lv\d+$'), 'Puddle'),
+    (re.compile(r'^TrafficCone_lv\d+$'), 'TrafficCone'),
+    (re.compile(r'^WaterChiller_(closed|lv\d+)$'), 'WaterChiller'),
+    (re.compile(r'^BeverageChiller_(closed|open)$'), 'BeverageChiller'),
+    (re.compile(r'^Rope_lv\d+$'), 'Rope'),
+    (re.compile(r'^Pool_lv\d+$'), 'Pool'),
+]
+
+
+def _normalize_goal_key(tile_id: str) -> str:
+    """將 tile_id 正規化為 goal key（例如 Crt3 → Crt）"""
+    for pattern, key in _GOAL_KEY_PATTERNS:
+        if pattern.match(tile_id):
+            return key
+    return tile_id
 
 
 class Match3Env:
@@ -338,13 +359,20 @@ class Match3Env:
         return counts
 
     def _diff_snapshots(self, before, after):
-        """計算兩個快照之間的差異（被消除的物件）"""
-        eliminated = {}
+        """計算兩個快照之間的差異（被消除的物件），並正規化到 goal key"""
+        # 先把 raw tile_id 的差異算出來
+        raw_eliminated = {}
         all_ids = set(before.keys()) | set(after.keys())
         for tile_id in all_ids:
             diff = before.get(tile_id, 0) - after.get(tile_id, 0)
             if diff > 0:
-                eliminated[tile_id] = diff
+                raw_eliminated[tile_id] = diff
+
+        # 正規化到 goal key（如 Crt3 → Crt）
+        eliminated = {}
+        for tile_id, count in raw_eliminated.items():
+            goal_key = _normalize_goal_key(tile_id)
+            eliminated[goal_key] = eliminated.get(goal_key, 0) + count
         return eliminated
 
     def _load_level(self, level_file):
@@ -360,7 +388,8 @@ class Match3Env:
         cols = data['cols']
         num_colors = data.get('num_colors', self.default_num_colors)
         self.max_steps = data.get('max_steps', self.default_max_steps)
-        self.goals_required = dict(data.get('goals', {}))
+        raw_goals = data.get('goals', {})
+        self.goals_required = {_normalize_goal_key(k): v for k, v in raw_goals.items()}
         self.goals_current = {}
         self.level_file = level_file
 

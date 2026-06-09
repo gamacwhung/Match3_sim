@@ -1,0 +1,115 @@
+{
+  "name": "菱形挑戰",
+  "description": "在有限的菱形空間中，清除所有紙箱與罐頭！",
+  "rows": 9,
+  "cols": 9,
+  "num_colors": 4,
+  "max_steps": 30,
+  "goals": {
+    "Crt2": 8,
+    "SalmonCan": 6
+  },
+  "board": {
+    "middle": [
+      [
+        "void",
+        "void",
+        "void",
+        "void",
+        null,
+        "void",
+        "void",
+        "void",
+        "void"
+      ],
+      [
+        "void",
+        "void",
+        "void",
+        null,
+        null,
+        null,
+        "void",
+        "void",
+        "void"
+      ],
+      [
+        "void",
+        "void",
+        null,
+        "Crt2",
+        null,
+        "Crt2",
+        null,
+        "void",
+        "void"
+      ],
+      [
+        "void",
+        null,
+        "SalmonCan",
+        null,
+        "SalmonCan",
+        null,
+        "SalmonCan",
+        null,
+        "void"
+      ],
+      [
+        null,
+        "Crt2",
+        null,
+        "Crt2",
+        null,
+        "Crt2",
+        null,
+        "Crt2",
+        null
+      ],
+      [
+        "void",
+        null,
+        "SalmonCan",
+        null,
+        "SalmonCan",
+        null,
+        "SalmonCan",
+        null,
+        "void"
+      ],
+      [
+        "void",
+        "void",
+        null,
+        "Crt2",
+        null,
+        "Crt2",
+        null,
+        "void",
+        "void"
+      ],
+      [
+        "void",
+        "void",
+        "void",
+        null,
+        null,
+        null,
+        "void",
+        "void",
+        "void"
+      ],
+      [
+        "void",
+        "void",
+        "void",
+        "void",
+        null,
+        "void",
+        "void",
+        "void",
+        "void"
+      ]
+    ]
+  }
+}

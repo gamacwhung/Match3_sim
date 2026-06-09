@@ -1,65 +1,21 @@
 {
-  "name": "Level_95",
-  "description": "匯入自官方關卡 #95",
-  "rows": 7,
+  "name": "繩索與重箱",
+  "description": "先清除上方的繩索，才能有效率地消除底部的厚重紙箱！",
+  "rows": 9,
   "cols": 9,
   "num_colors": 4,
-  "max_steps": 23,
+  "max_steps": 30,
   "goals": {
-    "Barrel": 80
+    "Crt3": 23
   },
   "board": {
     "middle": [
       [
-        "Barrel",
-        "Barrel",
-        "Barrel",
-        "Barrel",
-        null,
-        "Barrel",
-        "Barrel",
-        "Barrel",
-        "Barrel"
-      ],
-      [
-        "Barrel",
-        "Barrel",
-        "Barrel",
-        null,
-        null,
-        null,
-        "Barrel",
-        "Barrel",
-        "Barrel"
-      ],
-      [
-        "Barrel",
-        "Barrel",
         null,
         null,
         null,
         null,
         null,
-        "Barrel",
-        "Barrel"
-      ],
-      [
-        "Barrel",
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        "Barrel"
-      ],
-      [
-        null,
-        null,
-        null,
-        null,
-        "Barrel",
         null,
         null,
         null,
@@ -70,7 +26,7 @@
         null,
         null,
         null,
-        "Barrel",
+        null,
         null,
         null,
         null,
@@ -81,93 +37,102 @@
         null,
         null,
         null,
-        "Barrel",
+        null,
         null,
         null,
         null,
         null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Crt3",
+        "Crt3",
+        "Crt3",
+        null,
+        "Crt3",
+        null,
+        "Crt3",
+        "Crt3",
+        "Crt3"
+      ],
+      [
+        "Crt3",
+        "Crt3",
+        "Crt3",
+        "Crt3",
+        "Crt3",
+        "Crt3",
+        "Crt3",
+        "Crt3",
+        "Crt3"
+      ],
+      [
+        "Crt3",
+        "Crt3",
+        "Crt3",
+        null,
+        "Crt3",
+        null,
+        "Crt3",
+        "Crt3",
+        "Crt3"
       ]
     ],
     "upper": [
       [
         "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1"
-      ],
-      [
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        null,
-        null,
-        null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1"
-      ],
-      [
-        "Rope_lv1",
-        "Rope_lv1",
         null,
         "Rope_lv1",
         null,
         "Rope_lv1",
         null,
         "Rope_lv1",
-        "Rope_lv1"
-      ],
-      [
-        "Rope_lv1",
-        null,
-        null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        null,
         null,
         "Rope_lv1"
       ],
       [
         null,
-        null,
-        null,
-        "Rope_lv1",
-        "Rope_lv1",
         "Rope_lv1",
         null,
+        "Rope_lv1",
         null,
+        "Rope_lv1",
+        null,
+        "Rope_lv1",
         null
       ],
-      [
-        null,
-        null,
-        null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        null,
-        null,
-        null
-      ],
-      [
-        null,
-        null,
-        null,
-        "Rope_lv1",
-        "Rope_lv1",
-        "Rope_lv1",
-        null,
-        null,
-        null
-      ]
-    ],
-    "bottom": [
       [
         null,
         null,
@@ -246,27 +211,5 @@
         null
       ]
     ]
-  },
-  "spawners": [
-    {
-      "spawn_cols": [
-        0,
-        1,
-        2,
-        3,
-        5,
-        6,
-        7,
-        8
-      ],
-      "elements": [
-        {
-          "tile_id": "Barrel",
-          "ratio": 1
-        }
-      ],
-      "set_ratio": 1,
-      "total_weight": 1
-    }
-  ]
+  }
 }

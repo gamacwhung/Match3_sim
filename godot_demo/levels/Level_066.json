@@ -393,7 +393,8 @@
           "ratio": 1
         }
       ],
-      "set_ratio": 2
+      "set_ratio": 2,
+      "total_weight": 2
     },
     {
       "spawn_cols": [
@@ -406,7 +407,8 @@
           "ratio": 1
         }
       ],
-      "set_ratio": 2
+      "set_ratio": 2,
+      "total_weight": 2
     }
   ]
 }
