@@ -27,8 +27,12 @@ from . import gemini_api, postprocess
 
 GENERATED_ROOT = PROJECT_ROOT / 'generated_art'
 
+# 預設元素參考圖(圖騰/logo/特殊形狀/風格;沒指定 --style-image 時自動使用,若存在)
+DEFAULT_STYLE_IMAGE = PROJECT_ROOT / 'game_art_reference.png'
+
 PASS_STYLE = 7
 PASS_FUNCTION = 7
+PASS_ELEMENT = 7
 
 
 def _chromakey_block(asset: dict) -> str:
@@ -49,7 +53,7 @@ def _chromakey_block(asset: dict) -> str:
 
 
 def build_generation_prompt(asset: dict, style_text: str, family_names: list[str],
-                            feedback: str | None) -> str:
+                            feedback: str | None, has_style_image: bool = False) -> str:
     constraints = '\n'.join(f'- {c}' for c in asset.get('constraints', []))
     family_note = ''
     if len(family_names) > 1:
@@ -63,9 +67,24 @@ def build_generation_prompt(asset: dict, style_text: str, family_names: list[str
         bg_rule = _chromakey_block(asset)
     else:
         bg_rule = '- This is a full-canvas opaque background image — fill the entire canvas.'
-    return f"""Redraw the match-3 game asset shown in the reference image in a new art style.
 
-[Target art style] {style_text}
+    if has_style_image:
+        intro = (
+            "Combine the two reference images to generate a single 2D match-3 game asset.\n\n"
+            "[Subject & composition — Reference A] Fully preserve the object/subject and its "
+            "shape, pose and overall composition from Reference A (the original asset). After "
+            "the redraw players must still recognize its gameplay function at a glance.\n"
+            "[Design elements — Reference B] Treat Reference B as a design-element reference: "
+            "incorporate its distinctive visual elements — motifs/totems, logos/emblems, "
+            "ornamental patterns and special shapes — together with its art style, color palette "
+            "and lighting/mood, and tastefully integrate them into the subject from Reference A "
+            "without breaking its silhouette or gameplay readability.\n\n"
+            f"[Additional text style guidance] {style_text}")
+    else:
+        intro = ("Redraw the match-3 game asset shown in the reference image in a new art style.\n\n"
+                 f"[Target art style] {style_text}")
+
+    return f"""{intro}
 
 [Asset name] {asset['name']}
 [Gameplay function — after the redraw, players must still recognize this function at a glance]
@@ -114,16 +133,19 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
     """
     original = (PROJECT_ROOT / asset['path']).read_bytes()
     refs: list[tuple[bytes, str]] = [
-        (original, 'the original asset — preserve its composition and gameplay meaning')]
+        (original, 'Reference A — the original asset; preserve its subject, shape and composition')]
     if style_image:
-        refs.append((style_image, 'target art style reference'))
+        refs.append(
+            (style_image, 'Reference B — design-element reference; weave in its motifs, logos, '
+                          'special shapes, patterns, palette and style'))
 
     attempts = []
     best = None  # (score, png_bytes, verdict, iter)
     feedback = None
 
     for i in range(1, max_iters + 1):
-        prompt = build_generation_prompt(asset, style_text, family_names, feedback)
+        prompt = build_generation_prompt(asset, style_text, family_names, feedback,
+                                         has_style_image=style_image is not None)
         t0 = time.time()
         try:
             raw = gemini_api.generate_image(client, image_model, prompt, refs)
@@ -145,6 +167,8 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
         verdict = gemini_api.critique_image(
             client, critic_model, original, processed, style_text, asset, style_image)
         score = verdict['style_score'] + verdict['function_score'] + (2 if verdict['background_ok'] else 0)
+        if style_image is not None:
+            score += verdict.get('reference_element_score', 0)
         entry = {
             'iter': i, 'stage': 'critique', 'ok': True,
             'elapsed_sec': round(time.time() - t0, 1),
@@ -159,7 +183,9 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
         passed = (verdict['verdict'] == 'pass'
                   and verdict['style_score'] >= PASS_STYLE
                   and verdict['function_score'] >= PASS_FUNCTION
-                  and verdict['background_ok'])
+                  and verdict['background_ok']
+                  and (style_image is None
+                       or verdict.get('reference_element_score', 0) >= PASS_ELEMENT))
         if passed:
             return {'name': asset['name'], 'status': 'pass', 'iters': i,
                     'attempts': attempts, 'image': processed, 'verdict': verdict,
@@ -211,7 +237,19 @@ def run(style_text: str, run_name: str,
         'style': style_text, 'image_model': image_model, 'critic_model': critic_model, 'results': {},
     }
 
-    style_image = pathlib.Path(style_image_path).read_bytes() if style_image_path else None
+    # 元素參考圖:優先用 --style-image,否則用預設 game_art_reference.png(若存在)
+    resolved_style_path: pathlib.Path | None = None
+    if style_image_path:
+        resolved_style_path = pathlib.Path(style_image_path)
+    elif DEFAULT_STYLE_IMAGE.exists():
+        resolved_style_path = DEFAULT_STYLE_IMAGE
+    if resolved_style_path and not resolved_style_path.exists():
+        raise SystemExit(f'找不到元素參考圖: {resolved_style_path}')
+    style_image = resolved_style_path.read_bytes() if resolved_style_path else None
+    if style_image:
+        print(f'元素參考圖: {resolved_style_path}')
+    else:
+        print('未使用元素參考圖(純文字風格)')
 
     if dry_run:
         print(f'[dry-run] 將生成 {len(targets)} 張 asset(風格: {style_text}):')
@@ -219,7 +257,8 @@ def run(style_text: str, run_name: str,
             print(f'  - {a["name"]:32s} {a["width"]}x{a["height"]}  [{a.get("family")}] {a["function"][:40]}')
         print('\n[dry-run] 範例 prompt(第一張):\n')
         print(build_generation_prompt(targets[0], style_text,
-                                      by_family.get(targets[0].get('family') or 'misc', []), None))
+                                      by_family.get(targets[0].get('family') or 'misc', []), None,
+                                      has_style_image=style_image is not None))
         return run_dir
 
     client = gemini_api.get_client()

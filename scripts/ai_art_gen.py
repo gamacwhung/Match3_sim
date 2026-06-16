@@ -5,7 +5,7 @@ Game Art AI Generation — CLI 入口
   # 1. 盤點 asset(輸出 art_pipeline/asset_manifest.json)
   python scripts/ai_art_gen.py manifest
 
-  # 2. 生成(text 風格描述,可加風格參考圖;先 --dry-run 看 prompt)
+  # 2. 生成(text 風格描述,可加元素參考圖:圖騰/logo/特殊形狀/風格;先 --dry-run 看 prompt)
   python scripts/ai_art_gen.py generate --style "像素風格 pixel art" --run pixel --dry-run
   python scripts/ai_art_gen.py generate --style "像素風格 pixel art" --run pixel
   python scripts/ai_art_gen.py generate --style "水彩手繪" --style-image ref.png --run watercolor
@@ -37,7 +37,8 @@ def main():
     g = sub.add_parser('generate', help='生成新風格美術(staging,不動原圖)')
     g.add_argument('--style', required=True, help='美術風格 text 描述,例如 "像素風格 pixel art"')
     g.add_argument('--run', required=True, help='run 名稱(輸出到 generated_art/<run>/)')
-    g.add_argument('--style-image', help='風格參考圖路徑(可選)')
+    g.add_argument('--style-image',
+                   help='元素參考圖路徑(圖騰/logo/特殊形狀/風格;可選;預設用 game_art_reference.png 若存在)')
     g.add_argument('--assets', help='逗號分隔的 asset 名單(預設全部)')
     g.add_argument('--family', help='只生成某個 family(elements/powerups/crate/...)')
     g.add_argument('--image-model', default=None, help='生圖模型(預設 gemini-2.5-flash-image)')

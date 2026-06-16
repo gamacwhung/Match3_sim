@@ -71,7 +71,7 @@ def generate_image(client, model: str, prompt: str,
 
     contents: list = []
     for img_bytes, label in (ref_images or []):
-        contents.append(f'[Reference image: {label}]')
+        contents.append(f'[{label}]')
         contents.append(types.Part.from_bytes(data=img_bytes, mime_type='image/png'))
     contents.append(prompt)
 
@@ -103,23 +103,39 @@ def critique_image(client, model: str, original_png: bytes, generated_png: bytes
     from google.genai import types
 
     constraints = '\n'.join(f'- {c}' for c in asset.get('constraints', []))
+
+    if style_image:
+        ref_line = ('\nThere is also a design-element reference image (Reference B): a source of '
+                    'distinctive visual elements — motifs/totems, logos/emblems, ornamental '
+                    'patterns, special shapes — plus its art style, color palette and mood, that '
+                    'should be woven into the new version.')
+        ref_score_line = ('\n  "reference_element_score": 0-10, // how well it incorporates the '
+                          'design elements from the reference image (Reference B): motifs/totems, '
+                          'logos, special shapes, ornamental patterns, plus its palette and style')
+        verdict_rule = ('// pass only if style_score>=7 AND reference_element_score>=7 AND '
+                        'function_score>=7 AND background_ok')
+    else:
+        ref_line = ''
+        ref_score_line = ''
+        verdict_rule = '// pass only if style_score>=7 AND function_score>=7 AND background_ok'
+
     rubric = f"""You are a game art QA reviewer. Evaluate the result of restyling a match-3 game asset.
 
 [Asset function] {asset['name']}: {asset['function']}
 [Visual constraints]
 {constraints}
-[Target art style] {style_text}
+[Target art style (text)] {style_text}
 
 The first image is the original asset (the baseline for function and composition);
-the last image is the AI-generated new version.
+the last image is the AI-generated new version.{ref_line}
 Score it against the criteria below and return ONLY JSON (no other text):
 {{
-  "style_score": 0-10,         // how well it matches the target art style
+  "style_score": 0-10,         // how well it matches the target art style described in text{ref_score_line}
   "function_score": 0-10,      // judging from the image alone, can the original gameplay function be recognized
   "background_ok": true/false, // background cleanliness (transparent assets: no solid color / checkerboard; background images: low contrast)
   "issues": ["issue 1", ...],
   "fix_instructions": "one concise sentence of concrete fix instructions for the image generation model, in English",
-  "verdict": "pass" or "retry"  // pass only if style>=7 AND function>=7 AND background_ok
+  "verdict": "pass" or "retry"  {verdict_rule}
 }}"""
 
     contents: list = [
@@ -127,7 +143,7 @@ Score it against the criteria below and return ONLY JSON (no other text):
         types.Part.from_bytes(data=original_png, mime_type='image/png'),
     ]
     if style_image:
-        contents += ['[Target style reference]',
+        contents += ['[Design-element reference (Reference B)]',
                      types.Part.from_bytes(data=style_image, mime_type='image/png')]
     contents += ['[AI-generated new version]',
                  types.Part.from_bytes(data=generated_png, mime_type='image/png'), rubric]
@@ -153,4 +169,6 @@ Score it against the criteria below and return ONLY JSON (no other text):
     verdict.setdefault('issues', [])
     verdict.setdefault('fix_instructions', '')
     verdict.setdefault('verdict', 'retry')
+    if style_image:
+        verdict.setdefault('reference_element_score', 0)
     return verdict
