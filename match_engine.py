@@ -623,9 +623,10 @@ def resolve(board: Board, track_goals=True, goals_current=None, goals_required=N
                             to_damage_colors.setdefault((nr, nc), set()).add(mg.color)
 
             # 原地消除：消除座標同格的下層（水漥）
+            # 水窪護盾：同格上層（Rope/Mud）還在 → 先清上層，水窪不受傷
             for r, c in mg.positions:
                 cell = board.get_cell(r, c)
-                if cell.bottom and can_inplace_elim(cell.bottom.tile_id):
+                if cell.upper is None and cell.bottom and can_inplace_elim(cell.bottom.tile_id):
                     _damage_tile_at_layer(board, r, c, 'bottom', 1, damaged_single,
                                           track_goals, goals_current, goals_required,
                                           total_eliminated)
@@ -1141,13 +1142,15 @@ def activate_powerup(board: Board, r, c, goals_required=None,
         # 非 LtBl 道具：消除目標格的上層（繩索）和下層（水漥）
         if not is_ltbl:
             cell = board.get_cell(tr, tc)
+            # 水窪護盾：上層（Rope/Mud）若存在，這擊只清上層，水窪同 tick 不受傷
+            had_upper = cell.upper is not None
             if cell.upper:
                 ud = get_def(cell.upper.tile_id)
                 if ud and ud.get('can_prop_elim', True):
                     cell.upper.health -= 1
                     if cell.upper.health <= 0:
                         cell.upper = None
-            if cell.bottom:
+            if cell.bottom and not had_upper:
                 bd = get_def(cell.bottom.tile_id)
                 if bd and bd.get('can_prop_elim', True):
                     cell.bottom.health -= 1
@@ -1267,6 +1270,8 @@ def _process_powerup_chain(board, triggered_list, already_cleared,
 
             # 上層
             cell = board.get_cell(tr, tc)
+            # 水窪護盾：上層存在 → 這擊只清上層，水窪同 tick 不受傷
+            had_upper = cell.upper is not None
             if cell.upper:
                 ud = get_def(cell.upper.tile_id)
                 if ud and ud.get('can_prop_elim', True):
@@ -1276,7 +1281,7 @@ def _process_powerup_chain(board, triggered_list, already_cleared,
                         cell.upper = None
 
             # 下層
-            if cell.bottom:
+            if cell.bottom and not had_upper:
                 bd = get_def(cell.bottom.tile_id)
                 if bd and bd.get('can_prop_elim', True):
                     cell.bottom.health -= 1
@@ -1419,6 +1424,8 @@ def combine_powerups(board: Board, r1, c1, r2, c2,
             for r in range(board.rows):
                 for c in range(board.cols):
                     cell = board.get_cell(r, c)
+                    # 水窪護盾：上層存在 → 這擊只清上層，水窪同 tick 不受傷
+                    had_upper = cell.upper is not None
                     if cell.upper:
                         cell.upper.health -= 1
                         if cell.upper.health <= 0:
@@ -1427,7 +1434,7 @@ def combine_powerups(board: Board, r1, c1, r2, c2,
                         cell.middle.health -= 1
                         if cell.middle.health <= 0:
                             board.clear_middle(r, c)
-                    if cell.bottom:
+                    if cell.bottom and not had_upper:
                         cell.bottom.health -= 1
                         if cell.bottom.health <= 0:
                             cell.bottom = None
@@ -1491,13 +1498,15 @@ def _apply_combo_targets(board, targets, track_goals, goals_current, goals_requi
                 board.clear_middle(r, c)
         # 道具消除也影響上/下層
         cell = board.get_cell(r, c)
+        # 水窪護盾：上層存在 → 這擊只清上層，水窪同 tick 不受傷
+        had_upper = cell.upper is not None
         if cell.upper:
             ud = get_def(cell.upper.tile_id)
             if ud and ud.get('can_prop_elim', True):
                 cell.upper.health -= 1
                 if cell.upper.health <= 0:
                     cell.upper = None
-        if cell.bottom:
+        if cell.bottom and not had_upper:
             bd = get_def(cell.bottom.tile_id)
             if bd and bd.get('can_prop_elim', True):
                 cell.bottom.health -= 1

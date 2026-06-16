@@ -46,6 +46,10 @@ var _hint_shown: bool = false
 # Per-match damage dedup — 每次 _explode_cells / 直接觸發 / 連鎖 都遞增 tick。
 # Chiller / Stamp 等障礙物在同一個 tick 內只能算 1 次傷害。
 var _damage_tick_id: int = 0
+# 水窪(底層)護盾:記錄某格上層(Mud/Rope)在哪個 tick 被處理過。
+# 用途:即使「打死上層的那一擊」把上層清掉,同一 tick 內水窪也不受傷 ——
+# 必須等下一擊(上層已不在)水窪才開始扣血。{Vector2i: tick_id}
+var _upper_blocked_bottom_tick: Dictionary = {}
 # 同一個 match 群組內,Stamp 目標只 +1 次(但每個相鄰郵戳都可播蓋章動畫)
 var _stamp_goal_last_tick: Dictionary = {}  # {Vector2i: int} per-stamp dedup
 # 同一批多架紙飛機選目標時的去重列表（避免全飛向同一目標）
@@ -60,11 +64,20 @@ var _autoplay_moves: Array = []
 var _autoplay_running: bool = false
 var _autoplay_delay: float = 0.8
 
+# AI 即時模式 — 每步結束後由 AI Controller 即時計算下一步
+const AIController = preload("res://scripts/board/ai_controller.gd")
+var _ai_controller: Node = null
+var _ai_mode: bool = false
+
 func _ready() -> void:
 	_calculate_offset()
 	var vp := get_viewport()
 	if vp and not vp.size_changed.is_connected(_on_viewport_resized):
 		vp.size_changed.connect(_on_viewport_resized)
+	# 初始化 AI Controller
+	_ai_controller = AIController.new()
+	_ai_controller.name = "AIController"
+	add_child(_ai_controller)
 
 
 ## Autoplay: 外部傳入動作序列,自動逐步執行並播放動畫
@@ -106,6 +119,63 @@ func _run_autoplay() -> void:
 				_activate_special_directly(candy)
 
 	_autoplay_running = false
+
+
+## AI 即時模式：啟動後，每步結束自動讓 AI Controller 計算下一步
+func start_ai_mode(delay: float = 0.8) -> void:
+	print("[AI] start_ai_mode called, delay=", delay)
+	_autoplay_delay = delay
+	_ai_mode = true
+	_run_ai_step()
+
+
+func stop_ai_mode() -> void:
+	_ai_mode = false
+	_autoplay_running = false
+
+
+func _run_ai_step() -> void:
+	if not _ai_mode:
+		return
+	while is_processing:
+		await get_tree().create_timer(0.1).timeout
+	if not _ai_mode:
+		return
+	await get_tree().create_timer(_autoplay_delay).timeout
+	if not _ai_mode:
+		return
+
+	print("[AI] Computing best action...")
+	var action: Dictionary = _ai_controller.find_best_action(self)
+	if action.is_empty():
+		print("[AI] No action found, stopping.")
+		_ai_mode = false
+		return
+
+	print("[AI] Action: ", action)
+	var action_type: String = action.get("type", "")
+	if action_type == "swap":
+		var p1: Vector2i = action["pos1"]
+		var p2: Vector2i = action["pos2"]
+		var candy_a = filler.get_candy_at(p1)
+		var candy_b = filler.get_candy_at(p2)
+		if candy_a and candy_b:
+			_try_swap(candy_a, candy_b)
+		elif candy_a and _is_movable_obstacle_at(p2):
+			_try_swap_with_movable_obstacle(candy_a, p2)
+		elif candy_b and _is_movable_obstacle_at(p1):
+			_try_swap_with_movable_obstacle(candy_b, p1)
+	elif action_type == "activate":
+		var p: Vector2i = action["pos"]
+		var candy = filler.get_candy_at(p)
+		if candy and candy.candy_type != CandyScript.CandyType.NORMAL:
+			_activate_special_directly(candy)
+
+	# 等動作完成後再下一步
+	while is_processing:
+		await get_tree().create_timer(0.1).timeout
+	if _ai_mode and not GameManager.check_win_condition() and GameManager.current_state == GameManager.GameState.PLAYING:
+		_run_ai_step()
 
 
 func _on_viewport_resized() -> void:
@@ -619,6 +689,15 @@ func _has_mud_at(pos: Vector2i) -> bool:
 	return str(obstacle_map[pos].get("tile_id", "")).begins_with("Mud")
 
 
+## 同格正上方是否有「上層障礙物」(Mud / Rope)。
+## 用於水窪(底層)傷害判定:上層還蓋著時,要先清掉上層,水窪才會扣血。
+func _has_upper_obstacle_at(pos: Vector2i) -> bool:
+	if not obstacle_map.has(pos):
+		return false
+	var tid := str(obstacle_map[pos].get("tile_id", ""))
+	return tid.begins_with("Mud") or tid.begins_with("Rope")
+
+
 ## 泥巴完全遮住中層元素；繩索/水窪不藏元素（繩索僅鎖操作）
 func _sync_candy_layer_visibility() -> void:
 	if filler == null:
@@ -675,12 +754,23 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 	candy_a.grid_pos = pos_b
 	candy_b.grid_pos = pos_a
 
-	var tween_a = candy_a.animate_to(world_b, 0.2)
-	candy_b.animate_to(world_a, 0.2)
+	# 道具+道具(兩邊都是 special)→「合成動畫」:被拖曳的 candy_a 滑到目標格
+	# (world_b)疊在 candy_b 上,candy_b 留在目標格不動 → 兩顆在「目標位置」合成引爆,
+	# 而非互換位置(才有「移過去在目標位置合成」的感覺)。
+	# 道具+元素 仍用互換動畫(下方分支各自處理引爆點)。
+	var both_special := candy_a.candy_type != CandyScript.CandyType.NORMAL \
+			and candy_b.candy_type != CandyScript.CandyType.NORMAL
+	var tween_a: Tween
+	if both_special:
+		candy_a.z_index = 1  # 滑上去疊在 candy_b 之上
+		tween_a = candy_a.animate_to(world_b, 0.18)
+	else:
+		tween_a = candy_a.animate_to(world_b, 0.2)
+		candy_b.animate_to(world_a, 0.2)
 	await tween_a.finished
 
 	if candy_a.candy_type == CandyScript.CandyType.COLOR_BOMB or candy_b.candy_type == CandyScript.CandyType.COLOR_BOMB:
-		# 彩球引爆位置也用 drag_dest(pos_b),跟其他道具+道具 combo 規則一致
+		# 彩球引爆位置:用合成點 pos_b(兩顆道具疊合處)
 		_handle_color_bomb_swap(candy_a, candy_b, pos_b)
 		return
 
@@ -694,16 +784,16 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 		return
 
 	var matches = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
-	# drag_dest:用戶滑動的目的地(swap 後 candy_a 落到的格)→ 道具引爆中心
-	# 即「使用者手指放開的那一格」(原 _try_swap 參數中的 pos_b)
-	var drag_dest = pos_b
+	# 道具+元素 的引爆點一律用「道具被移動到的位置」(道具 swap 後的格),
+	# 與移動方向無關(把元素移過去 / 把道具移過去 都一樣)。
 	var a_special = candy_a.candy_type != CandyScript.CandyType.NORMAL
 	var b_special = candy_b.candy_type != CandyScript.CandyType.NORMAL
 
 	if matches.size() == 0:
 		# 沒形成 match。
 		# 如果有一邊是 special candy(STRIPED/WRAPPED/SPIRAL)→ 把它當「滑出去施放」處理:
-		# 不論道具是 candy_a 還是 candy_b,效果一律在 drag_dest(pos_b)引爆。
+		# 道具+元素:一律在「道具被移動到的位置」(sp_pos = 道具 swap 後的格)引爆,
+		# 跟「把元素移過去道具 / 把道具移過去元素」無關 —— 引爆點永遠是道具的落點。
 		if a_special or b_special:
 			var trigger_candy = candy_a if a_special else candy_b
 			var sp_pos = trigger_candy.grid_pos
@@ -714,8 +804,8 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 			AudioManager.play_special_trigger_sound()
 			# 道具自身先消除(SPECIAL mode → 不擴散到鄰邊 obstacle)
 			_destroy_candy_at(sp_pos, sp_color, EXPLODE_MODE_SPECIAL)
-			# 在 drag_dest 觸發 effect
-			_chain_trigger(sp_type, drag_dest, sp_color)
+			# 在道具落點 sp_pos 觸發 effect
+			_chain_trigger(sp_type, sp_pos, sp_color)
 			await get_tree().create_timer(0.3).timeout
 			await _cascade_loop()
 			if _deferred_queue.size() == 0:
@@ -752,9 +842,9 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 		# 1) 把道具消除(SPECIAL mode → 不擴散到鄰邊 obstacle,只爆道具自身)
 		_destroy_candy_at(pending.grid_pos, sp_color, EXPLODE_MODE_SPECIAL)
 		# 2) 同 frame 內觸發道具效果(火箭打整排 / TNT 5x5 / 飛機飛 etc.)
-		#    這會直接把 row/col/wrap range 內的 candy 都爆掉,跟 match cells 在同一波。
+		#    引爆點 = 道具被移動到的位置(pending.grid_pos),與移動方向無關。
 		AudioManager.play_special_trigger_sound()
-		_chain_trigger(sp_type, drag_dest, sp_color)
+		_chain_trigger(sp_type, pending.grid_pos, sp_color)
 		# 給 explode 的 tween 一點時間先跑(否則 match 動畫蓋過去看不見道具效果)
 		await get_tree().create_timer(0.05).timeout
 
@@ -869,8 +959,14 @@ func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript, drag_de
 		other = candy_a
 
 	var target_color = other.candy_color
-	# orb 視覺從 drag_dest 升起(跟其他道具+道具 combo 一致用「移動目的地」)
-	var orb_pos: Vector2i = drag_dest if drag_dest.x >= 0 else bomb.grid_pos
+	# orb 視覺升起位置:
+	#   彩球+元素(other 為 NORMAL):用彩球被移動到的位置(bomb.grid_pos),與移動方向無關。
+	#   彩球+道具(合成):用合成點 drag_dest(pos_b),兩顆道具疊合處。
+	var orb_pos: Vector2i
+	if other.candy_type == CandyScript.CandyType.NORMAL:
+		orb_pos = bomb.grid_pos
+	else:
+		orb_pos = drag_dest if drag_dest.x >= 0 else bomb.grid_pos
 	AudioManager.play_special_trigger_sound()
 	# 光球本身先處理掉(視覺由 _animate_color_bomb_sequence 內部 spawn 一顆小小旋轉浮起的 orb)
 	# 蒐集到 targets 時也跳過已 destroyed 的 bomb/other 格
@@ -1174,12 +1270,16 @@ var _deferred_queue: Array[Dictionary] = []
 var _deferred_running: bool = false
 
 func _deferred_explode(targets: Array, delay: float, mode: int = EXPLODE_MODE_MATCH) -> void:
-	_deferred_queue.append({"targets": targets, "mode": mode, "ready": false})
-	var idx = _deferred_queue.size() - 1
+	# 注意:用 entry 的「字典參考」標記 ready,不要用入列當下的 index ——
+	# _try_flush_deferred_queue() 會 pop_front,index 會位移。多重延遲爆炸
+	# (光球+紙飛機/條紋/包裝)時,後面項目若用舊 index 會永遠標不到 ready,
+	# 導致佇列卡住、is_processing 不解鎖、盤面卡死。
+	# GDScript 的 Dictionary 是參考型別,pop_front 不影響這個參考。
+	var entry: Dictionary = {"targets": targets, "mode": mode, "ready": false}
+	_deferred_queue.append(entry)
 	var t = get_tree().create_timer(delay)
 	t.timeout.connect(func():
-		if idx < _deferred_queue.size():
-			_deferred_queue[idx]["ready"] = true
+		entry["ready"] = true
 		_try_flush_deferred_queue()
 	)
 
@@ -1713,6 +1813,10 @@ func _trigger_manufacturers_adjacent_to_cells(cells: Array[Vector2i]) -> void:
 
 
 func _trigger_obstacle_adjacent(pos: Vector2i, match_color_idx: int = -1) -> void:
+	# 這條路徑代表「一般 match / 鄰邊消除」語意 → 強制把傷害模式設回 MATCH。
+	# 否則會殘留上一波 _explode_cells 設的 SPECIAL/PLANE,導致飲料櫃被普通 match
+	# 打到時誤走「道具分支」→ 殺到「標號在前的瓶」而非對色瓶。
+	_obstacle_damage_mode = EXPLODE_MODE_MATCH
 	var color_name := _color_name_from_candy_idx(match_color_idx)
 	for dir in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
 		var adj = pos + dir
@@ -1743,6 +1847,13 @@ static func _color_name_from_candy_idx(idx: int) -> String:
 func _damage_bottom_obstacle(pos: Vector2i) -> void:
 	if not bottom_obstacle_map.has(pos):
 		return
+	# 上層(Mud/Rope)還蓋在正上方 → 先擋著,水窪不扣血。
+	# 必須先把上層障礙物清掉,水窪才會開始受傷。
+	# 另外:即使上層在「這一 tick」被打死,同一 tick 內水窪仍不受傷
+	# (該擊算在清上層),要等下一擊才扣 —— 用 _upper_blocked_bottom_tick 判定。
+	if _has_upper_obstacle_at(pos) \
+			or int(_upper_blocked_bottom_tick.get(pos, -1)) == _damage_tick_id:
+		return
 	var obs = bottom_obstacle_map[pos]
 	var tid: String = str(obs.get("tile_id", ""))
 	obs["hp"] -= 1
@@ -1759,6 +1870,12 @@ func _damage_obstacle(pos: Vector2i, adj_color_name: String = "") -> void:
 		return
 	var obs = obstacle_map[pos]
 	var tid: String = str(obs.get("tile_id", ""))
+
+	# 水窪護盾:這一 tick 此格的上層(Mud/Rope)有被處理 → 記下來,
+	# 讓同 tick 的 _damage_bottom_obstacle 知道「上層擋了這擊」,水窪不受傷。
+	# (在扣 HP / 移除之前先記,確保「打死上層的那一擊」也算擋住。)
+	if tid.begins_with("Mud") or tid.begins_with("Rope"):
+		_upper_blocked_bottom_tick[pos] = _damage_tick_id
 
 	if tid.begins_with("SalmonCan") \
 			and _obstacle_damage_mode != EXPLODE_MODE_SPECIAL \
