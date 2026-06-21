@@ -10,6 +10,9 @@ Game Art AI Generation — CLI 入口
   python scripts/ai_art_gen.py generate --style "像素風格 pixel art" --run pixel
   python scripts/ai_art_gen.py generate --style "水彩手繪" --style-image ref.png --run watercolor
 
+  # 列出所有 --assets / --family 選項
+  python scripts/ai_art_gen.py list-assets
+
   # 只生部分 asset / 某個 family
   python scripts/ai_art_gen.py generate --style "像素風格" --run pixel --assets Red,Grn,Blu,Yel
   python scripts/ai_art_gen.py generate --style "像素風格" --run pixel --family powerups
@@ -28,19 +31,43 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+def _load_asset_options():
+    from art_pipeline.manifest import build_manifest, families, format_assets_help
+    manifest = build_manifest()
+    grouped = families(manifest)
+    return manifest, grouped, format_assets_help(manifest)
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Game Art AI Generation pipeline (Gemini)')
+    parser = argparse.ArgumentParser(
+        description='Game Art AI Generation pipeline (Gemini)',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     sub = parser.add_subparsers(dest='cmd', required=True)
 
     sub.add_parser('manifest', help='盤點 asset,輸出 manifest JSON')
 
-    g = sub.add_parser('generate', help='生成新風格美術(staging,不動原圖)')
+    _, grouped, assets_help = _load_asset_options()
+    family_choices = sorted(grouped)
+
+    list_assets = sub.add_parser('list-assets', help='列出所有 --assets 名稱與 --family 選項')
+    list_assets.add_argument('--family', choices=family_choices,
+                             help='只顯示某個 family 的 asset')
+
+    g = sub.add_parser(
+        'generate',
+        help='生成新風格美術(staging,不動原圖)',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=assets_help,
+    )
     g.add_argument('--style', required=True, help='美術風格 text 描述,例如 "像素風格 pixel art"')
     g.add_argument('--run', required=True, help='run 名稱(輸出到 generated_art/<run>/)')
     g.add_argument('--style-image',
                    help='元素參考圖路徑(圖騰/logo/特殊形狀/風格;可選;預設用 game_art_reference.png 若存在)')
-    g.add_argument('--assets', help='逗號分隔的 asset 名單(預設全部)')
-    g.add_argument('--family', help='只生成某個 family(elements/powerups/crate/...)')
+    g.add_argument('--assets', metavar='NAME,...',
+                   help='逗號分隔 asset 名稱(預設全部)。執行 list-assets 或 generate --help 可看完整清單')
+    g.add_argument('--family', choices=family_choices, metavar='FAMILY',
+                   help='只生成某個 family(與 --assets 可擇一,或同時用於再篩選)')
     g.add_argument('--image-model', default=None, help='生圖模型(預設 gemini-2.5-flash-image)')
     g.add_argument('--critic-model', default=None, help='評審模型(預設 gemini-2.5-flash)')
     g.add_argument('--max-iters', type=int, default=3, help='每張 asset 最多迭代次數(預設 3)')
@@ -58,8 +85,23 @@ def main():
         from art_pipeline.manifest import save_manifest, families
         m = save_manifest()
         print('\nFamily 一覽:')
-        for fam, names in families(m).items():
-            print(f'  {fam:18s} {len(names):2d} 張')
+        for fam, names in sorted(families(m).items()):
+            print(f'  {fam:18s} {len(names):2d} 張  {", ".join(names)}')
+
+    elif args.cmd == 'list-assets':
+        _, grouped, _ = _load_asset_options()
+        if args.family:
+            names = grouped[args.family]
+            print(f'{args.family} ({len(names)}):')
+            print(', '.join(names))
+        else:
+            print('Family 選項 (--family):')
+            for fam in sorted(grouped):
+                print(f'  {fam}')
+            print()
+            for fam in sorted(grouped):
+                names = grouped[fam]
+                print(f'{fam} ({len(names)}): {", ".join(names)}')
 
     elif args.cmd == 'generate':
         from art_pipeline import gemini_api, pipeline

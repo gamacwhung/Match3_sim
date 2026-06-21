@@ -89,8 +89,72 @@ def _asset_catalog() -> tuple[list[str], dict[str, str]]:
     return api.asset_catalog()
 
 
+@st.cache_data
+def _asset_images() -> dict[str, str]:
+    return api.asset_image_map()
+
+
 def _score_caption(verdict: dict | None) -> str:
     return api.format_verdict_scores(verdict)
+
+
+def _set_all_picks(asset_names: list[str], selected: list[str]) -> None:
+    sel = set(selected)
+    for n in asset_names:
+        st.session_state[f'art_pick_{n}'] = n in sel
+
+
+def _render_asset_picker(
+    asset_names: list[str],
+    asset_labels: dict[str, str],
+    asset_imgs: dict[str, str],
+) -> list[str]:
+    """縮圖網格選擇器:每張資產顯示縮圖 + 勾選框,回傳已選名稱。"""
+    st.markdown('##### 目標資產')
+
+    if not st.session_state.get('art_picks_init'):
+        _set_all_picks(asset_names, list(api.BASIC_ELEMENTS))
+        st.session_state.art_picks_init = True
+
+    btn_cols = st.columns([1, 1, 1, 1.4])
+    with btn_cols[0]:
+        if st.button('選基本元素', use_container_width=True):
+            _set_all_picks(asset_names, list(api.BASIC_ELEMENTS))
+            st.rerun()
+    with btn_cols[1]:
+        if st.button('選全部', use_container_width=True):
+            _set_all_picks(asset_names, asset_names)
+            st.rerun()
+    with btn_cols[2]:
+        if st.button('清除', use_container_width=True):
+            _set_all_picks(asset_names, [])
+            st.rerun()
+    with btn_cols[3]:
+        st.caption(f'共 {len(asset_names)} 張')
+
+    query = st.text_input('搜尋資產', key='art_asset_filter', placeholder='輸入名稱關鍵字過濾…').strip().lower()
+    filtered = [
+        n for n in asset_names
+        if not query or query in n.lower() or query in asset_labels[n].lower()
+    ]
+
+    ncols = 4
+    with st.container(height=360):
+        if not filtered:
+            st.caption('沒有符合的資產')
+        for i in range(0, len(filtered), ncols):
+            row = filtered[i:i + ncols]
+            cols = st.columns(ncols)
+            for col, name in zip(cols, row):
+                with col:
+                    img = asset_imgs.get(name)
+                    if img:
+                        st.image(img, width=56)
+                    st.checkbox(name, key=f'art_pick_{name}', help=asset_labels[name])
+
+    elements = [n for n in asset_names if st.session_state.get(f'art_pick_{n}')]
+    st.caption(f'已選 {len(elements)} 個' + (f':{", ".join(elements)}' if elements else ''))
+    return elements
 
 
 def _render_generation_panel() -> None:
@@ -114,38 +178,20 @@ def _render_generation_panel() -> None:
     st.session_state.art_run_name = run_name
 
     style_upload = st.file_uploader('元素參考圖(可選)', type=['png', 'jpg', 'jpeg', 'webp'])
-    ref_hint = '已上傳參考圖 — critic 會評 reference score' if style_upload else (
-        '未上傳時,若存在 `game_art_reference.png` 會自動作為參考圖並評 reference score'
-    )
-    st.caption(ref_hint)
+    if style_upload:
+        st.image(style_upload, caption=f'已上傳參考圖:{style_upload.name}', width=160)
+        st.caption('已上傳參考圖 — critic 會評 reference score')
+    else:
+        default_ref = api.default_style_image()
+        if default_ref:
+            st.image(str(default_ref), caption=f'預設參考圖:{default_ref.name}', width=160)
+            st.caption('未上傳時,將自動以此 `game_art_reference.png` 作為參考圖並評 reference score')
+        else:
+            st.caption('未上傳,且找不到預設 `game_art_reference.png` — 將不使用參考圖')
 
     asset_names, asset_labels = _asset_catalog()
-    if 'art_asset_multiselect' not in st.session_state:
-        st.session_state.art_asset_multiselect = list(api.BASIC_ELEMENTS)
-
-    pick_cols = st.columns(4)
-    with pick_cols[0]:
-        if st.button('選基本元素', use_container_width=True):
-            st.session_state.art_asset_multiselect = list(api.BASIC_ELEMENTS)
-            st.rerun()
-    with pick_cols[1]:
-        if st.button('選全部', use_container_width=True):
-            st.session_state.art_asset_multiselect = asset_names
-            st.rerun()
-    with pick_cols[2]:
-        if st.button('清除', use_container_width=True):
-            st.session_state.art_asset_multiselect = []
-            st.rerun()
-    with pick_cols[3]:
-        st.caption(f'共 {len(asset_names)} 張')
-
-    elements = st.multiselect(
-        '目標資產',
-        options=asset_names,
-        format_func=lambda n: asset_labels[n],
-        key='art_asset_multiselect',
-        help='來自 godot_demo/resources/sprites/ 的全部遊戲美術',
-    )
+    asset_imgs = _asset_images()
+    elements = _render_asset_picker(asset_names, asset_labels, asset_imgs)
 
     if st.button('生成美術', type='primary', use_container_width=True):
         _run_generation(style, run_name, elements, style_upload)
@@ -315,7 +361,7 @@ def _handle_click(r: int, c: int) -> None:
 
 
 def _render_game_panel() -> None:
-    st.subheader('2 · 遊戲遊玩畫面 (Godot)')
+    st.subheader('2 · 遊戲遊玩畫面')
 
     top = st.columns([1, 1, 2])
     with top[0]:

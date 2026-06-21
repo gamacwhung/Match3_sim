@@ -139,6 +139,11 @@ def asset_catalog() -> tuple[list[str], dict[str, str]]:
     return names, labels
 
 
+def asset_image_map() -> dict[str, str]:
+    """name → absolute sprite png path (for UI thumbnails)."""
+    return {a['name']: str(PROJECT_ROOT / a['path']) for a in list_assets()}
+
+
 def format_verdict_scores(verdict: dict | None) -> str:
     """Compact score line for UI: style / func / ref (when present)."""
     if not verdict:
@@ -179,6 +184,12 @@ def load_report(run_name: str) -> dict:
 def load_sprite_bytes(run_name: str, asset_name: str) -> bytes | None:
     path = run_dir(run_name) / 'sprites' / f'{asset_name}.png'
     return path.read_bytes() if path.is_file() else None
+
+
+def default_style_image() -> pathlib.Path | None:
+    """預設元素參考圖路徑(若存在),供 UI 預覽/生成時 fallback。"""
+    path = pipeline.DEFAULT_STYLE_IMAGE
+    return path if path.is_file() else None
 
 
 def suggest_run_name(style_text: str) -> str:

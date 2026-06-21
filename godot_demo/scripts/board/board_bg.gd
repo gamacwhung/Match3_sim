@@ -88,6 +88,19 @@ var _obs_fall_tweens: Array[Tween] = []
 func _ready() -> void:
 	board = get_parent()
 	set_process(false)
+	# board_bg 走 ArtTheme,支援 live_sprites 即時替換 → 主題更新就重畫
+	if not ArtTheme.theme_ready.is_connected(_on_theme_ready):
+		ArtTheme.theme_ready.connect(_on_theme_ready)
+
+
+func _on_theme_ready() -> void:
+	queue_redraw()
+
+
+func _board_bg_texture() -> Texture2D:
+	if ArtTheme.has_named_texture("board_bg"):
+		return ArtTheme.get_named_texture("board_bg")
+	return BOARD_BG_TEXTURE
 
 
 func trigger_stamp_flash(grid_pos: Vector2i) -> void:
@@ -154,8 +167,9 @@ func _draw() -> void:
 	# 外框 — 用 board_bg 紋理(平鋪在整個盤面範圍 + 邊距)做木紋外圈
 	var border = 12.0
 	var bg_rect = Rect2(offset - Vector2(border, border), Vector2(w * cs + border * 2, h * cs + border * 2))
-	if BOARD_BG_TEXTURE:
-		draw_texture_rect(BOARD_BG_TEXTURE, bg_rect, true)
+	var bg_tex := _board_bg_texture()
+	if bg_tex:
+		draw_texture_rect(bg_tex, bg_rect, true)
 	else:
 		draw_rect(bg_rect, Color(0.42, 0.30, 0.20, 1.0), true)
 	# 內框深色

@@ -331,7 +331,23 @@ def families(manifest: list[dict]) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
     for a in manifest:
         out.setdefault(a.get('family') or 'misc', []).append(a['name'])
+    for names in out.values():
+        names.sort()
     return out
+
+
+def all_asset_names(sprites_dir: pathlib.Path = SPRITES_DIR) -> list[str]:
+    """所有可生成的 asset 名稱(與 --assets 選項一致)。"""
+    return [a['name'] for a in build_manifest(sprites_dir)]
+
+
+def format_assets_help(manifest: list[dict] | None = None) -> str:
+    """產生 --assets / list-assets 用的分組說明文字。"""
+    grouped = families(manifest or build_manifest())
+    lines = ['可用 asset 名稱(逗號分隔,大小寫需完全一致):']
+    for fam in sorted(grouped):
+        lines.append(f'  {fam}: {", ".join(grouped[fam])}')
+    return '\n'.join(lines)
 
 
 if __name__ == '__main__':

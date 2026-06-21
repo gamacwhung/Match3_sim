@@ -16,8 +16,12 @@ const ELEMENT_NAMES: Dictionary = {
 	4: "Pur",
 }
 
+# 非元素的具名美術(用 sprite 檔名),一樣支援 live_sprites 即時替換。
+const NAMED_TEXTURES: Array[String] = ["board_bg"]
+
 var theme_revision: int = 0
 var _textures: Dictionary = {}
+var _named: Dictionary = {}
 
 
 func _ready() -> void:
@@ -27,6 +31,7 @@ func _ready() -> void:
 func reload() -> void:
 	theme_revision = int(Time.get_unix_time_from_system())
 	_textures.clear()
+	_named.clear()
 	_load_packed_defaults()
 	if OS.has_feature("web"):
 		await _apply_live_overrides()
@@ -41,12 +46,24 @@ func has_element_texture(color_index: int) -> bool:
 	return _textures.has(color_index)
 
 
+func get_named_texture(name: String) -> Texture2D:
+	return _named.get(name)
+
+
+func has_named_texture(name: String) -> bool:
+	return _named.has(name)
+
+
 func _load_packed_defaults() -> void:
 	for color_index in ELEMENT_NAMES:
 		var name: String = ELEMENT_NAMES[color_index]
 		var path := "res://resources/sprites/%s.png" % name
 		if ResourceLoader.exists(path):
 			_textures[color_index] = load(path)
+	for tex_name in NAMED_TEXTURES:
+		var named_path := "res://resources/sprites/%s.png" % tex_name
+		if ResourceLoader.exists(named_path):
+			_named[tex_name] = load(named_path)
 
 
 func _apply_live_overrides() -> void:
@@ -59,6 +76,11 @@ func _apply_live_overrides() -> void:
 		var tex := await _fetch_texture(url)
 		if tex:
 			_textures[color_index] = tex
+	for tex_name in NAMED_TEXTURES:
+		var named_url := "%s%s.png?v=%d" % [base_url, tex_name, theme_revision]
+		var named_tex := await _fetch_texture(named_url)
+		if named_tex:
+			_named[tex_name] = named_tex
 
 
 func _live_base_url() -> String:

@@ -24,6 +24,7 @@ import time
 
 from .manifest import PROJECT_ROOT, SPRITES_DIR, build_manifest
 from . import gemini_api, postprocess
+from .run_log import RunLog
 
 GENERATED_ROOT = PROJECT_ROOT / 'generated_art'
 
@@ -126,7 +127,8 @@ def _save_iteration(history_dir: pathlib.Path, asset: dict, i: int,
 
 def generate_one(client, asset: dict, style_text: str, style_image: bytes | None,
                  family_names: list[str], image_model: str, critic_model: str,
-                 max_iters: int, history_dir: pathlib.Path | None = None) -> dict:
+                 max_iters: int, history_dir: pathlib.Path | None = None,
+                 log: RunLog | None = None) -> dict:
     """對單一 asset 跑迭代循環。回傳結果 dict(含 attempts log 與最佳圖 bytes)。
 
     history_dir 有給時,每一次迭代的圖都會被保留到 history_dir/<asset>/ 並標上 tag。
@@ -144,18 +146,24 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
     feedback = None
 
     for i in range(1, max_iters + 1):
+        if log:
+            log.iter_start(i, max_iters)
         prompt = build_generation_prompt(asset, style_text, family_names, feedback,
                                          has_style_image=style_image is not None)
         t0 = time.time()
         try:
             raw = gemini_api.generate_image(client, image_model, prompt, refs)
         except Exception as e:  # noqa: BLE001
+            if log:
+                log.iter_error(i, 'generate', str(e))
             attempts.append({'iter': i, 'stage': 'generate', 'ok': False, 'error': str(e)})
             feedback = None
             continue
 
         ok, issues, processed = postprocess.process(raw, asset)
         if not ok:
+            if log:
+                log.iter_postprocess_fail(i, issues)
             entry = {'iter': i, 'stage': 'postprocess', 'ok': False, 'issues': issues}
             if history_dir is not None:
                 entry.update(_save_iteration(history_dir, asset, i, raw, None, None, 'rejected'))
@@ -186,6 +194,9 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
                   and verdict['background_ok']
                   and (style_image is None
                        or verdict.get('reference_element_score', 0) >= PASS_ELEMENT))
+        if log:
+            log.iter_critique(i, time.time() - t0, verdict, score, passed,
+                              style_image is not None)
         if passed:
             return {'name': asset['name'], 'status': 'pass', 'iters': i,
                     'attempts': attempts, 'image': processed, 'verdict': verdict,
@@ -227,6 +238,7 @@ def run(style_text: str, run_name: str,
     if not targets:
         raise SystemExit('沒有符合條件的 asset')
 
+    log = RunLog()
     run_dir = GENERATED_ROOT / run_name
     sprites_out = run_dir / 'sprites'
     sprites_out.mkdir(parents=True, exist_ok=True)
@@ -246,54 +258,56 @@ def run(style_text: str, run_name: str,
     if resolved_style_path and not resolved_style_path.exists():
         raise SystemExit(f'找不到元素參考圖: {resolved_style_path}')
     style_image = resolved_style_path.read_bytes() if resolved_style_path else None
-    if style_image:
-        print(f'元素參考圖: {resolved_style_path}')
-    else:
-        print('未使用元素參考圖(純文字風格)')
+
+    log.run_header(
+        run_name=run_name,
+        style=style_text,
+        image_model=image_model,
+        critic_model=critic_model,
+        max_iters=max_iters,
+        targets=targets,
+        run_dir=run_dir,
+        style_image_path=resolved_style_path,
+        dry_run=dry_run,
+    )
 
     if dry_run:
-        print(f'[dry-run] 將生成 {len(targets)} 張 asset(風格: {style_text}):')
-        for a in targets:
-            print(f'  - {a["name"]:32s} {a["width"]}x{a["height"]}  [{a.get("family")}] {a["function"][:40]}')
-        print('\n[dry-run] 範例 prompt(第一張):\n')
-        print(build_generation_prompt(targets[0], style_text,
-                                      by_family.get(targets[0].get('family') or 'misc', []), None,
-                                      has_style_image=style_image is not None))
+        log.dry_run_targets(targets)
+        log.dry_run_prompt(build_generation_prompt(
+            targets[0], style_text,
+            by_family.get(targets[0].get('family') or 'misc', []), None,
+            has_style_image=style_image is not None))
         return run_dir
 
     client = gemini_api.get_client()
-    print(f'開始生成 {len(targets)} 張 asset → {run_dir}')
     n_pass = n_review = n_fail = n_skip = 0
 
     for idx, asset in enumerate(targets, 1):
         prev = report['results'].get(asset['name'])
         if prev and prev.get('status') == 'pass' and not force:
             n_skip += 1
-            print(f'[{idx}/{len(targets)}] {asset["name"]} — 已 pass,跳過(--force 可重生)')
+            log.asset_skip(idx, asset['name'])
             continue
 
-        print(f'[{idx}/{len(targets)}] {asset["name"]} 生成中…')
+        log.asset_start(idx, asset['name'], asset.get('family'))
         result = generate_one(client, asset, style_text, style_image,
                               by_family.get(asset.get('family') or 'misc', []),
                               image_model, critic_model, max_iters,
-                              history_dir=history_dir)
+                              history_dir=history_dir, log=log)
         image = result.pop('image')
         if image:
             (sprites_out / asset['file']).write_bytes(image)
         report['results'][asset['name']] = result
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
 
-        v = result.get('verdict') or {}
-        tag = {'pass': '✅ pass', 'needs_review': '🟡 needs_review', 'failed': '❌ failed'}[result['status']]
-        print(f'    {tag} (iters={result["iters"]}, style={v.get("style_score")}, '
-              f'function={v.get("function_score")})')
+        log.asset_done(result)
         n_pass += result['status'] == 'pass'
         n_review += result['status'] == 'needs_review'
         n_fail += result['status'] == 'failed'
 
-    print(f'\n完成: pass={n_pass}  needs_review={n_review}  failed={n_fail}  skipped={n_skip}')
-    print(f'最終選用圖在 {sprites_out}')
-    print(f'每次迭代的歷史圖在 {history_dir}/<asset>/(檔名含 iter 次數 + 分數)')
-    print(f'報告在 {report_path}')
-    print(f'確認後執行: python scripts/ai_art_gen.py apply --run {run_name}')
+    log.run_summary(
+        n_pass=n_pass, n_review=n_review, n_fail=n_fail, n_skip=n_skip,
+        run_dir=run_dir, sprites_out=sprites_out, history_dir=history_dir,
+        report_path=report_path, run_name=run_name,
+    )
     return run_dir
