@@ -315,61 +315,61 @@ def _handle_click(r: int, c: int) -> None:
 
 
 def _render_game_panel() -> None:
-    st.subheader('2 · 遊戲遊玩畫面')
+    st.subheader('2 · 遊戲遊玩畫面 (Godot)')
 
     top = st.columns([1, 1, 2])
     with top[0]:
-        if st.button('新盤面', use_container_width=True):
-            _new_board()
+        if st.button('重新載入遊戲', use_container_width=True):
+            st.session_state.art_godot_buster = int(time.time())
             st.rerun()
     with top[1]:
-        if st.button('打亂', use_container_width=True):
-            st.session_state.art_env.board.shuffle()
-            st.session_state.art_selected = None
-            st.rerun()
+        st.link_button('新分頁開啟', url=GODOT_URL, use_container_width=True)
     with top[2]:
         if st.session_state.art_applied_run:
-            st.caption(f'已套用 run: `{st.session_state.art_applied_run}`')
+            st.caption(f'已套用 run: `{st.session_state.art_applied_run}` — 重載後看新元素')
         else:
-            st.caption('生成後按「套用到遊戲」即可在此看到新元素')
+            st.caption('生成 → 套用到遊戲 → 按「重新載入遊戲」')
 
-    env = st.session_state.art_env
-    click = match3_board(
-        env,
-        mode='play',
-        selected=st.session_state.art_selected,
-        cell_size=60,
-        asset_version=st.session_state.art_asset_version,
-        key='art_lab_board',
-    )
-    if click and click.get('type') == 'click':
-        _handle_click(click['r'], click['c'])
-        st.rerun()
-
-    st.caption('點兩個相鄰元素交換試玩。此盤面即時反映已套用的美術,不需 Godot 重新匯出。')
-
-    with st.expander('Godot 美術版(需 CI 重新 Export 後才會反映新美術)', expanded=False):
-        cols = st.columns([2, 1])
-        with cols[0]:
-            if _godot_up():
-                st.success('Godot server 運行中')
-            else:
-                st.info('Godot server 未啟動(`./run.sh`)')
-        with cols[1]:
-            st.link_button('新分頁開啟', url=GODOT_URL, use_container_width=True)
-        if _godot_up():
-            buster = st.session_state.art_godot_buster
-            components.iframe(f'{GODOT_URL}?v={buster}', height=640, scrolling=False)
+    if _godot_up():
+        st.success('Godot server 運行中 (localhost:8765)')
+        buster = st.session_state.art_godot_buster
+        components.iframe(f'{GODOT_URL}?v={buster}', height=820, scrolling=False)
         st.caption(
-            '目前線上的 `index.pck` 是舊版,尚未含 ArtTheme autoload。'
-            '需透過 GitHub Actions(deploy-godot-pages)重新 Export 才會載入 live_sprites。'
+            '這是 **Godot 本機遊戲**（與正式版相同渲染）。'
+            '套用美術會寫入 `live_sprites/`，重載 iframe 即可看到新 5 色元素。'
         )
+    else:
+        st.warning(
+            'Godot server 未啟動。請在專案根目錄執行 `./run.sh`（不要只用 `--streamlit-only`）。'
+        )
+        st.code('./run.sh\n# 然後重新整理此頁', language='bash')
+
+    with st.expander('Streamlit 簡易盤面（備用預覽,非 Godot 渲染）', expanded=False):
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button('新盤面', key='art_new_board', use_container_width=True):
+                _new_board()
+                st.rerun()
+        with c2:
+            if st.button('打亂', key='art_shuffle', use_container_width=True):
+                st.session_state.art_env.board.shuffle()
+                st.session_state.art_selected = None
+                st.rerun()
+        env = st.session_state.art_env
+        click = match3_board(
+            env, mode='play', selected=st.session_state.art_selected,
+            cell_size=56, asset_version=st.session_state.art_asset_version,
+            key='art_lab_board',
+        )
+        if click and click.get('type') == 'click':
+            _handle_click(click['r'], click['c'])
+            st.rerun()
 
 
 def main() -> None:
     _init_state()
     st.title('AI Game Art Lab')
-    st.caption('用 art_pipeline 生成遊戲美術,即時套用到可玩盤面')
+    st.caption('用 art_pipeline 生成美術 → 套用到 Godot 遊戲（右側）')
 
     left, right = st.columns([1, 1.4], gap='large')
     with left:
