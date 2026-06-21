@@ -50,9 +50,13 @@ const COLOR_HEX = {
   Purple: '#AA44CC', Orange: '#FF8800',
 };
 
+// 全域 asset 版本號（由 Python 端在「套用新美術」後遞增,用來打破瀏覽器快取）
+let ASSET_VERSION = 0;
+
 function imgUrl(key) {
   // 相對路徑會解析成 iframe 相對於 index.html 的位置
-  return `assets/${encodeURIComponent(key)}.png`;
+  const base = `assets/${encodeURIComponent(key)}.png`;
+  return ASSET_VERSION ? `${base}?v=${ASSET_VERSION}` : base;
 }
 
 function makeLayer(layerData, layerName) {
@@ -180,6 +184,9 @@ function renderCell(cell, r, c, args) {
 }
 
 function render(args) {
+  if (typeof args.asset_version === 'number') {
+    ASSET_VERSION = args.asset_version;
+  }
   const root = document.getElementById('root');
   root.innerHTML = '';
 

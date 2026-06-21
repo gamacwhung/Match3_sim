@@ -11,6 +11,7 @@ extends Node2D
 enum CandyColor { RED, GRN, BLU, YEL, EXTRA1, EXTRA2 }
 
 # 主要的 4 色 sprite 對照(對齊我們的 levels JSON 的 0-3 索引)
+# 執行時由 ArtTheme autoload 提供;以下 const 僅作 fallback。
 const SPRITE_TEXTURES: Dictionary = {
 	0: preload("res://resources/sprites/Red.png"),
 	1: preload("res://resources/sprites/Grn.png"),
@@ -59,11 +60,20 @@ const SHADOW_MAP = {
 # Public draw entry — game_board / candy.gd 都從這裡呼叫
 # ===========================================================================
 static func draw_candy(canvas: CanvasItem, candy_color: int, sz: float, special_type: int = 0) -> void:
-	if SPRITE_TEXTURES.has(candy_color):
+	var tex := _resolve_element_texture(candy_color)
+	if tex:
+		_draw_sprite_candy(canvas, tex, sz, special_type)
+	elif SPRITE_TEXTURES.has(candy_color):
 		_draw_sprite_candy(canvas, SPRITE_TEXTURES[candy_color], sz, special_type)
 	else:
 		# 罕見情況 (6 色關卡) → 走原本的向量風格
 		_draw_vector_candy(canvas, candy_color, sz, special_type)
+
+
+static func _resolve_element_texture(candy_color: int) -> Texture2D:
+	if ArtTheme.has_element_texture(candy_color):
+		return ArtTheme.get_element_texture(candy_color)
+	return null
 
 
 static func draw_color_bomb(canvas: CanvasItem, sz: float) -> void:

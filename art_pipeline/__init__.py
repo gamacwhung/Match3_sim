@@ -1,10 +1,56 @@
 """
 Game Art AI Generation Pipeline — 用 Gemini 把遊戲美術整批換風格。
 
-流程:
-  1. manifest   — 盤點現有 asset(名稱/尺寸/功能/視覺約束)
-  2. pipeline   — 逐張生成: Gemini 生圖 → 程式化驗證 → Gemini vision 評審 → 不過關帶修正指示重生成
-  3. apply      — 備份原圖後把生成結果套進 godot_demo/resources/sprites/,可隨時 restore
-
+高階 API: art_pipeline.api
 CLI 入口: scripts/ai_art_gen.py
 """
+
+from .api import (
+    BASIC_ELEMENTS,
+    FAMILY_LABELS,
+    ApplySummary,
+    AssetResult,
+    GenerationSummary,
+    apply_run_to_game,
+    asset_catalog,
+    asset_label,
+    format_verdict_scores,
+    generate,
+    generate_elements,
+    has_credentials,
+    list_asset_names,
+    list_assets,
+    list_basic_elements,
+    list_families,
+    list_runs,
+    load_report,
+    load_sprite_bytes,
+    restore_original_art,
+    run_dir,
+    suggest_run_name,
+)
+
+__all__ = [
+    'BASIC_ELEMENTS',
+    'FAMILY_LABELS',
+    'ApplySummary',
+    'AssetResult',
+    'GenerationSummary',
+    'apply_run_to_game',
+    'asset_catalog',
+    'asset_label',
+    'format_verdict_scores',
+    'generate',
+    'generate_elements',
+    'has_credentials',
+    'list_asset_names',
+    'list_assets',
+    'list_basic_elements',
+    'list_families',
+    'list_runs',
+    'load_report',
+    'load_sprite_bytes',
+    'restore_original_art',
+    'run_dir',
+    'suggest_run_name',
+]

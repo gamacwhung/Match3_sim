@@ -131,16 +131,18 @@ def serialize_env(env):
     return board
 
 
-def match3_board(env, *, mode='play', selected=None, cell_size=56, key=None):
+def match3_board(env, *, mode='play', selected=None, cell_size=56,
+                 asset_version=0, key=None):
     """
     渲染 Match3 棋盤。
 
     Args:
-        env:        Match3Env 物件
-        mode:       'play' (可點擊) | 'preview' (唯讀)
-        selected:   (r, c) tuple 或 None；表示選中的格子
-        cell_size:  每格像素大小
-        key:        Streamlit component key（用於追蹤同頁多個 instance）
+        env:           Match3Env 物件
+        mode:          'play' (可點擊) | 'preview' (唯讀)
+        selected:      (r, c) tuple 或 None；表示選中的格子
+        cell_size:     每格像素大小
+        asset_version: 圖片快取版本號;套用新美術後遞增即可強制重新載入 sprite
+        key:           Streamlit component key（用於追蹤同頁多個 instance）
 
     Returns:
         若使用者點擊：{ 'type': 'click', 'r': int, 'c': int, 'ts': int }
@@ -153,6 +155,7 @@ def match3_board(env, *, mode='play', selected=None, cell_size=56, key=None):
         selected=sel,
         mode=mode,
         cell_size=int(cell_size),
+        asset_version=int(asset_version),
         key=key,
         default=None,
     )
