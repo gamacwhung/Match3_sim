@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import shutil
 import time
@@ -22,8 +23,9 @@ ApplyProgressCallback = Callable[[int, int, str], None]
 
 BACKUP_DIR = SPRITES_DIR.parent / 'sprites_original_backup'
 LIVE_SPRITES_DIR = SPRITES_DIR.parent.parent / 'web' / 'live_sprites'
-# board_bg 全螢幕用,web 端不需 2048 — 套用時縮到 1024 避免 WASM OOM
+# Web live 貼圖最大邊長 — 避免大圖吃光 WASM 記憶體 / 拖慢熱更新下載
 LIVE_BOARD_BG_MAX_DIM = 1024
+LIVE_SPRITE_MAX_DIM = 512
 # Streamlit playable board component assets — overwriting these is reflected instantly
 # (no Godot re-export needed). PROJECT_ROOT = repo root.
 PROJECT_ROOT = SPRITES_DIR.parent.parent.parent
@@ -94,18 +96,29 @@ def _resolve_run_pngs(run_name: str, asset_names: list[str] | None = None) -> li
 
 
 def _copy_png_to_live(png: pathlib.Path, target: pathlib.Path) -> None:
-    if png.stem == 'board_bg':
-        from PIL import Image
+    from PIL import Image
 
-        im = Image.open(png)
-        w, h = im.size
-        longest = max(w, h)
-        if longest > LIVE_BOARD_BG_MAX_DIM:
-            scale = LIVE_BOARD_BG_MAX_DIM / longest
-            im = im.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
+    max_dim = LIVE_BOARD_BG_MAX_DIM if png.stem == 'board_bg' else LIVE_SPRITE_MAX_DIM
+    im = Image.open(png)
+    w, h = im.size
+    longest = max(w, h)
+    if longest > max_dim:
+        scale = max_dim / longest
+        im = im.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
         im.save(target, format='PNG')
-        return
-    shutil.copy2(png, target)
+    else:
+        shutil.copy2(png, target)
+
+
+def _write_live_manifest() -> None:
+    """寫出 live_sprites/manifest.json,列出目前所有可覆蓋的 sprite 名稱。
+
+    ArtTheme(Godot web)會讀此清單決定要 fetch 哪些 live 覆蓋圖。
+    """
+    names = sorted(p.stem for p in LIVE_SPRITES_DIR.glob('*.png'))
+    (LIVE_SPRITES_DIR / 'manifest.json').write_text(
+        json.dumps(names, ensure_ascii=False), encoding='utf-8'
+    )
 
 
 def apply_run_batch(
@@ -166,6 +179,7 @@ def apply_run_batch(
 
     if to_live and live_applied:
         (LIVE_SPRITES_DIR / 'revision.txt').write_text(str(time.time()), encoding='utf-8')
+        _write_live_manifest()
 
     if component_applied:
         print(f'[component] 已套用 {len(component_applied)} 張到 {COMPONENT_ASSETS_DIR}')
@@ -204,6 +218,7 @@ def apply_run_to_live(run_name: str, asset_names: list[str] | None = None) -> tu
 
     # Touch revision file so clients can detect updates without parsing mtimes.
     (LIVE_SPRITES_DIR / 'revision.txt').write_text(str(time.time()), encoding='utf-8')
+    _write_live_manifest()
     print(f'[live] 已套用 {len(applied)} 張到 {LIVE_SPRITES_DIR}')
     return applied, skipped
 
@@ -270,7 +285,8 @@ def clear_live_sprites() -> None:
         return
     for png in LIVE_SPRITES_DIR.glob('*.png'):
         png.unlink()
-    rev = LIVE_SPRITES_DIR / 'revision.txt'
-    if rev.is_file():
-        rev.unlink()
+    for meta in ('revision.txt', 'manifest.json', 'manifest.txt'):
+        p = LIVE_SPRITES_DIR / meta
+        if p.is_file():
+            p.unlink()
     print(f'[live] 已清除 {LIVE_SPRITES_DIR}')

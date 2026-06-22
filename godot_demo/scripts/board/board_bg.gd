@@ -7,8 +7,9 @@ extends Node2D
 ## 障礙物 tile_id → sprite mapping(若 JsonLevelLoader 有帶 tile_id 進來,優先用 sprite)
 ##
 
-# 關鍵障礙物 sprite — 一次 preload 進來,效能無虞
-const OBSTACLE_TEXTURES: Dictionary = {
+# 關鍵障礙物 sprite — packed 預設(一次 preload,效能無虞)。
+# 執行時 OBSTACLE_TEXTURES 會以此為基底,並由 ArtTheme 套上 live 覆蓋。
+const _DEFAULT_OBSTACLE_TEXTURES: Dictionary = {
 	"Crt1": preload("res://resources/sprites/Crt1.png"),
 	"Crt2": preload("res://resources/sprites/Crt2.png"),
 	"Crt3": preload("res://resources/sprites/Crt3.png"),
@@ -78,6 +79,8 @@ const BOARD_BG_TEXTURE: Texture2D = preload("res://resources/sprites/board_bg.pn
 const STAMP_FLASH_DURATION: float = 0.28
 
 var board: Node2D
+# 執行期障礙物貼圖 = packed 預設 + ArtTheme live 覆蓋
+var OBSTACLE_TEXTURES: Dictionary = _DEFAULT_OBSTACLE_TEXTURES.duplicate()
 # 郵戳蓋章閃爍 — grid pos → 結束時間(秒)
 var _stamp_flash_until: Dictionary = {}
 # 障礙物掉落動畫 — grid pos → 剩餘 pixel offset (Vector2)；tween-based
@@ -88,13 +91,22 @@ var _obs_fall_tweens: Array[Tween] = []
 func _ready() -> void:
 	board = get_parent()
 	set_process(false)
-	# board_bg 走 ArtTheme,支援 live_sprites 即時替換 → 主題更新就重畫
+	# 障礙物 / board_bg 走 ArtTheme,支援 live_sprites 即時替換 → 主題更新就重畫
+	_apply_theme_overrides()
 	if not ArtTheme.theme_ready.is_connected(_on_theme_ready):
 		ArtTheme.theme_ready.connect(_on_theme_ready)
 
 
 func _on_theme_ready() -> void:
+	_apply_theme_overrides()
 	queue_redraw()
+
+
+func _apply_theme_overrides() -> void:
+	OBSTACLE_TEXTURES = _DEFAULT_OBSTACLE_TEXTURES.duplicate()
+	for key in _DEFAULT_OBSTACLE_TEXTURES:
+		if ArtTheme.has_named_texture(key):
+			OBSTACLE_TEXTURES[key] = ArtTheme.get_named_texture(key)
 
 
 func _board_bg_texture() -> Texture2D:
@@ -386,7 +398,7 @@ static func _resolve_sprite_key(tile_id: String, hp: int, _obs: Dictionary = {})
 		var base = tile_id.split("_lv")[0]
 		# 找該 base 系列有的最大 lv
 		var max_lv = 1
-		for k in OBSTACLE_TEXTURES.keys():
+		for k in _DEFAULT_OBSTACLE_TEXTURES.keys():
 			if str(k).begins_with(base + "_lv"):
 				var n = int(str(k).substr(base.length() + 3))
 				if n > max_lv:

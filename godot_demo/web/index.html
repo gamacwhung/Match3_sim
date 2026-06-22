@@ -111,7 +111,7 @@ body {
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":32961648,"index.wasm":39509339},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":32962976,"index.wasm":39509339},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -210,7 +210,21 @@ const engine = new Engine(GODOT_CONFIG);
 				}
 			},
 		}).then(() => {
-			setStatusMode('hidden');
+			// 等 ArtTheme 抓完 live 美術(或逾時)再收掉 splash 進度條
+			const artStart = Date.now();
+			const pollArt = () => {
+				if (window._artThemeReady || Date.now() - artStart > 20000) {
+					setStatusMode('hidden');
+					return;
+				}
+				const p = window._artThemeProgress;
+				if (p && p.total > 0) {
+					statusProgress.value = p.current;
+					statusProgress.max = p.total;
+				}
+				setTimeout(pollArt, 100);
+			};
+			pollArt();
 		}, displayFailureNotice);
 	}
 }());

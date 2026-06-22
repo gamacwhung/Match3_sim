@@ -77,6 +77,47 @@ backup_web() {
   echo "[backup] 完成: $(du -sh "$BACKUP_DIR" | cut -f1)"
 }
 
+# Godot 預設 shell 在引擎啟動後立刻收掉進度條,但 ArtTheme 還在背景抓 live 美術。
+# 這裡 patch index.html,讓進度條等到 window._artThemeReady 才隱藏(reexport 後仍需重打)。
+patch_index_html() {
+  local html="$WEB_DIR/index.html"
+  [[ -f "$html" ]] || return 0
+  if grep -q '_artThemeReady' "$html"; then
+    echo "[export] index.html 已含 ArtTheme 等待邏輯,略過 patch"
+    return 0
+  fi
+  python3 - "$html" <<'PY'
+import sys
+path = sys.argv[1]
+src = open(path, encoding='utf-8').read()
+needle = "\t\t}).then(() => {\n\t\t\tsetStatusMode('hidden');\n\t\t}, displayFailureNotice);"
+repl = (
+    "\t\t}).then(() => {\n"
+    "\t\t\t// 等 ArtTheme 抓完 live 美術(或逾時)再收掉 splash 進度條\n"
+    "\t\t\tconst artStart = Date.now();\n"
+    "\t\t\tconst pollArt = () => {\n"
+    "\t\t\t\tif (window._artThemeReady || Date.now() - artStart > 20000) {\n"
+    "\t\t\t\t\tsetStatusMode('hidden');\n"
+    "\t\t\t\t\treturn;\n"
+    "\t\t\t\t}\n"
+    "\t\t\t\tconst p = window._artThemeProgress;\n"
+    "\t\t\t\tif (p && p.total > 0) {\n"
+    "\t\t\t\t\tstatusProgress.value = p.current;\n"
+    "\t\t\t\t\tstatusProgress.max = p.total;\n"
+    "\t\t\t\t}\n"
+    "\t\t\t\tsetTimeout(pollArt, 100);\n"
+    "\t\t\t};\n"
+    "\t\t\tpollArt();\n"
+    "\t\t}, displayFailureNotice);"
+)
+if needle not in src:
+    print('[export] \u26a0 找不到預設 splash 收尾片段,index.html patch 失敗(Godot 版本可能改了 shell)')
+    sys.exit(0)
+open(path, 'w', encoding='utf-8').write(src.replace(needle, repl, 1))
+print('[export] \u2713 index.html 已 patch:進度條會等 ArtTheme 載完')
+PY
+}
+
 export_web() {
   local godot_bin
   godot_bin="$(find_godot)" || {
@@ -115,6 +156,8 @@ export_web() {
   else
     echo "[export] ⚠ index.pck 未偵測到 art_theme（可能仍為舊邏輯）"
   fi
+
+  patch_index_html
 
   mkdir -p "$LIVE_DIR"
   local pck_mb

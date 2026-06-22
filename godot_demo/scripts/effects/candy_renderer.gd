@@ -80,7 +80,15 @@ static func draw_color_bomb(canvas: CanvasItem, sz: float) -> void:
 	# 光球(LtBl)
 	var size = sz * 0.92
 	var rect = Rect2(-size * 0.5, -size * 0.5, size, size)
-	canvas.draw_texture_rect(TEXTURE_COLOR_BOMB, rect, false)
+	var tex := _named_or("LtBl", TEXTURE_COLOR_BOMB)
+	canvas.draw_texture_rect(tex, rect, false)
+
+
+# ArtTheme live 覆蓋優先,否則 fallback 回 packed const。
+static func _named_or(name: String, fallback: Texture2D) -> Texture2D:
+	if ArtTheme.has_named_texture(name):
+		return ArtTheme.get_named_texture(name)
+	return fallback
 
 
 # ---------------------------------------------------------------------------
@@ -103,11 +111,11 @@ static func _draw_sprite_candy(canvas: CanvasItem, tex: Texture2D, sz: float, sp
 
 static func _get_special_texture(special_type: int) -> Texture2D:
 	match special_type:
-		1: return TEXTURE_STRIPED_H
-		2: return TEXTURE_STRIPED_V
-		3: return TEXTURE_WRAPPED
-		4: return TEXTURE_COLOR_BOMB
-		5: return TEXTURE_SPIRAL  # 紙飛機 TrPr (2x2 合成)
+		1: return _named_or("Soda0d", TEXTURE_STRIPED_H)
+		2: return _named_or("Soda90", TEXTURE_STRIPED_V)
+		3: return _named_or("TNT", TEXTURE_WRAPPED)
+		4: return _named_or("LtBl", TEXTURE_COLOR_BOMB)
+		5: return _named_or("TrPr", TEXTURE_SPIRAL)  # 紙飛機 TrPr (2x2 合成)
 	return null
 
 
