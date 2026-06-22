@@ -20,9 +20,8 @@ from typing import Callable
 
 from . import gemini_api, pipeline
 from .apply import (
-    apply_run,
-    apply_run_to_component,
-    apply_run_to_live,
+    ApplyProgressCallback,
+    apply_run_batch,
     restore,
 )
 from .manifest import PROJECT_ROOT, build_manifest, families
@@ -334,6 +333,7 @@ def apply_run_to_game(
     to_live: bool = True,
     to_project: bool = False,
     asset_names: list[str] | None = None,
+    on_progress: ApplyProgressCallback | None = None,
 ) -> ApplySummary:
     """
     Apply a completed run to the game.
@@ -346,6 +346,7 @@ def apply_run_to_game(
       which currently happens in CI).
     - to_project: copy into godot_demo/resources/sprites/ (persistent source art,
       backs up originals; picked up on the next Godot export).
+    - on_progress: optional callback(current_index, total, asset_name) per file.
     """
     names = asset_names
     if names is None:
@@ -354,24 +355,25 @@ def apply_run_to_game(
             n for n in report.get('results', {})
             if (run_dir(run_name) / 'sprites' / f'{n}.png').is_file()
         ]
-    summary = ApplySummary(run_name=run_name)
 
-    if to_component:
-        summary.component_applied, comp_skipped = apply_run_to_component(run_name, asset_names=names)
-        summary.skipped = comp_skipped
+    if to_component or to_live or to_project:
+        comp, live, proj, skipped = apply_run_batch(
+            run_name,
+            names,
+            to_component=to_component,
+            to_live=to_live,
+            to_project=to_project,
+            on_progress=on_progress,
+        )
+        return ApplySummary(
+            run_name=run_name,
+            applied=proj,
+            live_applied=live,
+            component_applied=comp,
+            skipped=skipped,
+        )
 
-    if to_live:
-        summary.live_applied, _ = apply_run_to_live(run_name, asset_names=names)
-
-    if to_project:
-        apply_run(run_name)
-        report = load_report(run_name)
-        summary.applied = [
-            n for n in report.get('results', {})
-            if (run_dir(run_name) / 'sprites' / f'{n}.png').is_file()
-        ]
-
-    return summary
+    return ApplySummary(run_name=run_name)
 
 
 def restore_original_art() -> None:

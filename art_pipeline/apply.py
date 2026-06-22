@@ -13,12 +13,17 @@ from __future__ import annotations
 import pathlib
 import shutil
 import time
+from typing import Callable
 
 from .manifest import SPRITES_DIR
 from .pipeline import GENERATED_ROOT
 
+ApplyProgressCallback = Callable[[int, int, str], None]
+
 BACKUP_DIR = SPRITES_DIR.parent / 'sprites_original_backup'
 LIVE_SPRITES_DIR = SPRITES_DIR.parent.parent / 'web' / 'live_sprites'
+# board_bg 全螢幕用,web 端不需 2048 — 套用時縮到 1024 避免 WASM OOM
+LIVE_BOARD_BG_MAX_DIM = 1024
 # Streamlit playable board component assets — overwriting these is reflected instantly
 # (no Godot re-export needed). PROJECT_ROOT = repo root.
 PROJECT_ROOT = SPRITES_DIR.parent.parent.parent
@@ -73,6 +78,105 @@ def restore() -> None:
     restore_component()
 
 
+def _resolve_run_pngs(run_name: str, asset_names: list[str] | None = None) -> list[pathlib.Path]:
+    run_sprites = GENERATED_ROOT / run_name / 'sprites'
+    if not run_sprites.is_dir():
+        raise FileNotFoundError(f'找不到生成結果目錄: {run_sprites}')
+    pngs = sorted(run_sprites.glob('*.png'))
+    if not pngs:
+        raise FileNotFoundError(f'{run_sprites} 內沒有 PNG')
+    if asset_names:
+        wanted = {f'{n}.png' for n in asset_names}
+        pngs = [p for p in pngs if p.name in wanted]
+    if not pngs:
+        raise FileNotFoundError(f'{run_sprites} 內沒有符合條件的 PNG')
+    return pngs
+
+
+def _copy_png_to_live(png: pathlib.Path, target: pathlib.Path) -> None:
+    if png.stem == 'board_bg':
+        from PIL import Image
+
+        im = Image.open(png)
+        w, h = im.size
+        longest = max(w, h)
+        if longest > LIVE_BOARD_BG_MAX_DIM:
+            scale = LIVE_BOARD_BG_MAX_DIM / longest
+            im = im.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
+        im.save(target, format='PNG')
+        return
+    shutil.copy2(png, target)
+
+
+def apply_run_batch(
+    run_name: str,
+    asset_names: list[str] | None = None,
+    *,
+    to_component: bool = False,
+    to_live: bool = False,
+    to_project: bool = False,
+    on_progress: ApplyProgressCallback | None = None,
+) -> tuple[list[str], list[str], list[str], list[str]]:
+    """
+    Copy generated sprites to one or more destinations in a single pass.
+
+    on_progress(current, total, asset_stem) is called before each file.
+    Returns (component_applied, live_applied, project_applied, skipped).
+    """
+    pngs = _resolve_run_pngs(run_name, asset_names)
+    total = len(pngs)
+
+    if to_project:
+        ensure_backup()
+    if to_component:
+        _ensure_component_backup()
+    if to_live:
+        LIVE_SPRITES_DIR.mkdir(parents=True, exist_ok=True)
+
+    component_applied: list[str] = []
+    live_applied: list[str] = []
+    project_applied: list[str] = []
+    skipped: list[str] = []
+
+    for idx, png in enumerate(pngs, 1):
+        if on_progress:
+            on_progress(idx, total, png.stem)
+
+        if to_component:
+            target = COMPONENT_ASSETS_DIR / png.name
+            if not COMPONENT_ASSETS_DIR.is_dir():
+                raise FileNotFoundError(f'找不到元件 assets 目錄: {COMPONENT_ASSETS_DIR}')
+            if target.exists():
+                shutil.copy2(png, target)
+                component_applied.append(png.stem)
+            elif png.stem not in skipped:
+                skipped.append(png.stem)
+
+        if to_live:
+            _copy_png_to_live(png, LIVE_SPRITES_DIR / png.name)
+            live_applied.append(png.stem)
+
+        if to_project:
+            target = SPRITES_DIR / png.name
+            if target.exists():
+                shutil.copy2(png, target)
+                project_applied.append(png.stem)
+            elif png.stem not in skipped:
+                skipped.append(png.stem)
+
+    if to_live and live_applied:
+        (LIVE_SPRITES_DIR / 'revision.txt').write_text(str(time.time()), encoding='utf-8')
+
+    if component_applied:
+        print(f'[component] 已套用 {len(component_applied)} 張到 {COMPONENT_ASSETS_DIR}')
+    if live_applied:
+        print(f'[live] 已套用 {len(live_applied)} 張到 {LIVE_SPRITES_DIR}')
+    if project_applied:
+        print(f'[apply] 已套用 {len(project_applied)} 張到 {SPRITES_DIR}')
+
+    return component_applied, live_applied, project_applied, skipped
+
+
 def apply_run_to_live(run_name: str, asset_names: list[str] | None = None) -> tuple[list[str], list[str]]:
     """
     Copy generated sprites into godot_demo/web/live_sprites/ for runtime override.
@@ -95,7 +199,7 @@ def apply_run_to_live(run_name: str, asset_names: list[str] | None = None) -> tu
 
     for png in pngs:
         target = LIVE_SPRITES_DIR / png.name
-        shutil.copy2(png, target)
+        _copy_png_to_live(png, target)
         applied.append(png.stem)
 
     # Touch revision file so clients can detect updates without parsing mtimes.

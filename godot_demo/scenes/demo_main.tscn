@@ -15,7 +15,8 @@ script = ExtResource("1_demo_main")
 
 [node name="BGRect" type="TextureRect" parent="."]
 texture = ExtResource("2_bg_tex")
-stretch_mode = 1
+expand_mode = 1
+stretch_mode = 6
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

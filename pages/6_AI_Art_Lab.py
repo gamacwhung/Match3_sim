@@ -196,8 +196,8 @@ def _render_generation_panel() -> None:
     if st.button('生成美術', type='primary', use_container_width=True):
         _run_generation(style, run_name, elements, style_upload)
 
-    _render_results()
     _render_advanced()
+    _render_results()
 
 
 def _run_generation(style, run_name, elements, style_upload) -> None:
@@ -248,22 +248,31 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
             tmp.unlink()
 
 
+def _render_result_thumb(name: str, result) -> None:
+    icon = STATUS_ICON.get(result.status, '•')
+    if not result.image:
+        st.caption(f'{icon} {name} —')
+        return
+    # 用 st.image 避免 base64 內嵌整頁(大量圖會讓 rerun 卡死/崩潰)
+    scores = _score_caption(result.verdict)
+    cap = f'{icon} {name}'
+    if scores:
+        cap += f' · {scores}'
+    st.image(result.image, width=72, caption=cap)
+
+
 def _render_results() -> None:
     if not st.session_state.art_results:
         return
     st.markdown('##### 生成結果')
-    results = st.session_state.art_results
-    cols = st.columns(len(results))
-    for col, (name, result) in zip(cols, results.items()):
-        with col:
-            icon = STATUS_ICON.get(result.status, '•')
-            if result.image:
-                st.image(result.image, caption=f'{icon} {name}', width=72)
-            else:
-                st.caption(f'{icon} {name} —')
-            v = result.verdict or {}
-            if v:
-                st.caption(_score_caption(v))
+    items = list(st.session_state.art_results.items())
+    ncols = 4
+    with st.container(height=320):
+        for i in range(0, len(items), ncols):
+            cols = st.columns(ncols)
+            for col, (name, result) in zip(cols, items[i:i + ncols]):
+                with col:
+                    _render_result_thumb(name, result)
 
     st.markdown('---')
     if st.button('套用到遊戲 →', type='primary', use_container_width=True,
@@ -275,8 +284,8 @@ def _render_advanced() -> None:
     with st.expander('載入既有 run / 還原', expanded=not st.session_state.art_results):
         prev_runs = api.list_runs()
         if prev_runs:
-            pick = st.selectbox('載入既有 run', ['—'] + prev_runs)
-            if pick != '—' and st.button('載入預覽', key='load_prev_run'):
+            pick = st.selectbox('載入既有 run', ['—'] + prev_runs, key='art_load_pick')
+            if pick != '—' and pick != st.session_state.get('art_loaded_run'):
                 _load_run(pick)
         else:
             st.caption('尚無既有 run')
@@ -294,10 +303,22 @@ def _render_advanced() -> None:
 def _apply_to_game() -> None:
     run = st.session_state.art_summary.run_name
     names = list(st.session_state.art_summary.results.keys())
+    total = len(names)
+    progress = st.progress(0, text=f'[0/{total}] 張圖片正在套入…')
+    status = st.empty()
+
+    def on_progress(cur: int, tot: int, name: str) -> None:
+        pct = int((cur - 1) / tot * 100) if tot else 0
+        progress.progress(pct, text=f'[{cur}/{tot}] 張圖片正在套入…')
+        status.caption(f'正在套用 **{name}**')
+
     try:
         result = api.apply_run_to_game(
             run, to_component=True, to_live=True, to_project=False, asset_names=names,
+            on_progress=on_progress,
         )
+        progress.progress(100, text=f'[{total}/{total}] 套用完成')
+        status.empty()
         st.session_state.art_applied_run = run
         # 遞增版本號 → 盤面 sprite 帶上 ?v= 強制重新載入
         st.session_state.art_asset_version = int(time.time())
@@ -309,6 +330,8 @@ def _apply_to_game() -> None:
         )
         st.rerun()
     except Exception as exc:
+        progress.empty()
+        status.empty()
         st.error(f'套用失敗: {exc}')
 
 
@@ -328,7 +351,17 @@ def _load_run(run_name: str) -> None:
         run_name=run_name, run_dir=api.run_dir(run_name),
         style=report.get('style', ''), results=loaded,
     )
-    st.rerun()
+    st.session_state.art_loaded_run = run_name
+
+
+@st.fragment
+def _generation_panel_fragment() -> None:
+    _render_generation_panel()
+
+
+@st.fragment
+def _game_panel_fragment() -> None:
+    _render_game_panel()
 
 
 # ---------------------------------------------------------------------------
@@ -360,14 +393,14 @@ def _handle_click(r: int, c: int) -> None:
         st.session_state.art_selected = (r, c)
 
 
-def _render_game_panel() -> None:
-    st.subheader('2 · 遊戲遊玩畫面')
-
+@st.fragment
+def _render_godot_embed() -> None:
+    """獨立 fragment:重載只更新 iframe,不重繪左側大量預覽圖。"""
     top = st.columns([1, 1, 2])
     with top[0]:
-        if st.button('重新載入遊戲', use_container_width=True):
+        if st.button('重新載入遊戲', use_container_width=True, key='godot_reload'):
             st.session_state.art_godot_buster = int(time.time())
-            st.rerun()
+            st.rerun(scope='fragment')
     with top[1]:
         st.link_button('新分頁開啟', url=GODOT_URL, use_container_width=True)
     with top[2]:
@@ -379,7 +412,11 @@ def _render_game_panel() -> None:
     if _godot_up():
         st.success('Godot server 運行中 (localhost:8765)')
         buster = st.session_state.art_godot_buster
-        components.iframe(f'{GODOT_URL}?v={buster}', height=820, scrolling=False)
+        components.iframe(
+            f'{GODOT_URL}?v={buster}',
+            height=820,
+            scrolling=False,
+        )
         st.caption(
             '這是 **Godot 本機遊戲**（與正式版相同渲染）。'
             '套用美術會寫入 `live_sprites/`，重載 iframe 即可看到新 5 色元素。'
@@ -389,6 +426,11 @@ def _render_game_panel() -> None:
             'Godot server 未啟動。請在專案根目錄執行 `./run.sh`（不要只用 `--streamlit-only`）。'
         )
         st.code('./run.sh\n# 然後重新整理此頁', language='bash')
+
+
+def _render_game_panel() -> None:
+    st.subheader('2 · 遊戲遊玩畫面')
+    _render_godot_embed()
 
     with st.expander('Streamlit 簡易盤面（備用預覽,非 Godot 渲染）', expanded=False):
         c1, c2 = st.columns(2)
@@ -419,9 +461,9 @@ def main() -> None:
 
     left, right = st.columns([1, 1.4], gap='large')
     with left:
-        _render_generation_panel()
+        _generation_panel_fragment()
     with right:
-        _render_game_panel()
+        _game_panel_fragment()
 
 
 main()

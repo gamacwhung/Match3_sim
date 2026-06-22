@@ -19,6 +19,10 @@ const ELEMENT_NAMES: Dictionary = {
 # 非元素的具名美術(用 sprite 檔名),一樣支援 live_sprites 即時替換。
 const NAMED_TEXTURES: Array[String] = ["board_bg"]
 
+# Web 端 live 貼圖最大邊長(避免 2048 全螢幕背景吃光 WASM 記憶體)
+const LIVE_MAX_DIM_ELEMENTS: int = 512
+const LIVE_MAX_DIM_NAMED: Dictionary = {"board_bg": 1024}
+
 var theme_revision: int = 0
 var _textures: Dictionary = {}
 var _named: Dictionary = {}
@@ -73,12 +77,13 @@ func _apply_live_overrides() -> void:
 	for color_index in ELEMENT_NAMES:
 		var name: String = ELEMENT_NAMES[color_index]
 		var url := "%s%s.png?v=%d" % [base_url, name, theme_revision]
-		var tex := await _fetch_texture(url)
+		var tex := await _fetch_texture(url, LIVE_MAX_DIM_ELEMENTS)
 		if tex:
 			_textures[color_index] = tex
 	for tex_name in NAMED_TEXTURES:
 		var named_url := "%s%s.png?v=%d" % [base_url, tex_name, theme_revision]
-		var named_tex := await _fetch_texture(named_url)
+		var max_dim: int = int(LIVE_MAX_DIM_NAMED.get(tex_name, LIVE_MAX_DIM_ELEMENTS))
+		var named_tex := await _fetch_texture(named_url, max_dim)
 		if named_tex:
 			_named[tex_name] = named_tex
 
@@ -98,7 +103,7 @@ func _live_base_url() -> String:
 	return str(result) if result != null else ""
 
 
-func _fetch_texture(url: String) -> Texture2D:
+func _fetch_texture(url: String, max_dim: int = 0) -> Texture2D:
 	var http := HTTPRequest.new()
 	add_child(http)
 	var err := http.request(url)
@@ -118,4 +123,16 @@ func _fetch_texture(url: String) -> Texture2D:
 	var image := Image.new()
 	if image.load_png_from_buffer(body) != OK:
 		return null
+	if max_dim > 0:
+		_downscale_image(image, max_dim)
 	return ImageTexture.create_from_image(image)
+
+
+func _downscale_image(image: Image, max_dim: int) -> void:
+	var w := image.get_width()
+	var h := image.get_height()
+	var longest := maxi(w, h)
+	if longest <= max_dim:
+		return
+	var scale := float(max_dim) / float(longest)
+	image.resize(int(w * scale), int(h * scale), Image.INTERPOLATE_LANCZOS)
