@@ -134,6 +134,10 @@ func stop_ai_mode() -> void:
 	_autoplay_running = false
 
 
+func is_ai_running() -> bool:
+	return _ai_mode
+
+
 func _run_ai_step() -> void:
 	if not _ai_mode:
 		return

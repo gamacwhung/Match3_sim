@@ -226,6 +226,32 @@ func _show_menu_button() -> void:
 		select_btn.offset_bottom = 62
 		select_btn.pressed.connect(func(): _show_level_select(true))
 		menu_button_ui.add_child(select_btn)
+	else:
+		# 攤位模式：放「🧠 AI 解關」開關（可開可關；重玩本關會重置成關）
+		var ai_btn = Button.new()
+		ai_btn.text = "🧠 AI 解關"
+		if font:
+			ai_btn.add_theme_font_override("font", font)
+		ai_btn.add_theme_font_size_override("font_size", 18)
+		ai_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		ai_btn.offset_left = -150
+		ai_btn.offset_right = -16
+		ai_btn.offset_top = 16
+		ai_btn.offset_bottom = 62
+		ai_btn.pressed.connect(func(): _toggle_ai_mode(ai_btn))
+		menu_button_ui.add_child(ai_btn)
+
+
+func _toggle_ai_mode(btn: Button) -> void:
+	if current_board == null:
+		return
+	if current_board.has_method("is_ai_running") and current_board.is_ai_running():
+		if current_board.has_method("stop_ai_mode"):
+			current_board.stop_ai_mode()
+		btn.text = "🧠 AI 解關"
+	elif current_board.has_method("start_ai_mode"):
+		current_board.start_ai_mode(0.8)
+		btn.text = "⏸ 停止 AI"
 
 
 func _clear_current() -> void:
