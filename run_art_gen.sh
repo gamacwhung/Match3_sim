@@ -24,4 +24,4 @@
 #   Soda0d,Soda90,TNT,LtBl,TrPr
 #   Crt1,Crt2,Crt3,Crt4
 
-.venv/bin/python scripts/ai_art_gen.py generate --style "pixel art" --run test_pixel_art --assets Red,Blu
+.venv/bin/python scripts/ai_art_gen.py generate --style "change color" --run test_pixel_art --assets Red,Blu,Grn

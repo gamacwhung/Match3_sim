@@ -23,6 +23,8 @@ import pathlib
 import time
 
 from .manifest import PROJECT_ROOT, SPRITES_DIR, build_manifest
+from .roles import GenerationMode, get_family_meta, role_mode_brief
+from .theme_planner import expand_theme_for_elements, theme_note_for_asset
 from . import gemini_api, postprocess
 from .run_log import RunLog
 
@@ -34,6 +36,24 @@ DEFAULT_STYLE_IMAGE = PROJECT_ROOT / 'game_art_reference.png'
 PASS_STYLE = 7
 PASS_FUNCTION = 7
 PASS_ELEMENT = 7
+
+
+def resolve_style_image(
+    style_image_path: str | pathlib.Path | None = None,
+    *,
+    reference_image: bool = True,
+) -> tuple[pathlib.Path | None, bytes | None]:
+    """解析風格/主題參考圖。reference_image=False 時完全不使用參考圖。"""
+    if not reference_image:
+        return None, None
+    resolved: pathlib.Path | None = None
+    if style_image_path:
+        resolved = pathlib.Path(style_image_path)
+    elif DEFAULT_STYLE_IMAGE.exists():
+        resolved = DEFAULT_STYLE_IMAGE
+    if resolved is not None and not resolved.is_file():
+        raise FileNotFoundError(f'找不到參考圖: {resolved}')
+    return resolved, (resolved.read_bytes() if resolved else None)
 
 
 def _chromakey_block(asset: dict) -> str:
@@ -54,7 +74,10 @@ def _chromakey_block(asset: dict) -> str:
 
 
 def build_generation_prompt(asset: dict, style_text: str, family_names: list[str],
-                            feedback: str | None, has_style_image: bool = False) -> str:
+                            feedback: str | None, has_style_image: bool = False,
+                            *, mode: GenerationMode = 'restyle',
+                            theme_text: str | None = None,
+                            theme_plan: dict | None = None) -> str:
     constraints = '\n'.join(f'- {c}' for c in asset.get('constraints', []))
     family_note = ''
     if len(family_names) > 1:
@@ -68,6 +91,10 @@ def build_generation_prompt(asset: dict, style_text: str, family_names: list[str
         bg_rule = _chromakey_block(asset)
     else:
         bg_rule = '- This is a full-canvas opaque background image — fill the entire canvas.'
+
+    if mode == 'theme_swap':
+        return _build_theme_swap_prompt(
+            asset, style_text, family_names, feedback, has_style_image, theme_text, theme_plan)
 
     if has_style_image:
         intro = (
@@ -100,6 +127,63 @@ def build_generation_prompt(asset: dict, style_text: str, family_names: list[str
 - Square canvas, a single image — no collage, no multiple views{family_note}{feedback_note}"""
 
 
+def _build_theme_swap_prompt(asset: dict, style_text: str, family_names: list[str],
+                             feedback: str | None, has_style_image: bool,
+                             theme_text: str | None,
+                             theme_plan: dict | None = None) -> str:
+    """Theme-swap mode: invent a NEW object from abstract gameplay role (no original sprite ref)."""
+    constraints = '\n'.join(f'- {c}' for c in asset.get('constraints', []))
+    brief = role_mode_brief(asset, 'theme_swap')
+    preserve = '\n'.join(f'- {p}' for p in brief.get('preserve', []))
+    avoid = brief.get('avoid', '')
+    family_meta = get_family_meta(asset.get('family'))
+    family_note = ''
+    if family_meta.get('series_note'):
+        family_note = f'\n[Series consistency] {family_meta["series_note"]}'
+    elif len(family_names) > 1:
+        family_note = (f'\n[Series consistency] This asset belongs to the "{asset["family"]}" '
+                       f'series (members: {", ".join(family_names)}). Keep a consistent design '
+                       f'language across the series.')
+    feedback_note = (f'\n[Fix instructions from the previous attempt — MUST follow] {feedback}'
+                     if feedback else '')
+    theme_note = theme_note_for_asset(asset['name'], theme_text, theme_plan)
+
+    if asset.get('transparent', True):
+        bg_rule = _chromakey_block(asset)
+    else:
+        bg_rule = '- This is a full-canvas opaque background image — fill the entire canvas.'
+
+    if has_style_image:
+        ref_block = (
+            "[Theme reference image] Use the attached reference image as the visual theme source: "
+            "motifs, palette, ornamental patterns and mood. Invent a NEW object that fits both "
+            "the gameplay role below AND this theme — do NOT copy any legacy sprite subject.\n\n")
+    else:
+        ref_block = ''
+
+    return f"""Create a brand-new 2D match-3 game asset from scratch (theme-swap mode).
+
+{ref_block}[Gameplay role] {asset.get('role_label', asset.get('role_class', ''))}
+[Creative brief] {brief.get('creative_brief', '')}
+[Must preserve for gameplay readability]
+{preserve}
+{f'[Do NOT] {avoid}' if avoid else ''}
+
+[Asset slot name] {asset['name']}
+[Gameplay function — players must recognize this function at a glance]
+{asset.get('function_theme_swap', asset['function'])}
+
+[Visual constraints]
+{constraints}
+
+[Target art style] {style_text}{theme_note}
+
+[Output requirements]
+{bg_rule}
+- Invent a completely NEW subject — do NOT replicate any original game sprite
+- Square canvas, a single image — no collage, no multiple views{family_note}{feedback_note}"""
+
+
 def _save_iteration(history_dir: pathlib.Path, asset: dict, i: int,
                     raw_bytes: bytes | None, processed: bytes | None,
                     score: int | None, status_tag: str) -> dict:
@@ -128,18 +212,26 @@ def _save_iteration(history_dir: pathlib.Path, asset: dict, i: int,
 def generate_one(client, asset: dict, style_text: str, style_image: bytes | None,
                  family_names: list[str], image_model: str, critic_model: str,
                  max_iters: int, history_dir: pathlib.Path | None = None,
-                 log: RunLog | None = None) -> dict:
+                 log: RunLog | None = None,
+                 *, mode: GenerationMode = 'restyle',
+                 theme_text: str | None = None,
+                 theme_plan: dict | None = None) -> dict:
     """對單一 asset 跑迭代循環。回傳結果 dict(含 attempts log 與最佳圖 bytes)。
 
     history_dir 有給時,每一次迭代的圖都會被保留到 history_dir/<asset>/ 並標上 tag。
     """
-    original = (PROJECT_ROOT / asset['path']).read_bytes()
-    refs: list[tuple[bytes, str]] = [
-        (original, 'Reference A — the original asset; preserve its subject, shape and composition')]
-    if style_image:
+    original: bytes | None = None
+    refs: list[tuple[bytes, str]] = []
+    if mode == 'restyle':
+        original = (PROJECT_ROOT / asset['path']).read_bytes()
         refs.append(
-            (style_image, 'Reference B — design-element reference; weave in its motifs, logos, '
-                          'special shapes, patterns, palette and style'))
+            (original, 'Reference A — the original asset; preserve its subject, shape and composition'))
+    if style_image:
+        label = ('Reference — theme visual reference; motifs, palette and style'
+                 if mode == 'theme_swap' else
+                 'Reference B — design-element reference; weave in its motifs, logos, '
+                 'special shapes, patterns, palette and style')
+        refs.append((style_image, label))
 
     attempts = []
     best = None  # (score, png_bytes, verdict, iter)
@@ -149,7 +241,9 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
         if log:
             log.iter_start(i, max_iters)
         prompt = build_generation_prompt(asset, style_text, family_names, feedback,
-                                         has_style_image=style_image is not None)
+                                         has_style_image=style_image is not None,
+                                         mode=mode, theme_text=theme_text,
+                                         theme_plan=theme_plan)
         t0 = time.time()
         try:
             raw = gemini_api.generate_image(client, image_model, prompt, refs)
@@ -173,7 +267,8 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
             continue
 
         verdict = gemini_api.critique_image(
-            client, critic_model, original, processed, style_text, asset, style_image)
+            client, critic_model, original, processed, style_text, asset, style_image,
+            mode=mode)
         score = verdict['style_score'] + verdict['function_score'] + (2 if verdict['background_ok'] else 0)
         if style_image is not None:
             score += verdict.get('reference_element_score', 0)
@@ -219,8 +314,21 @@ def run(style_text: str, run_name: str,
         critic_model: str = gemini_api.DEFAULT_CRITIC_MODEL,
         max_iters: int = 3,
         force: bool = False,
-        dry_run: bool = False) -> pathlib.Path:
-    """跑整批生成。回傳 run 目錄。"""
+        dry_run: bool = False,
+        *, mode: GenerationMode = 'restyle',
+        theme_text: str | None = None,
+        reference_image: bool = True,
+        expand_theme: bool = False) -> pathlib.Path:
+    """跑整批生成。回傳 run 目錄。
+
+    mode:
+      restyle     — 以原 sprite 為 Reference A,只換風格(預設)
+      theme_swap  — 依 abstract gameplay role 發明新主題物件,不參考原圖
+    reference_image:
+      False       — 不使用任何參考圖(含 game_art_reference.png 與 style_image_path)
+    expand_theme:
+      True        — 用 LLM 把 theme_text(主題概念)展開成每個 element 的物件指派
+    """
     manifest = build_manifest()
     by_family: dict[str, list[str]] = {}
     for a in manifest:
@@ -246,18 +354,37 @@ def run(style_text: str, run_name: str,
     history_dir = run_dir / 'history'
     report_path = run_dir / 'report.json'
     report = json.loads(report_path.read_text(encoding='utf-8')) if report_path.exists() else {
-        'style': style_text, 'image_model': image_model, 'critic_model': critic_model, 'results': {},
+        'style': style_text, 'generation_mode': mode, 'theme': theme_text,
+        'image_model': image_model, 'critic_model': critic_model, 'results': {},
     }
 
-    # 元素參考圖:優先用 --style-image,否則用預設 game_art_reference.png(若存在)
-    resolved_style_path: pathlib.Path | None = None
-    if style_image_path:
-        resolved_style_path = pathlib.Path(style_image_path)
-    elif DEFAULT_STYLE_IMAGE.exists():
-        resolved_style_path = DEFAULT_STYLE_IMAGE
-    if resolved_style_path and not resolved_style_path.exists():
-        raise SystemExit(f'找不到元素參考圖: {resolved_style_path}')
-    style_image = resolved_style_path.read_bytes() if resolved_style_path else None
+    theme_plan: dict | None = report.get('theme_plan')
+    resolved_theme = theme_text
+    if mode == 'theme_swap' and expand_theme and theme_text:
+        if theme_plan and theme_plan.get('concept') == theme_text:
+            resolved_theme = theme_plan.get('theme_direction', theme_text)
+            print(f'[theme] 使用已快取的展開結果: {resolved_theme}')
+        else:
+            print(f'[theme] 展開主題概念: {theme_text!r}')
+            client = gemini_api.get_client()
+            theme_plan = expand_theme_for_elements(
+                theme_text, style_text,
+                [a['name'] for a in targets],
+                client=client, model=critic_model,
+            )
+            resolved_theme = theme_plan['theme_direction']
+            print(f'[theme] → {resolved_theme}')
+            report['theme_plan'] = theme_plan
+            report['theme'] = theme_text
+            report['theme_expanded'] = resolved_theme
+            report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+
+    # 元素參考圖:reference_image=False 時不使用;否則優先 --style-image,再 fallback game_art_reference.png
+    try:
+        resolved_style_path, style_image = resolve_style_image(
+            style_image_path, reference_image=reference_image)
+    except FileNotFoundError as e:
+        raise SystemExit(str(e)) from e
 
     log.run_header(
         run_name=run_name,
@@ -276,7 +403,8 @@ def run(style_text: str, run_name: str,
         log.dry_run_prompt(build_generation_prompt(
             targets[0], style_text,
             by_family.get(targets[0].get('family') or 'misc', []), None,
-            has_style_image=style_image is not None))
+            has_style_image=style_image is not None,
+            mode=mode, theme_text=resolved_theme, theme_plan=theme_plan))
         return run_dir
 
     client = gemini_api.get_client()
@@ -293,7 +421,8 @@ def run(style_text: str, run_name: str,
         result = generate_one(client, asset, style_text, style_image,
                               by_family.get(asset.get('family') or 'misc', []),
                               image_model, critic_model, max_iters,
-                              history_dir=history_dir, log=log)
+                              history_dir=history_dir, log=log,
+                              mode=mode, theme_text=resolved_theme, theme_plan=theme_plan)
         image = result.pop('image')
         if image:
             (sprites_out / asset['file']).write_bytes(image)

@@ -71,21 +71,24 @@ func setup(paths: Array[String], show_cancel: bool = false) -> void:
 		cancel_btn.pressed.connect(func(): cancelled.emit())
 		add_child(cancel_btn)
 
-	# ── 置中:用 anchor center + 固定寬度,然後 ScrollContainer 垂直捲動 ──
-	# 估算:10 cols × 110 = 1100 + 9 × 16 sep + 48 padding ≈ 1292
-	# 為了讓 demo 解析度(1920x893)時看起來舒服居中,寬度設 1300。
-	# 高度填滿剩餘空間,垂直靠 scroll 處理。
+	# ── 置中:寬度隨 viewport 縮放(iframe 窄螢幕可橫向捲動) ──
+	var vp_w := get_viewport().get_visible_rect().size.x
+	var panel_w := minf(1252.0, maxf(vp_w - 24.0, 300.0))
 	var scroll = ScrollContainer.new()
 	scroll.set_anchors_preset(Control.PRESET_CENTER)
 	scroll.anchor_left = 0.5
 	scroll.anchor_right = 0.5
 	scroll.anchor_top = 0.0
 	scroll.anchor_bottom = 1.0
-	scroll.offset_left = -650
-	scroll.offset_right = 650
+	scroll.offset_left = -panel_w * 0.5
+	scroll.offset_right = panel_w * 0.5
 	scroll.offset_top = 180
 	scroll.offset_bottom = -40
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.horizontal_scroll_mode = (
+		ScrollContainer.SCROLL_MODE_AUTO
+		if panel_w < 1200.0
+		else ScrollContainer.SCROLL_MODE_DISABLED
+	)
 	add_child(scroll)
 
 	var pad = MarginContainer.new()

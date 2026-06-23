@@ -1,0 +1,622 @@
+{
+  "version": 1,
+  "meta": {
+    "cell_display_px": 70,
+    "common_sprite_constraints": [
+      "A single centered object occupying 70%-90% of the canvas, with padding around it",
+      "Silhouette must remain clearly recognizable when displayed at {cell_display_px}px",
+      "No text, letters, or watermarks of any kind"
+    ]
+  },
+  "role_classes": {
+    "match_element": {
+      "label": "Match Element",
+      "category": "element",
+      "summary": "Basic swappable candy cleared by matching 3+ in a line.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed object to represent this match element. The object can be completely different from the original sprite (e.g. fruit, gem, hat, shell) as long as players can still distinguish it by color at a glance.",
+        "preserve": ["color_identity", "single_centered_object", "grid_readability"],
+        "avoid": "Do not copy the original sprite's subject, silhouette or composition."
+      },
+      "restyle": {
+        "preserve": ["subject", "silhouette", "pose", "composition"]
+      }
+    },
+    "powerup_horizontal": {
+      "label": "Horizontal Rocket Powerup",
+      "category": "powerup",
+      "summary": "Clears an entire row when triggered.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed object that clearly reads as firing LEFT and RIGHT (horizontal line clear).",
+        "preserve": ["horizontal_direction_readability", "powerup_feel"],
+        "avoid": "Do not copy the original rocket/soda sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "horizontal_direction_readability"]
+      }
+    },
+    "powerup_vertical": {
+      "label": "Vertical Rocket Powerup",
+      "category": "powerup",
+      "summary": "Clears an entire column when triggered.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed object that clearly reads as firing UP and DOWN (vertical line clear). Should feel like the horizontal rocket rotated 90°.",
+        "preserve": ["vertical_direction_readability", "powerup_feel", "series_consistency_with_horizontal"],
+        "avoid": "Do not copy the original rocket/soda sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "vertical_direction_readability"]
+      }
+    },
+    "powerup_bomb": {
+      "label": "Area Bomb Powerup",
+      "category": "powerup",
+      "summary": "Explodes a 5x5 area when triggered.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed object that instantly reads as EXPLOSIVE / dangerous area damage.",
+        "preserve": ["explosive_readability", "powerup_feel"],
+        "avoid": "Do not copy the original TNT/bomb sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "explosive_readability"]
+      }
+    },
+    "powerup_color_bomb": {
+      "label": "Color Bomb / Light Ball",
+      "category": "powerup",
+      "summary": "Clears all elements of one color when swapped.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed object that reads as the rarest, most powerful item — a glowing orb with rainbow/multi-color hints implying it works on ALL colors.",
+        "preserve": ["multi_color_power_readability", "premium_rare_feel"],
+        "avoid": "Do not copy the original light-ball sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "multi_color_power_readability"]
+      }
+    },
+    "powerup_projectile": {
+      "label": "Flying Projectile Powerup",
+      "category": "powerup",
+      "summary": "Cross clear + flies to a high-value target.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed flying projectile (plane, dart, bird, etc.) with clear direction and motion.",
+        "preserve": ["projectile_motion_readability", "powerup_feel"],
+        "avoid": "Do not copy the original paper-plane sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "projectile_motion_readability"]
+      }
+    },
+    "obstacle_static_hp": {
+      "label": "Static HP Obstacle",
+      "category": "obstacle",
+      "summary": "Occupies a cell, blocks falling, damaged by adjacent matches.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed static obstacle that occupies one cell and looks breakable by adjacent matches.",
+        "preserve": ["cell_filling_silhouette", "damage_stage_progression"],
+        "avoid": "Do not copy the original crate/box sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "damage_stage_progression", "cell_filling_silhouette"]
+      }
+    },
+    "obstacle_movable": {
+      "label": "Movable Obstacle",
+      "category": "obstacle",
+      "summary": "Can be swapped, falls with gravity, destroyed by adjacent matches.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed object that looks pushable/movable rather than fixed in place.",
+        "preserve": ["movable_pushable_feel"],
+        "avoid": "Do not copy the original barrel/cone sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "movable_pushable_feel"]
+      }
+    },
+    "obstacle_powerup_only": {
+      "label": "Powerup-Only Obstacle",
+      "category": "obstacle",
+      "summary": "Immune to normal matches; only powerups can damage it.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed hard/impervious object that looks immune to ordinary matches.",
+        "preserve": ["hard_impervious_feel"],
+        "avoid": "Do not copy the original can sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "hard_impervious_feel", "layered_parts_consistency"]
+      }
+    },
+    "obstacle_bottom_layer": {
+      "label": "Bottom-Layer Obstacle",
+      "category": "obstacle",
+      "summary": "Elements sit on top; clearing the element above deals damage.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW flat bottom-layer hazard that elements can sit on top of without stealing focus.",
+        "preserve": ["flat_semi_transparent_feel", "low_visual_priority"],
+        "avoid": "Do not copy the original puddle sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "flat_semi_transparent_feel"]
+      }
+    },
+    "obstacle_top_layer": {
+      "label": "Top-Layer Obstacle",
+      "category": "obstacle",
+      "summary": "Covers the element underneath, blocking swaps.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW top-layer cover (net, mud, frame) that partially or fully hides the element below.",
+        "preserve": ["overlay_readability", "element_visibility_through_cover"],
+        "avoid": "Do not copy the original rope/mud sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "overlay_readability"]
+      }
+    },
+    "obstacle_goal_machine": {
+      "label": "Goal Machine",
+      "category": "obstacle",
+      "summary": "Never destroyed; adjacent matches produce goal items.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed machine/device that looks reusable and produces collectible goal items.",
+        "preserve": ["machine_reusable_feel", "goal_production_readability"],
+        "avoid": "Do not copy the original stamp machine sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "machine_reusable_feel"]
+      }
+    },
+    "obstacle_goal_prop": {
+      "label": "Goal Item Prop",
+      "category": "obstacle",
+      "summary": "Visual prop for postmark/goal item set.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed prop that belongs to the same goal-item set as the stamp machine.",
+        "preserve": ["set_style_consistency"],
+        "avoid": "Do not copy the original postcard/stamp sprites."
+      },
+      "restyle": {
+        "preserve": ["subject", "set_style_consistency"]
+      }
+    },
+    "obstacle_large_2x2": {
+      "label": "Large 2x2 Obstacle",
+      "category": "obstacle",
+      "summary": "Large object spanning 2x2 cells with progressive HP stages.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW large 2x2 themed object with progressive depletion/damage stages.",
+        "preserve": ["large_2x2_composition", "progressive_stage_consistency"],
+        "avoid": "Do not copy the original pool sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "large_2x2_composition", "progressive_stage_consistency"]
+      }
+    },
+    "obstacle_chiller_cabinet": {
+      "label": "Chiller Cabinet (2x2)",
+      "category": "obstacle",
+      "summary": "Large sealed cabinet; door opens then contents are consumed.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW large 2x2 themed cabinet/vending machine with a door and consumable contents inside.",
+        "preserve": ["cabinet_sealed_feel", "door_contents_readability", "progressive_depletion"],
+        "avoid": "Do not copy the original water/beverage chiller sprites."
+      },
+      "restyle": {
+        "preserve": ["subject", "cabinet_design", "progressive_depletion"]
+      }
+    },
+    "obstacle_chiller_part": {
+      "label": "Chiller Part / Layer",
+      "category": "obstacle",
+      "summary": "Layered part of a chiller (body, door, bottle) drawn on top of other parts.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed part that layers naturally with other chiller parts in the same set.",
+        "preserve": ["layer_alignment", "set_design_consistency"],
+        "avoid": "Do not copy the original chiller part sprites."
+      },
+      "restyle": {
+        "preserve": ["subject", "layer_alignment", "set_design_consistency"]
+      }
+    },
+    "obstacle_colored_slot": {
+      "label": "Color-Matched Slot Item",
+      "category": "obstacle",
+      "summary": "Item inside a chiller; only matches of the matching color can clear it.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed consumable item with unmistakable color identity for gameplay color-matching.",
+        "preserve": ["color_identity", "slot_fit_composition"],
+        "avoid": "Do not copy the original bottle sprite."
+      },
+      "restyle": {
+        "preserve": ["subject", "color_identity"]
+      }
+    },
+    "background_board": {
+      "label": "Board Background",
+      "category": "background",
+      "summary": "Full-canvas backdrop under the game grid.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed environment/backdrop for the entire game board. Low contrast, no strong focal object.",
+        "preserve": ["low_contrast", "non_distracting", "full_canvas_coverage"],
+        "avoid": "Do not copy the original board background illustration."
+      },
+      "restyle": {
+        "preserve": ["composition", "low_contrast_feel"]
+      }
+    }
+  },
+  "families": {
+    "elements": {
+      "series_note": "All five element colors share one consistent design language — only the dominant color differs."
+    },
+    "powerups": {
+      "series_note": "All powerups share a premium/special feel distinct from basic elements."
+    },
+    "crate": {
+      "series_note": "Crt1-Crt4 are the SAME object at 4 progressive damage stages — identical design, only damage increases."
+    },
+    "movable": {
+      "series_note": "Movable obstacles share a pushable, physics-aware feel."
+    },
+    "salmon_can": {
+      "series_note": "SalmonCan and its body/lid parts share one metallic can design language."
+    },
+    "puddle": {
+      "series_note": "Puddle_lv1 is a nearly-dried version of Puddle_lv2."
+    },
+    "rope": {
+      "series_note": "Rope_lv1 is the damaged version of Rope_lv2."
+    },
+    "postmark": {
+      "series_note": "The whole Postmark_* set must share one consistent style."
+    },
+    "pool": {
+      "series_note": "Pool_lv1-lv5 are the SAME pool at 5 progressive depletion stages."
+    },
+    "water_chiller": {
+      "series_note": "Water chiller cabinet, door, and lv1-lv11 bottle states share one cabinet design."
+    },
+    "beverage_chiller": {
+      "series_note": "Beverage chiller body, door, bottles, and lv states share one chiller design."
+    },
+    "background": {
+      "series_note": "Standalone full-canvas background."
+    }
+  },
+  "asset_groups": [
+    {
+      "names": ["Red", "Grn", "Blu", "Yel", "Pur"],
+      "role_class": "match_element",
+      "family": "elements",
+      "function": "Basic {color_en} match element. Players swap adjacent elements to form lines of 3+ to clear them. This is the most numerous object on the board.",
+      "function_theme_swap": "Basic {color_en} match element — the most common swappable object on the board. Players match 3+ in a line to clear.",
+      "constraints": [
+        "Dominant color must be unmistakably {color_en} — players distinguish elements by color at a glance; it must never be confused with the other element colors",
+        "Plump, rounded shape that tiles well when packed densely in a grid"
+      ],
+      "params": {
+        "Red": {"color_en": "red"},
+        "Grn": {"color_en": "green"},
+        "Blu": {"color_en": "blue"},
+        "Yel": {"color_en": "yellow"},
+        "Pur": {"color_en": "purple"}
+      }
+    },
+    {
+      "names": ["Soda0d"],
+      "role_class": "powerup_horizontal",
+      "family": "powerups",
+      "function": "Horizontal rocket powerup (created by matching 4 in a vertical line). When triggered it clears the entire row.",
+      "constraints": [
+        "Appearance must clearly read as HORIZONTAL direction (e.g. sideways rocket/arrow/energy bar) — players must anticipate it fires left and right"
+      ]
+    },
+    {
+      "names": ["Soda90"],
+      "role_class": "powerup_vertical",
+      "family": "powerups",
+      "function": "Vertical rocket powerup (created by matching 4 in a horizontal line). When triggered it clears the entire column.",
+      "constraints": [
+        "Appearance must clearly read as VERTICAL direction — players must anticipate it fires up and down",
+        "Should look like the same object as Soda0d rotated 90 degrees"
+      ]
+    },
+    {
+      "names": ["TNT"],
+      "role_class": "powerup_bomb",
+      "family": "powerups",
+      "function": "Bomb powerup (created by an L/T-shaped match). When triggered it explodes a 5x5 area around itself.",
+      "constraints": [
+        "Must instantly read as an EXPLOSIVE (bomb / dynamite / energy orb) with a sense of danger"
+      ]
+    },
+    {
+      "names": ["LtBl"],
+      "role_class": "powerup_color_bomb",
+      "family": "powerups",
+      "function": "Color bomb / light ball powerup (created by matching 5 in a line; the strongest powerup). Swapping it with an element clears every element of that color on the board.",
+      "constraints": [
+        "A glowing spherical orb with rainbow/multi-color hints implying \"works on all colors\"; it should look like the rarest, most powerful item"
+      ]
+    },
+    {
+      "names": ["TrPr"],
+      "role_class": "powerup_projectile",
+      "family": "powerups",
+      "function": "Paper plane powerup (created by a 2x2 square match). When triggered it clears the 4 adjacent cells in a cross, then flies to a high-value target for a precision strike.",
+      "constraints": [
+        "Must read as a FLYING PROJECTILE (paper plane / dart / small bird) with direction and a sense of motion"
+      ]
+    },
+    {
+      "names": ["Crt1", "Crt2", "Crt3", "Crt4"],
+      "role_class": "obstacle_static_hp",
+      "family": "crate",
+      "function": "Cardboard crate obstacle (remaining HP {lv}/4, {state}). Occupies a cell and blocks falling elements; each adjacent match deals 1 damage.",
+      "function_theme_swap": "Static cell obstacle (remaining HP {lv}/4, {state}). Occupies one cell, blocks falling elements; each adjacent match deals 1 damage.",
+      "constraints": [
+        "Crt1-Crt4 are the SAME crate at 4 progressive damage stages — material and design must be identical, only the damage level increases",
+        "Boxy square body that fills the cell"
+      ],
+      "params": {
+        "Crt1": {"lv": 1, "state": "almost destroyed, heavily cracked"},
+        "Crt2": {"lv": 2, "state": "visibly damaged"},
+        "Crt3": {"lv": 3, "state": "slightly damaged"},
+        "Crt4": {"lv": 4, "state": "intact, undamaged"}
+      }
+    },
+    {
+      "names": ["Barrel"],
+      "role_class": "obstacle_movable",
+      "family": "movable",
+      "function": "Barrel obstacle (player can swap it around; affected by gravity and falls). Destroyed by adjacent matches.",
+      "function_theme_swap": "Movable cell obstacle. Player can swap it; it falls with gravity. Destroyed by adjacent matches.",
+      "constraints": [
+        "Cylindrical barrel shape that looks \"pushable\" rather than fixed in place"
+      ]
+    },
+    {
+      "names": ["TrafficCone_lv1", "TrafficCone_lv2"],
+      "role_class": "obstacle_movable",
+      "family": "movable",
+      "function": "Traffic cone obstacle (remaining HP {lv}/2; movable and falls with gravity). Each adjacent match deals 1 damage.",
+      "constraints": [
+        "lv1 is the damaged version of lv2 — identical design, different wear",
+        "Clear cone silhouette"
+      ],
+      "params": {
+        "TrafficCone_lv1": {"lv": 1},
+        "TrafficCone_lv2": {"lv": 2}
+      }
+    },
+    {
+      "names": ["SalmonCan"],
+      "role_class": "obstacle_powerup_only",
+      "family": "salmon_can",
+      "function": "Salmon can obstacle (intact state). Immune to normal matches — only powerups (rocket / bomb / paper plane) can damage it.",
+      "constraints": [
+        "Metallic can texture; must look HARD and impervious to ordinary matches"
+      ]
+    },
+    {
+      "names": ["SalmonCan_body"],
+      "role_class": "obstacle_powerup_only",
+      "family": "salmon_can",
+      "function": "Salmon can body (lower part shown after the lid opens; rendered layered with top1/top2).",
+      "constraints": [
+        "Must share the same design language as SalmonCan"
+      ]
+    },
+    {
+      "names": ["SalmonCan_top1", "SalmonCan_top2"],
+      "role_class": "obstacle_powerup_only",
+      "family": "salmon_can",
+      "function": "Salmon can lid ({lid_state} state part).",
+      "constraints": [
+        "Rendered layered on SalmonCan_body — alignment must look natural"
+      ],
+      "params": {
+        "SalmonCan_top1": {"lid_state": "half-open"},
+        "SalmonCan_top2": {"lid_state": "fully-open"}
+      }
+    },
+    {
+      "names": ["Puddle_lv1", "Puddle_lv2"],
+      "role_class": "obstacle_bottom_layer",
+      "family": "puddle",
+      "function": "Puddle (bottom-layer obstacle, remaining HP {lv}/2). Elements sit ON TOP of it; clearing an element in this cell deals 1 damage.",
+      "constraints": [
+        "Flat and semi-transparent — elements are drawn above it, so it must not steal visual focus from the elements",
+        "lv1 is a nearly-dried-up version of lv2"
+      ],
+      "params": {
+        "Puddle_lv1": {"lv": 1},
+        "Puddle_lv2": {"lv": 2}
+      }
+    },
+    {
+      "names": ["Rope_lv1", "Rope_lv2"],
+      "role_class": "obstacle_top_layer",
+      "family": "rope",
+      "function": "Rope (top-layer obstacle, remaining HP {lv}/2). Covers the element underneath so it cannot be swapped; each adjacent match deals 1 damage.",
+      "constraints": [
+        "Net/frame structure — the trapped element underneath must remain visible through it",
+        "lv1 is the damaged version of lv2"
+      ],
+      "params": {
+        "Rope_lv1": {"lv": 1},
+        "Rope_lv2": {"lv": 2}
+      }
+    },
+    {
+      "names": ["Mud"],
+      "role_class": "obstacle_top_layer",
+      "family": "mud",
+      "function": "Mud (top-layer obstacle). Completely hides the element underneath (players cannot see what is below); cleared by an adjacent match.",
+      "constraints": [
+        "Opaque, fully covers the cell, with a \"dirty smear\" feel"
+      ]
+    },
+    {
+      "names": ["Stamp"],
+      "role_class": "obstacle_goal_machine",
+      "family": "postmark",
+      "function": "Stamp machine (never destroyed). Every adjacent match makes it \"stamp once\", producing 1 goal item that counts toward level completion.",
+      "constraints": [
+        "Should look like a stamp/postmark machine — something REUSABLE, not breakable"
+      ]
+    },
+    {
+      "names": ["Postmark_01", "Postmark_02"],
+      "role_class": "obstacle_goal_prop",
+      "family": "postmark",
+      "function": "{desc}. Part of the postmark-level goal item set.",
+      "constraints": [
+        "The whole Postmark_* set must share one consistent style"
+      ],
+      "params": {
+        "Postmark_01": {"desc": "Postmark imprint pattern 1 (used in the stamping animation)"},
+        "Postmark_02": {"desc": "Postmark imprint pattern 2 (used in the stamping animation)"}
+      }
+    },
+    {
+      "names": ["Postmark_card", "Postmark_bundle", "Postmark_goal"],
+      "role_class": "obstacle_goal_prop",
+      "family": "postmark",
+      "function": "{desc}. Part of the postmark-level goal item set.",
+      "constraints": [
+        "The whole Postmark_* set must share one consistent style"
+      ],
+      "params": {
+        "Postmark_card": {"desc": "Postcard (the object that receives the stamp)"},
+        "Postmark_bundle": {"desc": "Bundle of postcards (visual for the collected goal items)"},
+        "Postmark_goal": {"desc": "Postcard goal icon (shown small in the top-left HUD objective bar)"}
+      }
+    },
+    {
+      "names": ["Pool_lv1", "Pool_lv2", "Pool_lv3", "Pool_lv4", "Pool_lv5"],
+      "role_class": "obstacle_large_2x2",
+      "family": "pool",
+      "function": "Pool obstacle (large 2x2 object, remaining HP {lv}/5). When destroyed it spawns puddles (Puddle) in surrounding cells.",
+      "constraints": [
+        "Pool_lv1-lv5 are the SAME pool at 5 progressive depletion stages — identical design",
+        "Large 2x2 object — composition must fill the square canvas"
+      ],
+      "params": {
+        "Pool_lv1": {"lv": 1},
+        "Pool_lv2": {"lv": 2},
+        "Pool_lv3": {"lv": 3},
+        "Pool_lv4": {"lv": 4},
+        "Pool_lv5": {"lv": 5}
+      }
+    },
+    {
+      "names": ["WaterChiller_closed"],
+      "role_class": "obstacle_chiller_cabinet",
+      "family": "water_chiller",
+      "function": "Water chiller cabinet (large 2x2 object, door closed). The door must be opened first, then bottles are consumed one by one.",
+      "constraints": [
+        "Sealed cabinet — it should read as \"something inside, door still closed\""
+      ]
+    },
+    {
+      "names": ["WaterChiller_door"],
+      "role_class": "obstacle_chiller_part",
+      "family": "water_chiller",
+      "function": "Water chiller door (part used in the door-opening animation; tall rectangle).",
+      "constraints": [
+        "Must match the door design of WaterChiller_closed"
+      ]
+    },
+    {
+      "names": ["WaterChiller_lv1", "WaterChiller_lv2", "WaterChiller_lv3", "WaterChiller_lv4", "WaterChiller_lv5", "WaterChiller_lv6", "WaterChiller_lv7", "WaterChiller_lv8", "WaterChiller_lv9", "WaterChiller_lv10", "WaterChiller_lv11"],
+      "role_class": "obstacle_chiller_cabinet",
+      "family": "water_chiller",
+      "function": "Water chiller after the door opens (remaining {lv}/11 bottles). Each valid match removes one bottle.",
+      "constraints": [
+        "lv1-lv11 form a \"bottles decreasing\" progression — the cabinet stays identical, only the bottle count changes"
+      ],
+      "params": {
+        "WaterChiller_lv1": {"lv": 1},
+        "WaterChiller_lv2": {"lv": 2},
+        "WaterChiller_lv3": {"lv": 3},
+        "WaterChiller_lv4": {"lv": 4},
+        "WaterChiller_lv5": {"lv": 5},
+        "WaterChiller_lv6": {"lv": 6},
+        "WaterChiller_lv7": {"lv": 7},
+        "WaterChiller_lv8": {"lv": 8},
+        "WaterChiller_lv9": {"lv": 9},
+        "WaterChiller_lv10": {"lv": 10},
+        "WaterChiller_lv11": {"lv": 11}
+      }
+    },
+    {
+      "names": ["BeverageChiller_closed"],
+      "role_class": "obstacle_chiller_cabinet",
+      "family": "beverage_chiller",
+      "function": "Beverage chiller (large 2x2 object, door closed). Requires matches of the MATCHING COLOR next to it to open the door.",
+      "constraints": [
+        "The 4 colored beverage bottles inside should be faintly visible through the door"
+      ]
+    },
+    {
+      "names": ["BeverageChiller_body"],
+      "role_class": "obstacle_chiller_part",
+      "family": "beverage_chiller",
+      "function": "Beverage chiller cabinet body (base part after the door opens; bottles are drawn on top).",
+      "constraints": [
+        "Composition must leave space for 4 bottle slots"
+      ]
+    },
+    {
+      "names": ["BeverageChiller_door"],
+      "role_class": "obstacle_chiller_part",
+      "family": "beverage_chiller",
+      "function": "Beverage chiller door (door-opening animation part).",
+      "constraints": [
+        "Must match the door of BeverageChiller_closed"
+      ]
+    },
+    {
+      "names": ["BeverageChiller_bottle_red", "BeverageChiller_bottle_green", "BeverageChiller_bottle_blue", "BeverageChiller_bottle_yellow"],
+      "role_class": "obstacle_colored_slot",
+      "family": "beverage_chiller",
+      "function": "{color_en_cap} beverage bottle inside the chiller (drawn on top of BeverageChiller_body). Only matches using {color_en} elements can clear this bottle.",
+      "constraints": [
+        "Bottle dominant color must be unmistakably {color_en} and consistent with the {color_en} basic element — this is a gameplay-critical color match"
+      ],
+      "params": {
+        "BeverageChiller_bottle_red": {"color_en": "red", "color_en_cap": "Red"},
+        "BeverageChiller_bottle_green": {"color_en": "green", "color_en_cap": "Green"},
+        "BeverageChiller_bottle_blue": {"color_en": "blue", "color_en_cap": "Blue"},
+        "BeverageChiller_bottle_yellow": {"color_en": "yellow", "color_en_cap": "Yellow"}
+      }
+    },
+    {
+      "names": ["BeverageChiller_lv1", "BeverageChiller_lv2", "BeverageChiller_lv3", "BeverageChiller_lv4", "BeverageChiller_lv5"],
+      "role_class": "obstacle_chiller_cabinet",
+      "family": "beverage_chiller",
+      "function": "Beverage chiller full-state image (remaining {lv}/5).",
+      "constraints": [
+        "lv1-lv5 form a bottles-decreasing progression — the cabinet stays identical"
+      ],
+      "params": {
+        "BeverageChiller_lv1": {"lv": 1},
+        "BeverageChiller_lv2": {"lv": 2},
+        "BeverageChiller_lv3": {"lv": 3},
+        "BeverageChiller_lv4": {"lv": 4},
+        "BeverageChiller_lv5": {"lv": 5}
+      }
+    },
+    {
+      "names": ["board_bg"],
+      "role_class": "background_board",
+      "family": "background",
+      "function": "Board background image (full-canvas backdrop drawn underneath the grid cells).",
+      "constraints": [
+        "Opaque, low-contrast, low-saturation — must never steal focus from board elements",
+        "Seamless feel with no strong focal object; semi-transparent grid cells will be drawn over it"
+      ],
+      "transparent": false
+    }
+  ]
+}

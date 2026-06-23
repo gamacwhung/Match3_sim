@@ -36,7 +36,20 @@ var current_board: Node2D = null
 @onready var scene_container: Control = $SceneContainer
 
 
+func _configure_web_display() -> void:
+	if not OS.has_feature("web"):
+		return
+	var win := get_window()
+	if win == null:
+		return
+	# Web iframe: 等比縮放、不裁切；避免舊 export 的 stretch/scale 造成畫面放大
+	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
+	win.content_scale_factor = 1.0
+
+
 func _ready() -> void:
+	_configure_web_display()
 	_level_paths = JsonLevelLoader.list_demo_levels()
 	if _level_paths.is_empty():
 		push_error("DemoMain: 找不到 res://levels/*.json,請確認檔案已複製")

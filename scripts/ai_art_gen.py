@@ -10,6 +10,14 @@ Game Art AI Generation — CLI 入口
   python scripts/ai_art_gen.py generate --style "像素風格 pixel art" --run pixel
   python scripts/ai_art_gen.py generate --style "水彩手繪" --style-image ref.png --run watercolor
 
+  # 主題換物件模式(theme-swap):不參考原圖,依 gameplay role 發明新主題物件
+  python scripts/ai_art_gen.py generate --mode theme-swap --style "海洋主題 watercolor" \\
+      --theme "糖果換成貝殼,箱子換成珊瑚礁" --run ocean_theme --dry-run
+
+  # 不使用參考圖(只靠 style text)
+  python scripts/ai_art_gen.py generate --style "像素風格" --run pixel --no-reference-image
+  python scripts/ai_art_gen.py list-roles
+
   # 列出所有 --assets / --family 選項
   python scripts/ai_art_gen.py list-assets
 
@@ -25,6 +33,7 @@ API key: config.py / .streamlit/secrets.toml / 環境變數 GOOGLE_API_KEY(或 V
 """
 
 import argparse
+import json
 import os
 import sys
 
@@ -62,8 +71,18 @@ def main():
     )
     g.add_argument('--style', required=True, help='美術風格 text 描述,例如 "像素風格 pixel art"')
     g.add_argument('--run', required=True, help='run 名稱(輸出到 generated_art/<run>/)')
+    g.add_argument('--mode', choices=['restyle', 'theme-swap'], default='restyle',
+                   help='restyle=保留原物件只換風格(預設); theme-swap=依 gameplay role 發明新主題物件')
+    g.add_argument('--theme', default=None,
+                   help='主題方向(theme-swap):概念如「糖果屋」(可 --expand-theme 自動指派每色物件)')
+    g.add_argument('--expand-theme', action='store_true',
+                   help='用 LLM 展開 --theme 成每個 element 物件(概念型主題預設自動開啟)')
+    g.add_argument('--no-expand-theme', action='store_true',
+                   help='不要 LLM 展開 --theme')
     g.add_argument('--style-image',
                    help='元素參考圖路徑(圖騰/logo/特殊形狀/風格;可選;預設用 game_art_reference.png 若存在)')
+    g.add_argument('--no-reference-image', action='store_true',
+                   help='不使用任何參考圖(含預設 game_art_reference.png 與 --style-image)')
     g.add_argument('--assets', metavar='NAME,...',
                    help='逗號分隔 asset 名稱(預設全部)。執行 list-assets 或 generate --help 可看完整清單')
     g.add_argument('--family', choices=family_choices, metavar='FAMILY',
@@ -78,6 +97,9 @@ def main():
     a.add_argument('--run', required=True)
 
     sub.add_parser('restore', help='還原原版 sprites')
+
+    list_roles = sub.add_parser('list-roles', help='列出 asset_roles.json 中的 gameplay role class')
+    list_roles.add_argument('--role', help='只顯示某個 role class 的詳細定義')
 
     args = parser.parse_args()
 
@@ -103,8 +125,27 @@ def main():
                 names = grouped[fam]
                 print(f'{fam} ({len(names)}): {", ".join(names)}')
 
+    elif args.cmd == 'list-roles':
+        from art_pipeline.roles import get_role_class, list_role_classes, load_config
+        if args.role:
+            rc = get_role_class(args.role)
+            print(f'=== {args.role} ===')
+            print(json.dumps(rc, ensure_ascii=False, indent=2))
+        else:
+            cfg = load_config()
+            print(f'Role classes ({len(cfg["role_classes"])}):')
+            for item in list_role_classes():
+                print(f'  {item["id"]:28s} [{item["category"]}] {item["label"]}')
+            print(f'\n定義檔: art_pipeline/asset_roles.json')
+            print('詳細: python scripts/ai_art_gen.py list-roles --role match_element')
+
     elif args.cmd == 'generate':
         from art_pipeline import gemini_api, pipeline
+        mode = 'theme_swap' if args.mode == 'theme-swap' else 'restyle'
+        auto_expand = (
+            mode == 'theme_swap' and args.theme and '=' not in args.theme
+        )
+        expand_theme = (not args.no_expand_theme) and (args.expand_theme or auto_expand)
         pipeline.run(
             style_text=args.style,
             run_name=args.run,
@@ -116,6 +157,10 @@ def main():
             max_iters=args.max_iters,
             force=args.force,
             dry_run=args.dry_run,
+            mode=mode,
+            theme_text=args.theme,
+            reference_image=not args.no_reference_image,
+            expand_theme=expand_theme,
         )
 
     elif args.cmd == 'apply':

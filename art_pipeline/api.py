@@ -208,6 +208,7 @@ def generate(
     asset_names: list[str] | None = None,
     family: str | None = None,
     style_image_path: str | pathlib.Path | None = None,
+    reference_image: bool = True,
     image_model: str | None = None,
     critic_model: str | None = None,
     max_iters: int = 3,
@@ -248,14 +249,10 @@ def generate(
         'results': {},
     }
 
-    style_path: pathlib.Path | None = None
-    if style_image_path:
-        style_path = pathlib.Path(style_image_path)
-    elif pipeline.DEFAULT_STYLE_IMAGE.exists():
-        style_path = pipeline.DEFAULT_STYLE_IMAGE
+    style_path, style_image = pipeline.resolve_style_image(
+        style_image_path, reference_image=reference_image)
     if style_path and not style_path.is_file():
         raise FileNotFoundError(f'Style image not found: {style_path}')
-    style_image = style_path.read_bytes() if style_path else None
 
     client = gemini_api.get_client()
     img_model = image_model or gemini_api.DEFAULT_IMAGE_MODEL

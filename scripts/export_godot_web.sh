@@ -78,43 +78,78 @@ backup_web() {
 }
 
 # Godot 預設 shell 在引擎啟動後立刻收掉進度條,但 ArtTheme 還在背景抓 live 美術。
-# 這裡 patch index.html,讓進度條等到 window._artThemeReady 才隱藏(reexport 後仍需重打)。
+# 這裡 patch web build:ArtTheme 等待、iframe 清晰度、HiDPI 修正(reexport 後仍需重打)。
+patch_web_js_iframe() {
+  local js="$WEB_DIR/index.js"
+  [[ -f "$js" ]] || return 0
+  if grep -q 'window.self===window.top),getPixelRatio' "$js"; then
+    echo "[export] index.js 已含 iframe hidpi 修正,略過"
+    return 0
+  fi
+  if ! grep -q 'hidpi:true,getPixelRatio' "$js"; then
+    echo "[export] ⚠ index.js 找不到 hidpi 片段,iframe 清晰度 patch 略過"
+    return 0
+  fi
+  sed -i.bak 's/hidpi:true,getPixelRatio/hidpi:(window.self===window.top),getPixelRatio/' "$js"
+  rm -f "$js.bak"
+  echo "[export] ✓ index.js: iframe 內停用 DPI 縮放"
+}
+
 patch_index_html() {
   local html="$WEB_DIR/index.html"
   [[ -f "$html" ]] || return 0
-  if grep -q '_artThemeReady' "$html"; then
-    echo "[export] index.html 已含 ArtTheme 等待邏輯,略過 patch"
-    return 0
-  fi
   python3 - "$html" <<'PY'
 import sys
+
 path = sys.argv[1]
 src = open(path, encoding='utf-8').read()
-needle = "\t\t}).then(() => {\n\t\t\tsetStatusMode('hidden');\n\t\t}, displayFailureNotice);"
-repl = (
-    "\t\t}).then(() => {\n"
-    "\t\t\t// 等 ArtTheme 抓完 live 美術(或逾時)再收掉 splash 進度條\n"
-    "\t\t\tconst artStart = Date.now();\n"
-    "\t\t\tconst pollArt = () => {\n"
-    "\t\t\t\tif (window._artThemeReady || Date.now() - artStart > 20000) {\n"
-    "\t\t\t\t\tsetStatusMode('hidden');\n"
-    "\t\t\t\t\treturn;\n"
-    "\t\t\t\t}\n"
-    "\t\t\t\tconst p = window._artThemeProgress;\n"
-    "\t\t\t\tif (p && p.total > 0) {\n"
-    "\t\t\t\t\tstatusProgress.value = p.current;\n"
-    "\t\t\t\t\tstatusProgress.max = p.total;\n"
-    "\t\t\t\t}\n"
-    "\t\t\t\tsetTimeout(pollArt, 100);\n"
-    "\t\t\t};\n"
-    "\t\t\tpollArt();\n"
-    "\t\t}, displayFailureNotice);"
-)
-if needle not in src:
-    print('[export] \u26a0 找不到預設 splash 收尾片段,index.html patch 失敗(Godot 版本可能改了 shell)')
-    sys.exit(0)
-open(path, 'w', encoding='utf-8').write(src.replace(needle, repl, 1))
-print('[export] \u2713 index.html 已 patch:進度條會等 ArtTheme 載完')
+changed = False
+
+# --- iframe: mark body only (adaptive canvas + hidpi fix in index.js) ---
+if 'IN_IFRAME' not in src:
+    src = src.replace(
+        '\t\t<script>\nconst GODOT_CONFIG = ',
+        '\t\t<script>\n'
+        'const IN_IFRAME = window.self !== window.top;\n'
+        'if (IN_IFRAME) {\n\tdocument.body.classList.add(\'in-iframe\');\n}\n'
+        'const GODOT_CONFIG = ',
+        1,
+    )
+    changed = True
+
+# --- ArtTheme splash 等待 ---
+if '_artThemeReady' not in src:
+    needle = "\t\t}).then(() => {\n\t\t\tsetStatusMode('hidden');\n\t\t}, displayFailureNotice);"
+    repl = (
+        "\t\t}).then(() => {\n"
+        "\t\t\t// 等 ArtTheme 抓完 live 美術(或逾時)再收掉 splash 進度條\n"
+        "\t\t\tconst artStart = Date.now();\n"
+        "\t\t\tconst pollArt = () => {\n"
+        "\t\t\t\tif (window._artThemeReady || Date.now() - artStart > 20000) {\n"
+        "\t\t\t\t\tsetStatusMode('hidden');\n"
+        "\t\t\t\t\treturn;\n"
+        "\t\t\t\t}\n"
+        "\t\t\t\tconst p = window._artThemeProgress;\n"
+        "\t\t\t\tif (p && p.total > 0) {\n"
+        "\t\t\t\t\tstatusProgress.value = p.current;\n"
+        "\t\t\t\t\tstatusProgress.max = p.total;\n"
+        "\t\t\t\t}\n"
+        "\t\t\t\tsetTimeout(pollArt, 100);\n"
+        "\t\t\t};\n"
+        "\t\t\tpollArt();\n"
+        "\t\t}, displayFailureNotice);"
+    )
+    if needle not in src:
+        print('[export] ⚠ 找不到預設 splash 收尾片段,index.html patch 失敗(Godot 版本可能改了 shell)')
+        sys.exit(0)
+    src = src.replace(needle, repl, 1)
+    changed = True
+
+if changed:
+    open(path, 'w', encoding='utf-8').write(src)
+    print('[export] ✓ index.html 已 patch(iframe body class + ArtTheme 等待)')
+elif '_artThemeReady' in src:
+    print('[export] index.html 已含所有 patch,略過')
 PY
 }
 
@@ -157,6 +192,7 @@ export_web() {
     echo "[export] ⚠ index.pck 未偵測到 art_theme（可能仍為舊邏輯）"
   fi
 
+  patch_web_js_iframe
   patch_index_html
 
   mkdir -p "$LIVE_DIR"

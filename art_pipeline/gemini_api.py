@@ -93,13 +93,26 @@ def generate_image(client, model: str, prompt: str,
     raise RuntimeError(f'模型沒有回傳圖像。文字回應: {text[:300]}')
 
 
-def critique_image(client, model: str, original_png: bytes, generated_png: bytes,
+def critique_image(client, model: str, original_png: bytes | None, generated_png: bytes,
                    style_text: str, asset: dict,
-                   style_image: bytes | None = None) -> dict:
+                   style_image: bytes | None = None,
+                   *, mode: str = 'restyle') -> dict:
     """
     用 Gemini vision 評審生成圖。回傳:
       {style_score, function_score, background_ok, issues, fix_instructions, verdict}
+
+    mode:
+      restyle     — 與原圖比對,function + 構圖保留
+      theme_swap  — 僅依 abstract gameplay role 評審,不比對原圖
     """
+    if mode == 'theme_swap':
+        return _critique_theme_swap(client, model, generated_png, style_text, asset, style_image)
+    return _critique_restyle(client, model, original_png, generated_png, style_text, asset, style_image)
+
+
+def _critique_restyle(client, model: str, original_png: bytes, generated_png: bytes,
+                      style_text: str, asset: dict,
+                      style_image: bytes | None = None) -> dict:
     from google.genai import types
 
     constraints = '\n'.join(f'- {c}' for c in asset.get('constraints', []))
@@ -163,6 +176,86 @@ Score it against the criteria below and return ONLY JSON (no other text):
                 'issues': ['critic returned non-JSON output'], 'fix_instructions': '',
                 'verdict': 'retry'}
     # 防衛性補欄位
+    verdict.setdefault('style_score', 0)
+    verdict.setdefault('function_score', 0)
+    verdict.setdefault('background_ok', False)
+    verdict.setdefault('issues', [])
+    verdict.setdefault('fix_instructions', '')
+    verdict.setdefault('verdict', 'retry')
+    if style_image:
+        verdict.setdefault('reference_element_score', 0)
+    return verdict
+
+
+def _critique_theme_swap(client, model: str, generated_png: bytes,
+                         style_text: str, asset: dict,
+                         style_image: bytes | None = None) -> dict:
+    from google.genai import types
+    from .roles import get_family_meta, role_mode_brief
+
+    constraints = '\n'.join(f'- {c}' for c in asset.get('constraints', []))
+    brief = role_mode_brief(asset, 'theme_swap')
+    preserve = ', '.join(brief.get('preserve', []))
+    family_meta = get_family_meta(asset.get('family'))
+    family_line = ''
+    if family_meta.get('series_note'):
+        family_line = f'\n[Series consistency] {family_meta["series_note"]}'
+
+    if style_image:
+        ref_line = ('\nThere is also a theme reference image: use it as the visual theme source '
+                    '(motifs, palette, mood) — the object subject is NOT constrained by any '
+                    'original sprite.')
+        ref_score_line = ('\n  "reference_element_score": 0-10, // how well it incorporates the '
+                          'theme reference image motifs, palette and style')
+        verdict_rule = ('// pass only if style_score>=7 AND reference_element_score>=7 AND '
+                        'function_score>=7 AND background_ok')
+    else:
+        ref_line = ''
+        ref_score_line = ''
+        verdict_rule = '// pass only if style_score>=7 AND function_score>=7 AND background_ok'
+
+    rubric = f"""You are a game art QA reviewer. Evaluate a NEW themed match-3 game asset created from an abstract gameplay role (theme-swap mode — there is NO original sprite to compare against).
+
+[Asset name] {asset['name']}
+[Gameplay role] {asset.get('role_label', asset.get('role_class', ''))}: {asset.get('function_theme_swap', asset['function'])}
+[Creative brief] {brief.get('creative_brief', '')}
+[Must preserve (gameplay readability)] {preserve}
+[Visual constraints]
+{constraints}
+[Target art style (text)] {style_text}{family_line}{ref_line}
+
+The image is the AI-generated new version. Judge ONLY whether it fulfills the gameplay role and constraints — do NOT penalize for looking different from any legacy sprite.
+Score it and return ONLY JSON (no other text):
+{{
+  "style_score": 0-10,         // how well it matches the target art style / theme{ref_score_line}
+  "function_score": 0-10,      // from the image alone, can the gameplay function be recognized
+  "background_ok": true/false,
+  "issues": ["issue 1", ...],
+  "fix_instructions": "one concise sentence of concrete fix instructions for the image generation model, in English",
+  "verdict": "pass" or "retry"  {verdict_rule}
+}}"""
+
+    contents: list = []
+    if style_image:
+        contents += ['[Theme reference image]',
+                     types.Part.from_bytes(data=style_image, mime_type='image/png')]
+    contents += ['[AI-generated new version]',
+                 types.Part.from_bytes(data=generated_png, mime_type='image/png'), rubric]
+
+    def _call():
+        return client.models.generate_content(
+            model=model,
+            contents=contents,
+            config=types.GenerateContentConfig(response_mime_type='application/json'),
+        )
+
+    resp = _with_retries(_call, f'critique_theme_swap({model})')
+    try:
+        verdict = json.loads(resp.text)
+    except (json.JSONDecodeError, TypeError):
+        return {'style_score': 0, 'function_score': 0, 'background_ok': False,
+                'issues': ['critic returned non-JSON output'], 'fix_instructions': '',
+                'verdict': 'retry'}
     verdict.setdefault('style_score', 0)
     verdict.setdefault('function_score', 0)
     verdict.setdefault('background_ok', False)
