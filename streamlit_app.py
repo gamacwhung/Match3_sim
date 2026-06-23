@@ -1,5 +1,5 @@
 """
-🎪 攤位模式 — Google Cloud Day 展示專用
+攤位模式 — Google Cloud Day 展示專用
 
 設計原則：
 - 零門檻：第一次看到的人 5 秒內知道怎麼操作
@@ -38,7 +38,7 @@ from ai_player import find_best_action
 st.set_page_config(
     page_title='Match3 AI Level Designer — Google Cloud Day',
     layout='wide',
-    page_icon='🎪',
+    page_icon='',
     initial_sidebar_state='collapsed',
 )
 
@@ -52,13 +52,13 @@ BOOTH_MODEL_LABEL = BOOTH_MODEL.replace('gemini-', 'Gemini ').replace('-', ' ').
 
 # (按鈕文字, 選之前就顯示的白話說明, 實際送給 AI 的 prompt)
 QUICK_PROMPTS = [
-    ('🎆 超爽連鎖', '一次消掉超多、超有成就感',
+    ('超爽連鎖', '一次消掉超多、超有成就感',
      '做一個中間有一大片空地、障礙物集中在四周和底部的關卡，讓我容易累積很多道具、一次消掉超多東西，超有成就感。'),
-    ('🧩 步步為營', '從小空間慢慢往外清、越玩越大',
+    ('步步為營', '從小空間慢慢往外清、越玩越大',
      '做一個障礙物幾乎塞滿、只在中間留一小塊空間的關卡，讓我從那一小塊慢慢往外消、把可以玩的範圍越玩越大。'),
-    ('🌧️ 障礙雨', '木桶一直從上面掉下來',
+    ('障礙雨', '木桶一直從上面掉下來',
      '做一個木桶會一直從上面掉下來的關卡，讓我一邊消除、一邊把掉下來的木桶清掉。'),
-    ('💎 異形盤面', '形狀特別、不是普通方形',
+    ('異形盤面', '形狀特別、不是普通方形',
      '做一個形狀特別的關卡，不要普通方形，可以是十字、菱形或愛心之類的有趣形狀。'
      '形狀的每段筆畫至少 2~3 格寬，不要 1 格寬的細線（否則湊不出消除、變難又怪）。'),
 ]
@@ -73,18 +73,18 @@ BOOTH_LEVEL_HINT = (
     '讓人 1~2 分鐘內玩完、需要稍微動點腦、過關有成就感的短關卡，重點是好玩、有挑戰但不卡死。）'
 )
 
-# 生成後的「微調」快捷鈕（難度 + 形狀，好懂優先）。點了 → 在原需求基礎上加這句、重生一次。
+# 生成後的「微調」快捷鈕（難度 + 形狀，好懂優先）。點了 在原需求基礎上加這句、重生一次。
 ADJUST_OPTIONS = [
-    ('😌 簡單一點', '（請在原本基礎上把這關做得更簡單、步數更寬鬆，讓新手更容易過關。）'),
-    ('🔥 難一點', '（請在原本基礎上把這關做得更有挑戰一點，但仍要保證能過關。）'),
-    ('❤️ 愛心', '（請把「可遊玩盤面範圍」做成愛心形狀：用 void 把愛心以外挖空。'
-               '⚠️ 形狀的每一段筆畫務必「至少 2~3 格寬」，絕對不要出現 1 格寬的細線（1 格寬玩家湊不出相鄰消除、變成又難又怪的死關）；'
+    ('簡單一點', '（請在原本基礎上把這關做得更簡單、步數更寬鬆，讓新手更容易過關。）'),
+    ('難一點', '（請在原本基礎上把這關做得更有挑戰一點，但仍要保證能過關。）'),
+    ('愛心', '（請把「可遊玩盤面範圍」做成愛心形狀：用 void 把愛心以外挖空。'
+               '形狀的每一段筆畫務必「至少 2~3 格寬」，絕對不要出現 1 格寬的細線（1 格寬玩家湊不出相鄰消除、變成又難又怪的死關）；'
                '盤面可放大到 9×9 來容納夠粗的筆畫。內部正常放元素、只放少量障礙物，務必留足夠空地能消除。）'),
-    ('🔵 Google G', '（請把「可遊玩盤面範圍」做成大寫「G」形狀：用 void 把 G 以外挖空。'
-                   '⚠️ G 的每一段筆畫（含下方開口那段）務必「至少 2~3 格寬」，絕對不要 1 格寬的細線；'
+    ('Google G', '（請把「可遊玩盤面範圍」做成大寫「G」形狀：用 void 把 G 以外挖空。'
+                   'G 的每一段筆畫（含下方開口那段）務必「至少 2~3 格寬」，絕對不要 1 格寬的細線；'
                    '盤面可放大到 9×9 來容納夠粗的筆畫。筆畫內部正常放元素、只放少量障礙物，務必留足夠空地能消除。）'),
-    ('🐴 Gamania g', '（請把「可遊玩盤面範圍」做成小寫「g」形狀：用 void 把 g 以外挖空。'
-                    '⚠️ g 的每一段筆畫（含下方的圈與尾）務必「至少 2~3 格寬」，絕對不要 1 格寬的細線；'
+    ('Gamania g', '（請把「可遊玩盤面範圍」做成小寫「g」形狀：用 void 把 g 以外挖空。'
+                    'g 的每一段筆畫（含下方的圈與尾）務必「至少 2~3 格寬」，絕對不要 1 格寬的細線；'
                     '盤面可放大到 9×9 來容納夠粗的筆畫。筆畫內部正常放元素、只放少量障礙物，務必留足夠空地能消除。）'),
 ]
 
@@ -141,7 +141,7 @@ def _run_ai_replay(level_dict: dict, max_steps: int = 200) -> list[dict]:
     replay.append({
         'step': 0,
         'action': None,
-        'action_desc': '🎬 初始盤面',
+        'action_desc': '初始盤面',
         'goals_current': dict(env.goals_current),
         'goals_required': dict(env.goals_required),
         'steps_left': env.max_steps - env.steps_taken,
@@ -161,10 +161,10 @@ def _run_ai_replay(level_dict: dict, max_steps: int = 200) -> list[dict]:
         if action['type'] == 'swap':
             r1, c1 = action['pos1']
             r2, c2 = action['pos2']
-            desc = f'🔄 交換 ({r1},{c1}) ↔ ({r2},{c2})'
+            desc = f'交換 ({r1},{c1}) ({r2},{c2})'
         else:
             r, c = action['pos']
-            desc = f'💥 啟動道具 ({r},{c})'
+            desc = f'啟動道具 ({r},{c})'
 
         obs, reward, done, info = env.step(action)
         step += 1
@@ -174,7 +174,7 @@ def _run_ai_replay(level_dict: dict, max_steps: int = 200) -> list[dict]:
         replay.append({
             'step': step,
             'action': action,
-            'action_desc': f'{desc}　→　消除: {elim_str}',
+            'action_desc': f'{desc}　　消除: {elim_str}',
             'goals_current': dict(env.goals_current),
             'goals_required': dict(env.goals_required),
             'steps_left': env.max_steps - env.steps_taken,
@@ -211,7 +211,7 @@ def _do_generate(user_msg: str, live: bool = False, status=None):
         'goal_types': [],
     }
 
-    # Step 1+2: 生成 → 驗證；失敗就「帶著錯誤訊息」自動重新生成（最多 MAX_ATTEMPTS 次）
+    # Step 1+2: 生成 驗證；失敗就「帶著錯誤訊息」自動重新生成（最多 MAX_ATTEMPTS 次）
     model = BOOTH_MODEL
     MAX_ATTEMPTS = 2
 
@@ -222,10 +222,10 @@ def _do_generate(user_msg: str, live: bool = False, status=None):
         try:
             _zone = st.container(height=240)
         except TypeError:
-            _zone = st.container()  # 舊版 Streamlit 不支援 height → 退回一般容器
+            _zone = st.container()  # 舊版 Streamlit 不支援 height 退回一般容器
         with _zone:
-            thought_box = st.empty()   # 🤔 思考過程（在上）
-            stream_box = st.empty()     # 📝 JSON 答案（在下）
+            thought_box = st.empty()   # 思考過程（在上）
+            stream_box = st.empty()     # JSON 答案（在下）
     _thought_acc = []
     _stream_acc = []
 
@@ -234,7 +234,7 @@ def _do_generate(user_msg: str, live: bool = False, status=None):
             # 思考過程：即時顯示「它在想什麼」，不再是空白長停頓
             _thought_acc.append(piece)
             if thought_box is not None:
-                thought_box.markdown('🤔 **AI 思考中…**\n\n' + ''.join(_thought_acc)[-600:])
+                thought_box.markdown('**AI 思考中…**\n\n' + ''.join(_thought_acc)[-600:])
         else:
             # 答案（JSON）：打字機往下捲
             _stream_acc.append(piece)
@@ -248,12 +248,12 @@ def _do_generate(user_msg: str, live: bool = False, status=None):
         _thought_acc.clear()
         _stream_acc.clear()
         if attempt == 1:
-            _phase('🔧 生成關卡中…')
-            emit('thinking', '🤔 正在理解你的需求...')
-            emit('tool', '🔧 呼叫 AI 生成關卡...')
+            _phase('生成關卡中…')
+            emit('thinking', '正在理解你的需求...')
+            emit('tool', '呼叫 AI 生成關卡...')
         else:
-            _phase(f'🔁 自動修正重生（第 {attempt} 次）…')
-            emit('tool', f'🔁 上次有問題，帶著錯誤重新生成（第 {attempt} 次）...')
+            _phase(f'自動修正重生（第 {attempt} 次）…')
+            emit('tool', f'上次有問題，帶著錯誤重新生成（第 {attempt} 次）...')
 
         try:
             # 每次生成用「獨立的空歷史」：攤位是單次生成，不該累積對話。
@@ -265,30 +265,30 @@ def _do_generate(user_msg: str, live: bool = False, status=None):
                 stream_callback=_on_chunk if live else None,
             )
         except Exception as e:
-            emit('error', f'❌ 生成失敗：{e}')
+            emit('error', f'生成失敗：{e}')
             return False
 
-        # (A) 解析失敗（沒有有效 JSON）→ 回饋並重試
+        # (A) 解析失敗（沒有有效 JSON）回饋並重試
         if not level_dict:
-            emit('warning', f'⚠️ 第 {attempt} 次沒解析出有效 JSON。')
+            emit('warning', f'第 {attempt} 次沒解析出有效 JSON。')
             if attempt < MAX_ATTEMPTS:
                 feedback = ('\n\n【系統提醒】你上一次沒有輸出可解析的 JSON。請「只」輸出一個完整的 '
                             '```json ... ``` 區塊；JSON 後面不要再加任何說明或文字。')
                 continue
-            emit('error', '❌ 連續沒吐有效 JSON — 請再按一次「生成」或換句話描述')
+            emit('error', '連續沒吐有效 JSON — 請再按一次「生成」或換句話描述')
             return False
 
         # (B) 驗證格式，把「哪裡不對」逐條印出來
-        _phase('🔍 驗證格式中…')
-        emit('tool', '🔍 呼叫驗證工具檢查格式...')
+        _phase('驗證格式中…')
+        emit('tool', '呼叫驗證工具檢查格式...')
         validation = validate_level(level_dict)
         st.session_state.booth_validation = validation
 
         if validation.valid:
-            emit('success', f'✅ 關卡已生成並通過驗證：{level_dict.get("rows", "?")}×{level_dict.get("cols", "?")} 盤面')
+            emit('success', f'關卡已生成並通過驗證：{level_dict.get("rows", "?")}×{level_dict.get("cols", "?")} 盤面')
             break
 
-        # 驗證失敗 → 印出每一條問題，並把它回饋給模型自動重生
+        # 驗證失敗 印出每一條問題，並把它回饋給模型自動重生
         for err in validation.errors[:6]:
             emit('warning', f'　• {err}')
         if len(validation.errors) > 6:
@@ -297,17 +297,17 @@ def _do_generate(user_msg: str, live: bool = False, status=None):
             feedback = ('\n\n【系統提醒】你上一次產生的關卡有以下格式問題，請務必修正後重新輸出完整 JSON：\n- '
                         + '\n- '.join(validation.errors[:8]))
             continue
-        # 次數用完仍有警告 → 仍讓玩家玩，只是提示可能略有瑕疵
-        emit('warning', '⚠️ 自動修正後仍有格式警告，先讓你玩玩看（可能略有瑕疵）')
+        # 次數用完仍有警告 仍讓玩家玩，只是提示可能略有瑕疵
+        emit('warning', '自動修正後仍有格式警告，先讓你玩玩看（可能略有瑕疵）')
 
     st.session_state.booth_level = level_dict
 
-    # 關卡就緒 → 先讓玩家玩；AI 難度測試移到背景（main() 結尾才跑，不擋遊玩）
+    # 關卡就緒 先讓玩家玩；AI 難度測試移到背景（main() 結尾才跑，不擋遊玩）
     if validation.valid:
         st.session_state.booth_sim_results = None
         st.session_state.booth_sim_pending = True
-        emit('success', '🎮 關卡就緒，可以開始玩了！')
-        emit('tool', '🤖 AI 難度測試將在背景進行（玩你的，測它的）…')
+        emit('success', '關卡就緒，可以開始玩了！')
+        emit('tool', 'AI 難度測試將在背景進行（玩你的，測它的）…')
     return True  # 有成功生成關卡（即使驗證有警告也算，關卡仍可玩）
 
 
@@ -343,7 +343,7 @@ def _render_agent_log():
 def main():
     _init_state()
 
-    # 縮小 Streamlit 預設留白 → 攤位一螢幕(16:9)塞得下、不用捲動
+    # 縮小 Streamlit 預設留白 攤位一螢幕(16:9)塞得下、不用捲動
     st.markdown(
         '''<style>
         .block-container { padding-top: 1.2rem !important; padding-bottom: 0.8rem !important;
@@ -359,7 +359,7 @@ def main():
         f'''
         <div style="text-align:center; padding: 16px 0 8px 0;">
           <h1 style="margin:0; font-size: 2.2em;">
-            🎮 Match3 AI Level Designer
+            Match3 AI Level Designer
           </h1>
           <p style="color:#666; margin: 4px 0 0 0; font-size: 1.05em;">
             用一句話設計你的遊戲關卡
@@ -374,7 +374,7 @@ def main():
     has_key = _get_key(provider) or _get_key('gcp_project')
     if not has_key:
         st.warning(
-            '⚠️ 尚未設定 GOOGLE_API_KEY。'
+            '尚未設定 GOOGLE_API_KEY。'
             '請在 config.py 或環境變數中設定，或在下方輸入：'
         )
         key_input = st.text_input('GOOGLE_API_KEY', type='password', placeholder='AIza...')
@@ -391,12 +391,12 @@ def main():
     col_left, col_right = st.columns([2, 3])
 
     with col_left:
-        # 清除鍵按下後 → 下一輪、在 text_area 建立「之前」把輸入框清空
+        # 清除鍵按下後 下一輪、在 text_area 建立「之前」把輸入框清空
         if st.session_state.pop('_booth_clear_input', False):
             st.session_state['booth_input'] = ''
 
-        st.markdown('#### 💬 描述你想要的關卡')
-        st.caption('點範本填進下面的框 → 可直接改 → 按生成')
+        st.markdown('#### 描述你想要的關卡')
+        st.caption('點範本填進下面的框 可直接改 按生成')
 
         # 範本：2 欄排列（省高度）。點了把實際 prompt 填進輸入框，看清楚再生成
         _qp_cols = st.columns(2)
@@ -407,7 +407,7 @@ def main():
 
         # 上次送出的需求 — 用小字（省高度）
         if st.session_state.get('booth_last_prompt'):
-            st.caption(f'📝 上次送出：{st.session_state.booth_last_prompt}')
+            st.caption(f'上次送出：{st.session_state.booth_last_prompt}')
 
         # 輸入框（範本會填進這裡，可直接編輯）
         user_input = st.text_area(
@@ -419,7 +419,7 @@ def main():
         )
 
         # 展開看「實際送給 AI 的完整 prompt」
-        with st.expander('🔍 查看實際送給 AI 的完整 prompt'):
+        with st.expander('查看實際送給 AI 的完整 prompt'):
             _params_preview = {'rows': 8, 'cols': 8, 'difficulty': 'medium',
                                'num_colors': 4, 'obstacle_types': [], 'goal_types': []}
             st.caption('① 系統提示（含完整設計規範）')
@@ -430,9 +430,9 @@ def main():
         # 生成 / 清除
         gen_cols = st.columns([3, 1])
         with gen_cols[0]:
-            generate_clicked = st.button('✨ 用 AI 生成', use_container_width=True, type='primary')
+            generate_clicked = st.button('用 AI 生成', use_container_width=True, type='primary')
         with gen_cols[1]:
-            if st.button('🗑️', use_container_width=True, help='清除'):
+            if st.button('', use_container_width=True, help='清除'):
                 st.session_state.booth_chat_history = []
                 st.session_state.booth_level = None
                 st.session_state.booth_agent_log = []
@@ -442,11 +442,11 @@ def main():
                 st.session_state['_booth_clear_input'] = True  # 下一輪清空輸入框
                 st.rerun()
 
-        # 🔧 微調這一關（生成後才出現）。放在「觸發」之前、且**不**額外 st.rerun()：
-        # 點按鈕本身就會 rerun 一次，這一輪下面的觸發就會處理 → 全程只有一次 rerun，
+        # 微調這一關（生成後才出現）。放在「觸發」之前、且**不**額外 st.rerun()：
+        # 點按鈕本身就會 rerun 一次，這一輪下面的觸發就會處理 全程只有一次 rerun，
         # Godot iframe 不會被重載而掉回預設關選單（之前兩次 rerun 才會壞）。
         if st.session_state.get('booth_level') is not None:
-            st.caption('🔧 想再調整？點一下重生（會在這一關基礎上改）')
+            st.caption('想再調整？點一下重生（會在這一關基礎上改）')
             _adj_cols = st.columns(len(ADJUST_OPTIONS))
             for _i, (_alabel, _adir) in enumerate(ADJUST_OPTIONS):
                 with _adj_cols[_i]:
@@ -466,22 +466,22 @@ def main():
                 _prompt = user_input.strip()
                 st.session_state.booth_last_prompt = _prompt
             # 用「一直可見的區塊」而非 st.status，直接攤在外面、跑完留著。
-            st.markdown('##### 🤖 AI 正在即時創作這一關…')
+            st.markdown('##### AI 正在即時創作這一關…')
             _ok = _do_generate(_prompt, live=True)
             if _ok:
-                st.success('✅ 關卡完成，可以開始玩了！')
+                st.success('關卡完成，可以開始玩了！')
             else:
-                st.error('❌ 這次沒生成成功（模型沒吐有效 JSON）— 再按一次「生成」試試')
+                st.error('這次沒生成成功（模型沒吐有效 JSON）— 再按一次「生成」試試')
             just_generated = True
 
-        # Agent 執行紀錄（剛生成的已即時顯示過 → 避免重複；其餘靜態重畫）
+        # Agent 執行紀錄（剛生成的已即時顯示過 避免重複；其餘靜態重畫）
         st.markdown('---')
         if not just_generated:
             _render_agent_log()
 
     with col_right:
         # Godot iframe — 一進頁面就載入（不用等關卡）
-        st.markdown('##### 🎮 遊戲區')
+        st.markdown('##### 遊戲區')
         GODOT_IFRAME_KEY = 'godot_game_iframe'
         godot_url = f'{GODOT_DEMO_URL}'
         st.components.v1.iframe(godot_url, height=650, scrolling=False)
@@ -515,10 +515,10 @@ def main():
             # 預設關卡（免 token）— 與左側範本同名同序，方便對照「這個範本會產出什麼」
             st.caption('載入範例關卡（不花 token，對應左邊的範本）')
             _PRESETS = {
-                '🎆 超爽連鎖': 'chain_fun.json',
-                '🧩 步步為營': 'rope_strategy.json',
-                '🌧️ 障礙雨': 'barrel_rain.json',
-                '💎 異形盤面': 'diamond_board.json',
+                '超爽連鎖': 'chain_fun.json',
+                '步步為營': 'rope_strategy.json',
+                '障礙雨': 'barrel_rain.json',
+                '異形盤面': 'diamond_board.json',
             }
             preset_cols = st.columns(3)
             for i, (plabel, pfile) in enumerate(_PRESETS.items()):
@@ -530,21 +530,21 @@ def main():
                             with open(ppath, encoding='utf-8') as f:
                                 st.session_state.booth_level = json.load(f)
                             st.session_state.booth_agent_log = [
-                                ('success', f'✅ 已載入預設關卡：{pfile}')
+                                ('success', f'已載入預設關卡：{pfile}')
                             ]
                             st.rerun()
 
-            # 📂 載入已存範例（測試用）：列出 generated_levels/ 裡所有檔，含你存的測試關
+            # 載入已存範例（測試用）：列出 generated_levels/ 裡所有檔，含你存的測試關
             import pathlib as _pl
             _saved = sorted(p.name for p in _pl.Path('generated_levels').glob('*.json')) \
                 if _pl.Path('generated_levels').exists() else []
             if _saved:
-                with st.expander('📂 載入已存範例（測試用）'):
+                with st.expander('載入已存範例（測試用）'):
                     _pick = st.selectbox('選一個已存的關卡', _saved, key='load_saved_pick')
                     if st.button('載入', key='load_saved_btn'):
                         with open(_pl.Path('generated_levels') / _pick, encoding='utf-8') as f:
                             st.session_state.booth_level = json.load(f)
-                        st.session_state.booth_agent_log = [('success', f'✅ 已載入：{_pick}')]
+                        st.session_state.booth_agent_log = [('success', f'已載入：{_pick}')]
                         st.rerun()
         else:
             # 關卡資訊卡
@@ -571,34 +571,34 @@ def main():
             v = st.session_state.booth_validation
             if v:
                 if v.valid and not v.warnings:
-                    st.success('✅ 格式驗證通過，可以遊玩')
+                    st.success('格式驗證通過，可以遊玩')
                 elif v.valid:
                     # 顯示實際建議內容（不是只給數量）
-                    st.warning(f'⚠️ 通過，可以玩，但有 {len(v.warnings)} 個建議：')
+                    st.warning(f'通過，可以玩，但有 {len(v.warnings)} 個建議：')
                     for w in v.warnings[:4]:
                         st.caption(f'　· {w}')
                 else:
-                    st.error(f'❌ {len(v.errors)} 個格式錯誤')
+                    st.error(f'{len(v.errors)} 個格式錯誤')
                     for err in v.errors[:3]:
                         st.caption(f'  · {err}')
 
             # 難度標籤
             sim = st.session_state.booth_sim_results
             if sim is None and st.session_state.get('booth_sim_pending'):
-                st.caption('🤖 AI 正在背景測試這關的難度…（不影響你先玩）')
+                st.caption('AI 正在背景測試這關的難度…（不影響你先玩）')
             if sim:
                 wr = sim.win_rate
                 if wr >= 0.8:
-                    st.info(f'📊 難度評估：🟢 輕鬆（AI 勝率 {wr:.0%}）— 大多數人可輕鬆過關')
+                    st.info(f'難度評估：輕鬆（AI 勝率 {wr:.0%}）— 大多數人可輕鬆過關')
                 elif wr >= 0.5:
-                    st.info(f'📊 難度評估：🟡 適中（AI 勝率 {wr:.0%}）— 需要一些策略')
+                    st.info(f'難度評估：適中（AI 勝率 {wr:.0%}）— 需要一些策略')
                 elif wr >= 0.25:
-                    st.warning(f'📊 難度評估：🟠 有挑戰（AI 勝率 {wr:.0%}）— 可能要試幾次')
+                    st.warning(f'難度評估：有挑戰（AI 勝率 {wr:.0%}）— 可能要試幾次')
                 else:
-                    st.error(f'📊 難度評估：🔴 極難（AI 勝率 {wr:.0%}）— 需要運氣+策略')
+                    st.error(f'難度評估：極難（AI 勝率 {wr:.0%}）— 需要運氣+策略')
 
-                # 📋 AI 測試報表 — 好懂的數字（平均步數、步數寬裕度、卡關點）
-                with st.expander(f'📋 AI 測試報表（AI 跑了 {sim.n_games} 場）', expanded=True):
+                # AI 測試報表 — 好懂的數字（平均步數、步數寬裕度、卡關點）
+                with st.expander(f'AI 測試報表（AI 跑了 {sim.n_games} 場）', expanded=True):
                     _ms = level.get('max_steps', None)
                     rc1, rc2, rc3 = st.columns(3)
                     rc1.metric('AI 勝率', f'{wr:.0%}')
@@ -613,10 +613,10 @@ def main():
                     if hg and len(sim.goal_stats) > 1:
                         tid, sgs = hg
                         if sgs['met_rate'] >= 0.95:
-                            st.success(f'🎯 最難目標：**{tid}**（需 {sgs["required"]}）'
+                            st.success(f'最難目標：**{tid}**（需 {sgs["required"]}）'
                                        f'— 達成率 {sgs["met_rate"]:.0%}，不算卡關')
                         else:
-                            st.warning(f'🎯 卡關點：**{tid}**（需 {sgs["required"]}）'
+                            st.warning(f'卡關點：**{tid}**（需 {sgs["required"]}）'
                                        f'— 只有 {sgs["met_rate"]:.0%} 場達成、平均做到 {sgs["avg_progress"]:.0%}')
                     # 各目標達成率（多目標時）
                     if len(sim.goal_stats) > 1:
@@ -627,7 +627,7 @@ def main():
             st.markdown('---')
             action_cols = st.columns([2, 2, 1])
             with action_cols[0]:
-                if st.button('🤖 詳細模擬（30 場）', use_container_width=True):
+                if st.button('詳細模擬（30 場）', use_container_width=True):
                     with st.spinner('模擬中...'):
                         try:
                             results = run_simulation_batch(
@@ -639,7 +639,7 @@ def main():
                         except Exception as e:
                             st.error(f'模擬失敗：{e}')
             with action_cols[1]:
-                if st.button('🧠 觀看 AI 解關', use_container_width=True):
+                if st.button('觀看 AI 解關', use_container_width=True):
                     # 用 postMessage 通知 iframe 中的 Godot 啟動 AI（不重新載入）
                     st.components.v1.html(
                         '''<script>
@@ -655,11 +655,11 @@ def main():
                         </script>''',
                         height=0,
                     )
-                    st.success('🧠 AI 已啟動！正在即時計算並操作...')
+                    st.success('AI 已啟動！正在即時計算並操作...')
             with action_cols[2]:
                 if level:
                     st.download_button(
-                        '⬇️',
+                        '',
                         data=json.dumps(level, indent=2, ensure_ascii=False),
                         file_name='ai_generated_level.json',
                         mime='application/json',
@@ -667,8 +667,8 @@ def main():
                         help='下載關卡 JSON',
                     )
 
-            # 💾 存成範例（測試用）：存到 generated_levels/，下次免 token 直接從右側清單載入
-            with st.expander('💾 存成範例（測試用）'):
+            # 存成範例（測試用）：存到 generated_levels/，下次免 token 直接從右側清單載入
+            with st.expander('存成範例（測試用）'):
                 import pathlib as _pl
                 _name = st.text_input('檔名（不用加 .json）', value='my_test', key='save_example_name')
                 if st.button('存到 generated_levels/', key='save_example_btn', use_container_width=True):
@@ -688,13 +688,13 @@ def main():
             replay = st.session_state.booth_replay
             if replay:
                 st.markdown('---')
-                st.markdown('#### 🧠 AI 解關紀錄')
+                st.markdown('#### AI 解關紀錄')
 
                 last = replay[-1]
                 if last['won']:
-                    st.success(f"✅ AI 在 {last['step']} 步內通關！")
+                    st.success(f"AI 在 {last['step']} 步內通關！")
                 else:
-                    st.warning(f"❌ AI 用了 {last['step']} 步但未通關")
+                    st.warning(f"AI 用了 {last['step']} 步但未通關")
 
                 # 進度顯示
                 total_steps = len(replay) - 1
