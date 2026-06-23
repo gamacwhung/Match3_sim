@@ -81,7 +81,7 @@ CORNER_GROUPS = {
     (45, 46, 47, 48): ('BeverageChiller_closed', 'Yellow'),
     (49, 50, 51, 52): ('BeverageChiller_closed', 'Purple'),
     (53, 54, 55, 56): ('BeverageChiller_closed', 'Orange'),
-    (61, 62, 63, 64): ('Pool_lv1',              None),
+    (61, 62, 63, 64): ('Pool_lv5',              None),
     # Safe 67-70 我們未實作
 }
 
@@ -233,7 +233,7 @@ def official_to_ours(official: dict) -> tuple[dict, list[str]]:
             if kind == 'water':
                 tile_id = 'WaterChiller_closed'
             elif kind == 'pool':
-                tile_id = 'Pool_lv1'
+                tile_id = 'Pool_lv5'  # 游泳池滿血 5 層（lv 為視覺狀態，lv5=滿）
             elif kind == 'bev':
                 tile_id = 'BeverageChiller_closed'
             else:

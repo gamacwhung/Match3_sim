@@ -24,6 +24,9 @@ var level_failed_scene: PackedScene = preload("res://scenes/ui/level_failed.tscn
 
 var _level_paths: Array[String] = []
 var _level_index: int = 0
+# 外部(iframe/postMessage)推進來的自訂關卡原始 dict；非空時「重玩本關」要重載它，
+# 不能掉回官方關卡清單。載入官方關卡時會清空。
+var _custom_level_data: Dictionary = {}
 
 var current_scene: Node = null
 var hud: CanvasLayer = null
@@ -89,6 +92,18 @@ func _ready() -> void:
 	# 註冊 JS callback 讓外部 iframe 可以動態載入關卡
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window._godotLevelJson = '';")
+		# 監聽 postMessage — 讓父頁面可以跨域通知載入關卡/啟動 AI
+		JavaScriptBridge.eval("""
+			window.addEventListener('message', function(event) {
+				if (!event.data) return;
+				if (event.data.type === 'ai_mode_start') {
+					window._godotAiMode = 'start';
+				}
+				if (event.data.type === 'load_level' && event.data.level_json) {
+					window._godotLevelJson = event.data.level_json;
+				}
+			});
+		""")
 
 	_show_level_select()
 
@@ -96,6 +111,19 @@ func _ready() -> void:
 func _check_url_autoplay() -> void:
 	if not OS.has_feature("web"):
 		return
+	# AI mode 參數
+	var ai_param = JavaScriptBridge.eval("""
+		(function() {
+			var params = new URLSearchParams(window.location.search);
+			return params.get('ai_mode') || '';
+		})()
+	""")
+	if ai_param is String and ai_param == "1":
+		await get_tree().create_timer(1.0).timeout
+		if current_board and current_board.has_method("start_ai_mode"):
+			current_board.start_ai_mode(0.8)
+		return
+
 	var autoplay_json = JavaScriptBridge.eval("""
 		(function() {
 			var params = new URLSearchParams(window.location.search);
@@ -134,6 +162,13 @@ func _process(_delta: float) -> void:
 		if json2.parse(autoplay) == OK and json2.data is Array:
 			if current_board and current_board.has_method("start_autoplay"):
 				current_board.start_autoplay(json2.data, 0.8)
+
+	# AI 即時模式
+	var ai_mode_val = JavaScriptBridge.eval("window._godotAiMode || ''")
+	if ai_mode_val is String and ai_mode_val == "start":
+		JavaScriptBridge.eval("window._godotAiMode = '';")
+		if current_board and current_board.has_method("start_ai_mode"):
+			current_board.start_ai_mode(0.8)
 
 
 func _show_level_select(from_game: bool = false) -> void:
@@ -178,7 +213,7 @@ func _show_menu_button() -> void:
 
 	# 重玩本關 — 比 demo 跟客戶說「再來一次」最快的入口
 	var replay_btn = Button.new()
-	replay_btn.text = "↻ 重玩本關"
+	replay_btn.text = "重玩本關"
 	if font:
 		replay_btn.add_theme_font_override("font", font)
 	replay_btn.add_theme_font_size_override("font_size", 18)
@@ -190,19 +225,46 @@ func _show_menu_button() -> void:
 	replay_btn.pressed.connect(func(): _retry_level())
 	menu_button_ui.add_child(replay_btn)
 
-	# 選關
-	var select_btn = Button.new()
-	select_btn.text = "☰ 選關"
-	if font:
-		select_btn.add_theme_font_override("font", font)
-	select_btn.add_theme_font_size_override("font_size", 18)
-	select_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	select_btn.offset_left = -150
-	select_btn.offset_right = -16
-	select_btn.offset_top = 16
-	select_btn.offset_bottom = 62
-	select_btn.pressed.connect(func(): _show_level_select(true))
-	menu_button_ui.add_child(select_btn)
+	# 選關 — 攤位模式（玩 AI 生成的關卡）不顯示，避免客人跳去玩官方 100 關
+	if _custom_level_data.is_empty():
+		var select_btn = Button.new()
+		select_btn.text = "選關"
+		if font:
+			select_btn.add_theme_font_override("font", font)
+		select_btn.add_theme_font_size_override("font_size", 18)
+		select_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		select_btn.offset_left = -150
+		select_btn.offset_right = -16
+		select_btn.offset_top = 16
+		select_btn.offset_bottom = 62
+		select_btn.pressed.connect(func(): _show_level_select(true))
+		menu_button_ui.add_child(select_btn)
+	else:
+		# 攤位模式：放「🧠 AI 解關」開關（可開可關；重玩本關會重置成關）
+		var ai_btn = Button.new()
+		ai_btn.text = "AI 解關"
+		if font:
+			ai_btn.add_theme_font_override("font", font)
+		ai_btn.add_theme_font_size_override("font_size", 18)
+		ai_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		ai_btn.offset_left = -150
+		ai_btn.offset_right = -16
+		ai_btn.offset_top = 16
+		ai_btn.offset_bottom = 62
+		ai_btn.pressed.connect(func(): _toggle_ai_mode(ai_btn))
+		menu_button_ui.add_child(ai_btn)
+
+
+func _toggle_ai_mode(btn: Button) -> void:
+	if current_board == null:
+		return
+	if current_board.has_method("is_ai_running") and current_board.is_ai_running():
+		if current_board.has_method("stop_ai_mode"):
+			current_board.stop_ai_mode()
+		btn.text = "AI 解關"
+	elif current_board.has_method("start_ai_mode"):
+		current_board.start_ai_mode(0.8)
+		btn.text = "停止 AI"
 
 
 func _clear_current() -> void:
@@ -229,7 +291,8 @@ func _clear_current() -> void:
 
 
 func _start_level_from_dict(data: Dictionary) -> void:
-	"""從 URL 參數傳入的 level dict 直接載入遊戲"""
+	"""從 URL 參數/postMessage 傳入的 level dict 直接載入遊戲"""
+	_custom_level_data = data.duplicate(true)  # 記住 → 重玩本關時重載這關，不掉回官方關
 	_clear_current()
 	var level_data = JsonLevelLoader.parse_level_dict(data)
 	if level_data == null:
@@ -272,6 +335,7 @@ func _start_level_from_dict(data: Dictionary) -> void:
 
 
 func _start_level(idx: int) -> void:
+	_custom_level_data = {}  # 進官方關卡 → 清掉自訂關卡記憶，重玩才不會重載舊自訂關
 	_clear_current()
 	if _level_paths.is_empty():
 		return
@@ -327,6 +391,9 @@ func _on_level_completed(_level_id: int, score: int, stars: int) -> void:
 	level_complete_ui = level_complete_scene.instantiate()
 	scene_container.add_child(level_complete_ui)
 	level_complete_ui.show_result(score, stars)
+	# 攤位模式（玩 AI 生成的關卡）：只給「再玩一次」，不跳官方下一關 / 選單
+	if not _custom_level_data.is_empty() and level_complete_ui.has_method("set_booth_mode"):
+		level_complete_ui.set_booth_mode()
 	level_complete_ui.next_level_pressed.connect(_next_level)
 	level_complete_ui.retry_pressed.connect(_retry_level)
 	# menu_pressed → demo 沒有 menu,直接重新從 #0 開始
@@ -351,7 +418,11 @@ func _next_level() -> void:
 
 
 func _retry_level() -> void:
-	_start_level(_level_index)
+	# 自訂關卡(iframe 推進來的)優先重載自己，不要掉回官方關卡清單
+	if not _custom_level_data.is_empty():
+		_start_level_from_dict(_custom_level_data)
+	else:
+		_start_level(_level_index)
 
 
 func _restart_demo() -> void:

@@ -28,6 +28,15 @@ class SimulationResults:
     min_steps: int
     max_steps_seen: int
     step_histogram: dict = field(default_factory=dict)  # {步數: 次數}
+    avg_steps_won: float = 0.0                            # 只算「勝場」的平均步數
+    goal_stats: dict = field(default_factory=dict)        # {tile_id: {met_rate, avg_progress, required}}
+
+    def hardest_goal(self):
+        """回傳最難達成的目標 (tile_id, stats)；沒有目標資料時回 None。"""
+        if not self.goal_stats:
+            return None
+        tid = min(self.goal_stats, key=lambda k: self.goal_stats[k]['met_rate'])
+        return tid, self.goal_stats[tid]
 
     def difficulty_label(self) -> str:
         if self.win_rate >= 0.8:
@@ -63,7 +72,8 @@ def _run_single_game(level_file_path: str) -> dict:
         steps += 1
         if steps > 200:
             break
-    return {'win': env.win, 'steps': steps, 'goals_progress': info.get('goals_progress', {})}
+    # 直接抓最終每目標進度（info 不一定帶 goals_progress）→ 供報表算「卡關點」
+    return {'win': env.win, 'steps': steps, 'goals': env.get_goals_progress()}
 
 
 def run_simulation_batch(
@@ -108,7 +118,7 @@ def run_simulation_batch(
                 try:
                     results_raw.append(future.result())
                 except Exception:
-                    results_raw.append({'win': False, 'steps': elevated_steps, 'goals_progress': {}})
+                    results_raw.append({'win': False, 'steps': elevated_steps, 'goals': {}})
                 if progress_callback:
                     progress_callback(i + 1, n_games)
 
@@ -122,6 +132,7 @@ def run_simulation_batch(
     # 統計
     wins = sum(1 for r in results_raw if r['win'])
     all_steps = [r['steps'] for r in results_raw]
+    won_steps = [r['steps'] for r in results_raw if r['win']]
 
     # 步數分布（每 5 步一個 bucket）
     histogram = {}
@@ -129,13 +140,35 @@ def run_simulation_batch(
         bucket = (s // 5) * 5
         histogram[bucket] = histogram.get(bucket, 0) + 1
 
+    # 每個目標聚合 → 找「卡關點」(最不容易達成的目標)
+    goal_met = {}      # tile_id -> 達成場數
+    goal_prog = {}     # tile_id -> sum(達成比例 0~1)
+    goal_req = {}      # tile_id -> required
+    for r in results_raw:
+        for tile_id, g in (r.get('goals') or {}).items():
+            req = g.get('required', 0) or 0
+            cur = g.get('current', 0)
+            goal_req[tile_id] = req
+            goal_met[tile_id] = goal_met.get(tile_id, 0) + (1 if g.get('met') else 0)
+            ratio = min((cur / req) if req > 0 else 1.0, 1.0)
+            goal_prog[tile_id] = goal_prog.get(tile_id, 0.0) + ratio
+    goal_stats = {}
+    for tile_id in goal_req:
+        goal_stats[tile_id] = {
+            'met_rate': goal_met.get(tile_id, 0) / n_games,
+            'avg_progress': goal_prog.get(tile_id, 0.0) / n_games,
+            'required': goal_req[tile_id],
+        }
+
     return SimulationResults(
         n_games=n_games,
         wins=wins,
         losses=n_games - wins,
         win_rate=wins / n_games,
         avg_steps=sum(all_steps) / len(all_steps) if all_steps else 0,
+        avg_steps_won=sum(won_steps) / len(won_steps) if won_steps else 0,
         min_steps=min(all_steps) if all_steps else 0,
         max_steps_seen=max(all_steps) if all_steps else 0,
         step_histogram=dict(sorted(histogram.items())),
+        goal_stats=goal_stats,
     )

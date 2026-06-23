@@ -13,6 +13,18 @@ func _ready() -> void:
 	$Panel/VBox/MenuButton.pressed.connect(func(): AudioManager.play_button_sound(); menu_pressed.emit())
 	_stars_node.draw.connect(_draw_stars)
 
+func set_booth_mode() -> void:
+	# 攤位模式（玩 AI 生成的關卡）：只給「再玩一次」，
+	# 不顯示下一關 / 選單（攤位沒有官方下一關可去，避免跳到官方關卡）。
+	$Panel/VBox/NextButton.visible = false
+	$Panel/VBox/MenuButton.visible = false
+	var retry: Button = $Panel/VBox/RetryButton
+	# 套中文字型，否則「再玩一次」會變成 tofu 亂碼（按鈕預設字型不含 CJK）
+	var font := load("res://resources/fonts/NotoSansTC-Regular.otf") as Font
+	if font:
+		retry.add_theme_font_override("font", font)
+	retry.text = "再玩一次"
+
 func show_result(score: int, stars: int) -> void:
 	$Panel/VBox/ScoreLabel.text = "Score: %d" % score
 	_star_count = stars

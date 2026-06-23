@@ -208,8 +208,10 @@ static func find_all_matches(grid: Array, width: int, height: int, blocked: Arra
 				special_pos = max_h_run_positions[int(max_h_run_positions.size() / 2)]
 			else:
 				special_pos = max_v_run_positions[int(max_v_run_positions.size() / 2)]
-		elif has_cross and positions.size() >= 5:
-			shape = "special"  # L_T (需 5+ 格才生成 TNT)
+		elif has_cross and not has_block and positions.size() >= 5:
+			# L_T (真正的直角 3+3 才生 TNT)；若群組「含 2x2 方塊」(例如 xxx/xx 這種
+			# 2x2 + 一格)，視為 2x2 → 生紙飛機(下方 block_2x2 分支)，不是 TNT。
+			shape = "special"
 			special_pos = l_t_pivot
 		elif max(max_h, max_v) == 4:
 			shape = "four"
