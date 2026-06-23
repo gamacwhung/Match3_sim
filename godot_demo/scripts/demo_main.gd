@@ -284,9 +284,6 @@ func _start_level_from_dict(data: Dictionary) -> void:
 		board.set_bottom_obstacle_map(bottom_map)
 
 	board.init_board(level_data)
-	# 攤位模式：放大盤面、裁掉多餘空白，適應 16:9 顯示
-	if board.has_method("enable_fit_camera"):
-		board.enable_fit_camera()
 
 	hud = hud_scene.instantiate()
 	scene_container.add_child(hud)

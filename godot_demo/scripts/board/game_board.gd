@@ -238,35 +238,6 @@ func _calculate_offset() -> void:
 	)
 	position = Vector2.ZERO
 
-
-# ── 攤位專用相機：把盤面放大置中、裁掉多餘空白，適應不同顯示比例(16:9) ──
-var _fit_camera: Camera2D = null
-
-func enable_fit_camera() -> void:
-	if _fit_camera == null:
-		_fit_camera = Camera2D.new()
-		add_child(_fit_camera)
-	_fit_camera.enabled = true
-	_fit_camera.make_current()
-	call_deferred("_update_fit_camera")
-
-func _update_fit_camera() -> void:
-	if _fit_camera == null:
-		return
-	var board_w := grid_width * cell_size
-	var board_h := grid_height * cell_size
-	var vp := get_viewport_rect().size
-	var reserve_top := 200.0   # 上方保留給 HUD(剩餘步數/目標)
-	var margin := 1.08         # 盤面四周留一點邊
-	var need_w := board_w * margin
-	var need_h := (board_h + reserve_top) * margin
-	# Godot4：可見區域 = viewport / zoom；取較小者避免裁切到盤面本身
-	var z: float = min(vp.x / need_w, vp.y / need_h)
-	_fit_camera.zoom = Vector2(z, z)
-	# 相機中心 = 盤面中心，再往上挪 reserve_top/2 讓盤面落在 HUD 下方
-	var center := board_offset + Vector2(board_w, board_h) / 2.0
-	_fit_camera.position = Vector2(center.x, center.y - reserve_top / 2.0)
-
 func init_board(level_data: Resource = null) -> void:
 	_clear_board()
 	if level_data:
