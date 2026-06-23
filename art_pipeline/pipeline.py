@@ -56,6 +56,37 @@ def resolve_style_image(
     return resolved, (resolved.read_bytes() if resolved else None)
 
 
+def reference_sprite_path(reference_run: str, asset: dict) -> pathlib.Path:
+    """Path to a prior run's sprite used as Reference A (restyle)."""
+    return GENERATED_ROOT / reference_run / 'sprites' / asset['file']
+
+
+def has_reference_sprite(reference_run: str, asset: dict) -> bool:
+    return reference_sprite_path(reference_run, asset).is_file()
+
+
+def filter_targets_for_reference_run(
+    targets: list[dict], reference_run: str,
+) -> tuple[list[dict], list[str]]:
+    """Keep only assets present in reference_run/sprites/; no fallback to official art."""
+    kept: list[dict] = []
+    missing: list[str] = []
+    for asset in targets:
+        if has_reference_sprite(reference_run, asset):
+            kept.append(asset)
+        else:
+            missing.append(asset['name'])
+    return kept, missing
+
+
+def load_reference_sprite(reference_run: str, asset: dict) -> bytes:
+    path = reference_sprite_path(reference_run, asset)
+    if not path.is_file():
+        raise FileNotFoundError(
+            f'Reference sprite missing for {asset["name"]}: {path}')
+    return path.read_bytes()
+
+
 def _chromakey_block(asset: dict) -> str:
     """產生 chromakey 背景指示(供程式精準去背用)。"""
     ck = postprocess.chromakey_for(asset)
@@ -215,7 +246,8 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
                  log: RunLog | None = None,
                  *, mode: GenerationMode = 'restyle',
                  theme_text: str | None = None,
-                 theme_plan: dict | None = None) -> dict:
+                 theme_plan: dict | None = None,
+                 reference_run: str | None = None) -> dict:
     """對單一 asset 跑迭代循環。回傳結果 dict(含 attempts log 與最佳圖 bytes)。
 
     history_dir 有給時,每一次迭代的圖都會被保留到 history_dir/<asset>/ 並標上 tag。
@@ -223,9 +255,16 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
     original: bytes | None = None
     refs: list[tuple[bytes, str]] = []
     if mode == 'restyle':
-        original = (PROJECT_ROOT / asset['path']).read_bytes()
-        refs.append(
-            (original, 'Reference A — the original asset; preserve its subject, shape and composition'))
+        if reference_run:
+            original = load_reference_sprite(reference_run, asset)
+            ref_label = (
+                'Reference A — themed asset from a prior generation run; '
+                'preserve its subject, shape and composition')
+        else:
+            original = (PROJECT_ROOT / asset['path']).read_bytes()
+            ref_label = (
+                'Reference A — the original asset; preserve its subject, shape and composition')
+        refs.append((original, ref_label))
     if style_image:
         label = ('Reference — theme visual reference; motifs, palette and style'
                  if mode == 'theme_swap' else
@@ -306,6 +345,40 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
             'attempts': attempts, 'image': None, 'verdict': None, 'chosen_iter': None}
 
 
+def prepare_theme_for_targets(
+    mode: GenerationMode,
+    theme_text: str | None,
+    expand_theme: bool,
+    targets: list[dict],
+    style_text: str,
+    critic_model: str,
+    report: dict,
+    report_path: pathlib.Path,
+    *,
+    client=None,
+) -> tuple[str | None, dict | None]:
+    """Expand a theme concept for theme_swap; updates report on disk when expanded."""
+    theme_plan: dict | None = report.get('theme_plan')
+    resolved_theme = theme_text
+    if mode != 'theme_swap' or not theme_text or not expand_theme:
+        return resolved_theme, theme_plan
+    if theme_plan and theme_plan.get('concept') == theme_text:
+        return theme_plan.get('theme_direction', theme_text), theme_plan
+    if client is None:
+        client = gemini_api.get_client()
+    theme_plan = expand_theme_for_elements(
+        theme_text, style_text,
+        [a['name'] for a in targets],
+        client=client, model=critic_model,
+    )
+    resolved_theme = theme_plan['theme_direction']
+    report['theme_plan'] = theme_plan
+    report['theme'] = theme_text
+    report['theme_expanded'] = resolved_theme
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+    return resolved_theme, theme_plan
+
+
 def run(style_text: str, run_name: str,
         style_image_path: str | None = None,
         asset_names: list[str] | None = None,
@@ -318,7 +391,8 @@ def run(style_text: str, run_name: str,
         *, mode: GenerationMode = 'restyle',
         theme_text: str | None = None,
         reference_image: bool = True,
-        expand_theme: bool = False) -> pathlib.Path:
+        expand_theme: bool = False,
+        reference_run: str | None = None) -> pathlib.Path:
     """跑整批生成。回傳 run 目錄。
 
     mode:
@@ -328,6 +402,9 @@ def run(style_text: str, run_name: str,
       False       — 不使用任何參考圖(含 game_art_reference.png 與 style_image_path)
     expand_theme:
       True        — 用 LLM 把 theme_text(主題概念)展開成每個 element 的物件指派
+    reference_run:
+      先前生成 run 名稱(如 pixar_cartoon); restyle 時用其 sprites/ 當 Reference A,
+      不含的 asset 跳過,不 fallback 官方圖。
     """
     manifest = build_manifest()
     by_family: dict[str, list[str]] = {}
@@ -346,6 +423,18 @@ def run(style_text: str, run_name: str,
     if not targets:
         raise SystemExit('沒有符合條件的 asset')
 
+    if reference_run:
+        if mode != 'restyle':
+            raise SystemExit('--reference-run 僅適用於 restyle 模式')
+        ref_dir = GENERATED_ROOT / reference_run / 'sprites'
+        if not ref_dir.is_dir():
+            raise SystemExit(f'找不到 reference run: {ref_dir}')
+        targets, ref_missing = filter_targets_for_reference_run(targets, reference_run)
+        if ref_missing:
+            print(f'[reference-run] 跳過 {len(ref_missing)} 張(reference run 無此圖): {ref_missing}')
+        if not targets:
+            raise SystemExit(f'reference run {reference_run!r} 沒有任何符合的 sprite')
+
     log = RunLog()
     run_dir = GENERATED_ROOT / run_name
     sprites_out = run_dir / 'sprites'
@@ -355,29 +444,27 @@ def run(style_text: str, run_name: str,
     report_path = run_dir / 'report.json'
     report = json.loads(report_path.read_text(encoding='utf-8')) if report_path.exists() else {
         'style': style_text, 'generation_mode': mode, 'theme': theme_text,
+        'reference_run': reference_run,
         'image_model': image_model, 'critic_model': critic_model, 'results': {},
     }
+    if reference_run:
+        report['reference_run'] = reference_run
 
-    theme_plan: dict | None = report.get('theme_plan')
-    resolved_theme = theme_text
+    cached_plan = report.get('theme_plan')
+    had_matching_cache = bool(
+        cached_plan and cached_plan.get('concept') == theme_text
+    ) if mode == 'theme_swap' and theme_text else False
     if mode == 'theme_swap' and expand_theme and theme_text:
-        if theme_plan and theme_plan.get('concept') == theme_text:
-            resolved_theme = theme_plan.get('theme_direction', theme_text)
-            print(f'[theme] 使用已快取的展開結果: {resolved_theme}')
+        if had_matching_cache:
+            print(f'[theme] 使用已快取的展開結果: {cached_plan.get("theme_direction", theme_text)}')
         else:
             print(f'[theme] 展開主題概念: {theme_text!r}')
-            client = gemini_api.get_client()
-            theme_plan = expand_theme_for_elements(
-                theme_text, style_text,
-                [a['name'] for a in targets],
-                client=client, model=critic_model,
-            )
-            resolved_theme = theme_plan['theme_direction']
-            print(f'[theme] → {resolved_theme}')
-            report['theme_plan'] = theme_plan
-            report['theme'] = theme_text
-            report['theme_expanded'] = resolved_theme
-            report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+    resolved_theme, theme_plan = prepare_theme_for_targets(
+        mode, theme_text, expand_theme, targets, style_text, critic_model,
+        report, report_path, client=gemini_api.get_client(),
+    )
+    if mode == 'theme_swap' and expand_theme and theme_text and theme_plan and not had_matching_cache:
+        print(f'[theme] → {resolved_theme}')
 
     # 元素參考圖:reference_image=False 時不使用;否則優先 --style-image,再 fallback game_art_reference.png
     try:
@@ -396,6 +483,7 @@ def run(style_text: str, run_name: str,
         run_dir=run_dir,
         style_image_path=resolved_style_path,
         dry_run=dry_run,
+        reference_run=reference_run,
     )
 
     if dry_run:
@@ -422,7 +510,8 @@ def run(style_text: str, run_name: str,
                               by_family.get(asset.get('family') or 'misc', []),
                               image_model, critic_model, max_iters,
                               history_dir=history_dir, log=log,
-                              mode=mode, theme_text=resolved_theme, theme_plan=theme_plan)
+                              mode=mode, theme_text=resolved_theme, theme_plan=theme_plan,
+                              reference_run=reference_run)
         image = result.pop('image')
         if image:
             (sprites_out / asset['file']).write_bytes(image)

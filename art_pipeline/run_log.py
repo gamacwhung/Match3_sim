@@ -77,7 +77,8 @@ class RunLog:
 
     def run_header(self, *, run_name: str, style: str, image_model: str, critic_model: str,
                    max_iters: int, targets: list[dict], run_dir: pathlib.Path,
-                   style_image_path: pathlib.Path | None, dry_run: bool = False) -> None:
+                   style_image_path: pathlib.Path | None, dry_run: bool = False,
+                   reference_run: str | None = None) -> None:
         names = [a['name'] for a in targets]
         if len(names) <= 6:
             assets_line = ', '.join(names)
@@ -86,6 +87,7 @@ class RunLog:
 
         mode = _c(_C.YELLOW, 'DRY-RUN') if dry_run else _c(_C.CYAN, 'GENERATE')
         ref = str(style_image_path) if style_image_path else _c(_C.DIM, '(無)')
+        ref_a = reference_run if reference_run else _c(_C.DIM, 'official sprites')
         style_line = style if len(style) <= 42 else style[:39] + '…'
         lines = [
             f'mode     {mode}',
@@ -95,7 +97,8 @@ class RunLog:
             f'         crt {critic_model}',
             f'iters    ≤{max_iters} / asset',
             f'assets   {assets_line}',
-            f'ref img  {ref}',
+            f'ref A    {ref_a}',
+            f'ref B    {ref}',
             f'output   {run_dir}',
         ]
         _box('AI Art Generation', lines)

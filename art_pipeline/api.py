@@ -25,7 +25,13 @@ from .apply import (
     restore,
 )
 from .manifest import PROJECT_ROOT, build_manifest, families
-from .pipeline import GENERATED_ROOT, generate_one
+from .pipeline import (
+    GENERATED_ROOT,
+    generate_one,
+    prepare_theme_for_targets,
+    filter_targets_for_reference_run,
+)
+from .theme_planner import expand_theme_for_elements
 
 BASIC_ELEMENTS: tuple[str, ...] = ('Red', 'Grn', 'Blu', 'Yel', 'Pur')
 
@@ -63,6 +69,11 @@ class GenerationSummary:
     run_dir: pathlib.Path
     style: str
     results: dict[str, AssetResult] = field(default_factory=dict)
+    generation_mode: str = 'restyle'
+    theme_text: str | None = None
+    theme_plan: dict | None = None
+    theme_expanded: str | None = None
+    reference_run: str | None = None
 
     @property
     def passed(self) -> int:
@@ -143,6 +154,19 @@ def asset_image_map() -> dict[str, str]:
     return {a['name']: str(PROJECT_ROOT / a['path']) for a in list_assets()}
 
 
+def asset_thumbnail_map(reference_run: str | None = None) -> dict[str, str]:
+    """Thumbnails for UI; when reference_run is set, use that run's sprites only."""
+    if not reference_run:
+        return asset_image_map()
+    sprites_dir = run_dir(reference_run) / 'sprites'
+    out: dict[str, str] = {}
+    for name in asset_image_map():
+        ref_path = sprites_dir / f'{name}.png'
+        if ref_path.is_file():
+            out[name] = str(ref_path)
+    return out
+
+
 def format_verdict_scores(verdict: dict | None) -> str:
     """Compact score line for UI: style / func / ref (when present)."""
     if not verdict:
@@ -166,6 +190,14 @@ def list_runs() -> list[str]:
     return sorted(
         p.name for p in GENERATED_ROOT.iterdir()
         if p.is_dir() and (p / 'sprites').is_dir()
+    )
+
+
+def list_reference_runs() -> list[str]:
+    """Runs with sprites/ usable as Reference A for restyle."""
+    return sorted(
+        name for name in list_runs()
+        if any((run_dir(name) / 'sprites').glob('*.png'))
     )
 
 
@@ -209,6 +241,10 @@ def generate(
     family: str | None = None,
     style_image_path: str | pathlib.Path | None = None,
     reference_image: bool = True,
+    mode: str = 'restyle',
+    theme_text: str | None = None,
+    expand_theme: bool = False,
+    reference_run: str | None = None,
     image_model: str | None = None,
     critic_model: str | None = None,
     max_iters: int = 3,
@@ -236,6 +272,18 @@ def generate(
     if not targets:
         raise ValueError('No assets matched the selection')
 
+    if reference_run:
+        if mode != 'restyle':
+            raise ValueError('reference_run is only supported in restyle mode')
+        ref_dir = GENERATED_ROOT / reference_run / 'sprites'
+        if not ref_dir.is_dir():
+            raise FileNotFoundError(f'Reference run not found: {ref_dir}')
+        targets, ref_missing = filter_targets_for_reference_run(targets, reference_run)
+        if ref_missing:
+            print(f'[reference-run] skipping {len(ref_missing)} assets (not in {reference_run}): {ref_missing}')
+        if not targets:
+            raise ValueError(f'No assets from selection exist in reference run {reference_run!r}')
+
     out_dir = run_dir(run_name)
     sprites_out = out_dir / 'sprites'
     history_dir = out_dir / 'history'
@@ -244,10 +292,19 @@ def generate(
     report_path = out_dir / 'report.json'
     report = json.loads(report_path.read_text(encoding='utf-8')) if report_path.exists() else {
         'style': style_text,
+        'generation_mode': mode,
+        'theme': theme_text,
+        'reference_run': reference_run,
         'image_model': image_model or gemini_api.DEFAULT_IMAGE_MODEL,
         'critic_model': critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
         'results': {},
     }
+    report['style'] = style_text
+    report['generation_mode'] = mode
+    if theme_text is not None:
+        report['theme'] = theme_text
+    if reference_run:
+        report['reference_run'] = reference_run
 
     style_path, style_image = pipeline.resolve_style_image(
         style_image_path, reference_image=reference_image)
@@ -258,7 +315,17 @@ def generate(
     img_model = image_model or gemini_api.DEFAULT_IMAGE_MODEL
     crit_model = critic_model or gemini_api.DEFAULT_CRITIC_MODEL
 
-    summary = GenerationSummary(run_name=run_name, run_dir=out_dir, style=style_text)
+    resolved_theme, theme_plan = prepare_theme_for_targets(
+        mode, theme_text, expand_theme, targets, style_text, crit_model,
+        report, report_path, client=client,
+    )
+
+    summary = GenerationSummary(
+        run_name=run_name, run_dir=out_dir, style=style_text,
+        generation_mode=mode, theme_text=theme_text,
+        theme_plan=theme_plan, theme_expanded=report.get('theme_expanded'),
+        reference_run=reference_run,
+    )
     total = len(targets)
 
     for idx, asset in enumerate(targets, 1):
@@ -282,6 +349,8 @@ def generate(
             by_family.get(asset.get('family') or 'misc', []),
             img_model, crit_model, max_iters,
             history_dir=history_dir,
+            mode=mode, theme_text=resolved_theme, theme_plan=theme_plan,
+            reference_run=reference_run,
         )
         image = raw.pop('image')
         if image:
@@ -303,6 +372,22 @@ def generate(
             on_progress(idx, total, asset['name'], result)
 
     return summary
+
+
+def preview_theme_plan(
+    theme_concept: str,
+    style_text: str,
+    asset_names: list[str] | None = None,
+    *,
+    critic_model: str | None = None,
+) -> dict:
+    """LLM-expand a theme concept into per-asset object assignments (no image generation)."""
+    names = asset_names or list(BASIC_ELEMENTS)
+    client = gemini_api.get_client()
+    return expand_theme_for_elements(
+        theme_concept, style_text, names,
+        client=client, model=critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
+    )
 
 
 def generate_elements(

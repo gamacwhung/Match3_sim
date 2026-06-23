@@ -10,6 +10,10 @@ Game Art AI Generation — CLI 入口
   python scripts/ai_art_gen.py generate --style "像素風格 pixel art" --run pixel
   python scripts/ai_art_gen.py generate --style "水彩手繪" --style-image ref.png --run watercolor
 
+  # 主題生成後再換畫風:用先前 run 的 sprite 當 Reference A(不含的 asset 會跳過)
+  python scripts/ai_art_gen.py generate --style "水彩手繪" --run watercolor_v2 \\
+      --reference-run pixar_cartoon
+
   # 主題換物件模式(theme-swap):不參考原圖,依 gameplay role 發明新主題物件
   python scripts/ai_art_gen.py generate --mode theme-swap --style "海洋主題 watercolor" \\
       --theme "糖果換成貝殼,箱子換成珊瑚礁" --run ocean_theme --dry-run
@@ -87,6 +91,9 @@ def main():
                    help='逗號分隔 asset 名稱(預設全部)。執行 list-assets 或 generate --help 可看完整清單')
     g.add_argument('--family', choices=family_choices, metavar='FAMILY',
                    help='只生成某個 family(與 --assets 可擇一,或同時用於再篩選)')
+    g.add_argument('--reference-run', metavar='RUN',
+                   help='restyle 專用:用 generated_art/<RUN>/sprites/ 當 Reference A; '
+                        'reference run 沒有的 asset 跳過,不 fallback 官方圖')
     g.add_argument('--image-model', default=None, help='生圖模型(預設 gemini-2.5-flash-image)')
     g.add_argument('--critic-model', default=None, help='評審模型(預設 gemini-2.5-flash)')
     g.add_argument('--max-iters', type=int, default=3, help='每張 asset 最多迭代次數(預設 3)')
@@ -161,6 +168,7 @@ def main():
             theme_text=args.theme,
             reference_image=not args.no_reference_image,
             expand_theme=expand_theme,
+            reference_run=args.reference_run,
         )
 
     elif args.cmd == 'apply':

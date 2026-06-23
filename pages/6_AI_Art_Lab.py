@@ -161,8 +161,12 @@ def _init_state() -> None:
         'art_generating': False,
         'art_result_filter': '全部',
         'art_asset_family': 'elements',
-        'art_show_more_assets': False,
         'art_use_reference_image': False,
+        'art_generation_mode': 'restyle',
+        'art_theme_text': '',
+        'art_expand_theme': True,
+        'art_theme_plan': None,
+        'art_reference_run': '',
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -216,8 +220,8 @@ def _asset_catalog() -> tuple[list[str], dict[str, str]]:
 
 
 @st.cache_data
-def _asset_images() -> dict[str, str]:
-    return api.asset_image_map()
+def _asset_images(reference_run: str = '') -> dict[str, str]:
+    return api.asset_thumbnail_map(reference_run or None)
 
 
 @st.cache_data
@@ -305,26 +309,103 @@ def _render_style_studio() -> str:
     return style_upload
 
 
-def _render_hero_elements(asset_imgs: dict[str, str]) -> None:
-    """五色基本元素 — 大縮圖快速選取。"""
-    cols = st.columns(5)
-    for col, name in zip(cols, api.BASIC_ELEMENTS):
-        with col:
-            img = asset_imgs.get(name)
-            if img:
-                st.image(img, width=64)
-            label = ELEMENT_LABELS.get(name, name)
-            st.checkbox(
-                f'{label} {name}',
-                key=f'art_pick_{name}',
-                help=f'基本元素 · {name}',
-            )
+def _render_generation_mode_panel(selected_assets: list[str]) -> None:
+    st.markdown('<p class="art-section-label">MODE</p>', unsafe_allow_html=True)
+    mode_options = {
+        'restyle': '換皮（保留物件，只改風格）',
+        'theme_swap': '主題換物件（依玩法角色換成新主題物件）',
+    }
+    mode_keys = list(mode_options.keys())
+
+    mode = st.radio(
+        '生成模式',
+        mode_keys,
+        format_func=lambda k: mode_options[k],
+        key='art_generation_mode',
+        label_visibility='collapsed',
+    )
+
+    if mode == 'restyle':
+        ref_runs = api.list_reference_runs()
+        saved_ref = st.session_state.get('art_reference_run') or ''
+        if saved_ref and saved_ref not in ref_runs:
+            ref_runs = [saved_ref] + ref_runs
+        ref_choices = [''] + ref_runs
+
+        def _ref_a_label(run_name: str) -> str:
+            if not run_name:
+                return '官方原版（godot_demo/resources/sprites）'
+            n = len(list(api.run_dir(run_name).glob('sprites/*.png')))
+            return f'{run_name}（{n} 張）'
+
+        st.selectbox(
+            'Reference A 來源',
+            ref_choices,
+            format_func=_ref_a_label,
+            key='art_reference_run',
+            help='選先前 run 可在主題生成後再換畫風；該 run 沒有的 asset 會跳過，不 fallback 官方圖',
+        )
+        ref_run = st.session_state.get('art_reference_run') or ''
+        if ref_run:
+            st.caption(f'換皮基準：**{ref_run}** /sprites/')
+
+    if mode != 'theme_swap':
+        return
+
+    theme = st.text_input(
+        '主題概念',
+        key='art_theme_text',
+        placeholder='例如：糖果屋、海洋世界、太空站…',
+        help='可寫概念讓 LLM 展開，或手動指定 Red=草莓, Grn=薄荷糖…',
+    )
+
+    theme_stripped = theme.strip()
+    manual_assign = '=' in theme_stripped
+    if manual_assign:
+        st.session_state.art_expand_theme = False
+        st.caption('已偵測到手動指定（含 =），不會自動展開')
+    else:
+        expand = st.checkbox(
+            'LLM 自動展開主題',
+            key='art_expand_theme',
+            help='將「糖果屋」自動展開為每個元素的物件指派',
+        )
+
+        preview_assets = selected_assets or list(api.BASIC_ELEMENTS)
+        if theme_stripped and expand:
+            if st.button('預覽主題展開', key='art_preview_theme', use_container_width=True):
+                try:
+                    plan = api.preview_theme_plan(
+                        theme_stripped, st.session_state.art_style, preview_assets,
+                    )
+                    st.session_state.art_theme_plan = plan
+                    st.toast('主題已展開', icon='🎯')
+                except Exception as exc:
+                    st.error(f'展開失敗: {exc}')
+
+    plan = st.session_state.art_theme_plan
+    if plan and plan.get('concept') == theme_stripped:
+        direction = plan.get('theme_direction', '')
+        if direction:
+            st.caption(f'展開方向：{direction}')
+        assignments = plan.get('assignments') or {}
+        if assignments:
+            lines = [f'**{name}** → {obj}' for name, obj in sorted(assignments.items())]
+            st.markdown(' · '.join(lines))
+
+
+def _reference_run_for_thumbnails() -> str:
+    if st.session_state.get('art_generation_mode') != 'restyle':
+        return ''
+    return st.session_state.get('art_reference_run') or ''
 
 
 def _render_asset_picker(
     asset_names: list[str],
     asset_labels: dict[str, str],
     asset_imgs: dict[str, str],
+    *,
+    reference_run: str = '',
 ) -> list[str]:
     st.markdown('<p class="art-section-label">ASSETS</p>', unsafe_allow_html=True)
 
@@ -332,75 +413,66 @@ def _render_asset_picker(
         _set_all_picks(asset_names, list(api.BASIC_ELEMENTS))
         st.session_state.art_picks_init = True
 
-    st.caption('先從 5 色基本元素開始，約 1–2 分鐘可看到遊戲內效果。')
-    _render_hero_elements(asset_imgs)
+    if reference_run:
+        st.caption(
+            f'縮圖來自 **{reference_run}**；此 run 沒有的 asset 不顯示縮圖，生成時也會跳過。'
+        )
+    else:
+        st.caption('預設已勾選 5 色基本元素，可切換分類選取更多資產。')
 
-    show_more = st.checkbox(
-        '更多資產（道具、障礙…）',
-        value=st.session_state.art_show_more_assets,
-        key='art_show_more_assets',
+    families = _asset_families()
+    family_keys = sorted(families.keys(), key=lambda f: api.FAMILY_LABELS.get(f, f))
+
+    fam_key = st.radio(
+        '分類',
+        family_keys,
+        format_func=lambda k: api.FAMILY_LABELS.get(k, k),
+        key='art_asset_family',
+        horizontal=True,
+        label_visibility='collapsed',
     )
+    family_names = families[fam_key]
 
-    if show_more:
-        families = _asset_families()
-        family_keys = sorted(families.keys(), key=lambda f: api.FAMILY_LABELS.get(f, f))
-        family_labels = [api.FAMILY_LABELS.get(f, f) for f in family_keys]
-        label_for_family = api.FAMILY_LABELS.get(
-            st.session_state.art_asset_family, '基本元素',
-        )
-        fam_idx = family_labels.index(label_for_family) if label_for_family in family_labels else 0
+    btn_cols = st.columns([1, 1, 1])
+    with btn_cols[0]:
+        if st.button('選此分類', use_container_width=True, key='art_pick_family'):
+            current = [n for n in asset_names if st.session_state.get(f'art_pick_{n}')]
+            merged = list(dict.fromkeys(current + family_names))
+            _set_all_picks(asset_names, merged)
+            st.rerun()
+    with btn_cols[1]:
+        if st.button('選全部', use_container_width=True, key='art_pick_all'):
+            _set_all_picks(asset_names, asset_names)
+            st.rerun()
+    with btn_cols[2]:
+        if st.button('清除', use_container_width=True, key='art_pick_clear'):
+            _set_all_picks(asset_names, [])
+            st.rerun()
 
-        picked_label = st.radio(
-            '分類',
-            family_labels,
-            index=fam_idx,
-            horizontal=True,
-            label_visibility='collapsed',
-        )
-        fam_key = family_keys[family_labels.index(picked_label)]
-        st.session_state.art_asset_family = fam_key
-        family_names = [n for n in families[fam_key] if n not in api.BASIC_ELEMENTS]
+    query = st.text_input(
+        '搜尋',
+        key='art_asset_filter',
+        placeholder='名稱關鍵字…',
+        label_visibility='collapsed',
+    ).strip().lower()
+    filtered = [
+        n for n in family_names
+        if not query or query in n.lower() or query in asset_labels[n].lower()
+    ]
 
-        btn_cols = st.columns([1, 1, 1])
-        with btn_cols[0]:
-            if st.button('選此分類', use_container_width=True, key='art_pick_family'):
-                current = [n for n in asset_names if st.session_state.get(f'art_pick_{n}')]
-                merged = list(dict.fromkeys(current + family_names))
-                _set_all_picks(asset_names, merged)
-                st.rerun()
-        with btn_cols[1]:
-            if st.button('選全部', use_container_width=True, key='art_pick_all'):
-                _set_all_picks(asset_names, asset_names)
-                st.rerun()
-        with btn_cols[2]:
-            if st.button('清除', use_container_width=True, key='art_pick_clear'):
-                _set_all_picks(asset_names, [])
-                st.rerun()
-
-        query = st.text_input(
-            '搜尋',
-            key='art_asset_filter',
-            placeholder='名稱關鍵字…',
-            label_visibility='collapsed',
-        ).strip().lower()
-        filtered = [
-            n for n in family_names
-            if not query or query in n.lower() or query in asset_labels[n].lower()
-        ]
-
-        ncols = 4
-        with st.container(height=280):
-            if not filtered:
-                st.caption('此分類沒有符合的資產')
-            for i in range(0, len(filtered), ncols):
-                row = filtered[i:i + ncols]
-                cols = st.columns(ncols)
-                for col, name in zip(cols, row):
-                    with col:
-                        img = asset_imgs.get(name)
-                        if img:
-                            st.image(img, width=56)
-                        st.checkbox(name, key=f'art_pick_{name}', help=asset_labels[name])
+    ncols = 4
+    with st.container(height=280):
+        if not filtered:
+            st.caption('此分類沒有符合的資產')
+        for i in range(0, len(filtered), ncols):
+            row = filtered[i:i + ncols]
+            cols = st.columns(ncols)
+            for col, name in zip(cols, row):
+                with col:
+                    img = asset_imgs.get(name)
+                    if img:
+                        st.image(img, width=56)
+                    st.checkbox(name, key=f'art_pick_{name}', help=asset_labels[name])
 
     elements = [n for n in asset_names if st.session_state.get(f'art_pick_{n}')]
     st.caption(f'已選 **{len(elements)}** 個資產')
@@ -426,11 +498,23 @@ def _render_action_bar(style: str, run_name: str, elements: list[str], style_upl
 
 
 def _render_generation_panel() -> None:
-    style_upload = _render_style_studio()
+    pending = st.session_state.pop('_art_pending_load', None)
+    if pending:
+        _load_run(pending)
 
     asset_names, asset_labels = _asset_catalog()
-    asset_imgs = _asset_images()
-    elements = _render_asset_picker(asset_names, asset_labels, asset_imgs)
+    preview_assets = [
+        n for n in asset_names if st.session_state.get(f'art_pick_{n}')
+    ] or list(api.BASIC_ELEMENTS)
+    _render_generation_mode_panel(preview_assets)
+
+    style_upload = _render_style_studio()
+
+    ref_for_thumbs = _reference_run_for_thumbnails()
+    asset_imgs = _asset_images(ref_for_thumbs)
+    elements = _render_asset_picker(
+        asset_names, asset_labels, asset_imgs, reference_run=ref_for_thumbs,
+    )
 
     with st.expander('進階設定', expanded=False):
         run_name = st.text_input('版本名稱', value=st.session_state.art_run_name)
@@ -453,6 +537,10 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
     if not elements:
         st.error('請至少選一個元素')
         return
+    if st.session_state.art_generation_mode == 'theme_swap':
+        if not st.session_state.art_theme_text.strip():
+            st.error('主題換物件模式請輸入主題概念')
+            return
     if not api.has_credentials():
         st.error('缺少 API 金鑰')
         return
@@ -466,8 +554,19 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
         style_path = tmp
 
     st.session_state.art_generating = True
-    ref_label = '含參考圖' if st.session_state.art_use_reference_image else '純文字風格'
-    progress = st.progress(0, text=f'準備中…（{ref_label}）')
+    mode = st.session_state.art_generation_mode
+    theme_text = st.session_state.art_theme_text.strip() or None
+    expand_theme = (
+        mode == 'theme_swap'
+        and st.session_state.art_expand_theme
+        and theme_text
+        and '=' not in theme_text
+    )
+    mode_label = '主題換物件' if mode == 'theme_swap' else '換皮'
+    ref_run = (st.session_state.get('art_reference_run') or None) if mode == 'restyle' else None
+    ref_a_label = f'Ref A: {ref_run}' if ref_run else 'Ref A: 官方'
+    ref_b_label = '含參考圖' if st.session_state.art_use_reference_image else '純文字風格'
+    progress = st.progress(0, text=f'準備中…（{mode_label} · {ref_a_label} · {ref_b_label}）')
     status = st.empty()
 
     def on_progress(cur, total, name, result):
@@ -487,10 +586,14 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
             style.strip(), run_name.strip(),
             asset_names=elements, style_image_path=style_path,
             reference_image=st.session_state.art_use_reference_image,
+            mode=mode, theme_text=theme_text, expand_theme=expand_theme,
+            reference_run=ref_run,
             max_iters=3, on_progress=on_progress,
         )
         st.session_state.art_summary = summary
         st.session_state.art_results = summary.results
+        if summary.theme_plan:
+            st.session_state.art_theme_plan = summary.theme_plan
         progress.progress(100, text='完成')
         st.toast(
             f'生成完成：通過 {summary.passed} · 待審 {summary.needs_review} · 失敗 {summary.failed}',
@@ -531,6 +634,14 @@ def _render_results() -> None:
     summary = st.session_state.art_summary
     st.markdown('<p class="art-section-label">RESULTS</p>', unsafe_allow_html=True)
     if summary:
+        mode = getattr(summary, 'generation_mode', 'restyle')
+        if mode == 'theme_swap' and summary.theme_text:
+            theme_line = f'主題 **{summary.theme_text}**'
+            if summary.theme_expanded and summary.theme_expanded != summary.theme_text:
+                theme_line += f' → {summary.theme_expanded}'
+            st.caption(theme_line)
+        elif mode == 'restyle' and getattr(summary, 'reference_run', None):
+            st.caption(f'Reference A 來自 **{summary.reference_run}**')
         st.caption(
             f'通過 **{summary.passed}** · 待審 **{summary.needs_review}** · 失敗 **{summary.failed}**'
         )
@@ -564,12 +675,21 @@ def _render_results() -> None:
                     _render_result_thumb(name, result)
 
 
+def _queue_load_run() -> None:
+    pick = st.session_state.get('art_load_pick')
+    if pick and pick != '—':
+        st.session_state._art_pending_load = pick
+
+
 def _render_advanced_inner() -> None:
     prev_runs = api.list_runs()
     if prev_runs:
-        pick = st.selectbox('載入既有版本', ['—'] + prev_runs, key='art_load_pick')
-        if pick != '—' and pick != st.session_state.get('art_loaded_run'):
-            _load_run(pick)
+        st.selectbox(
+            '載入既有版本',
+            ['—'] + prev_runs,
+            key='art_load_pick',
+            on_change=_queue_load_run,
+        )
     else:
         st.caption('尚無既有版本')
 
@@ -628,7 +748,17 @@ def _load_run(run_name: str) -> None:
     st.session_state.art_summary = api.GenerationSummary(
         run_name=run_name, run_dir=api.run_dir(run_name),
         style=report.get('style', ''), results=loaded,
+        generation_mode=report.get('generation_mode', 'restyle'),
+        theme_text=report.get('theme'),
+        theme_plan=report.get('theme_plan'),
+        theme_expanded=report.get('theme_expanded'),
+        reference_run=report.get('reference_run'),
     )
+    st.session_state.art_generation_mode = report.get('generation_mode', 'restyle')
+    st.session_state.art_theme_text = report.get('theme', '') or ''
+    st.session_state.art_theme_plan = report.get('theme_plan')
+    st.session_state.art_reference_run = report.get('reference_run') or ''
+    st.session_state.art_run_name = run_name
     st.session_state.art_loaded_run = run_name
 
 
@@ -675,13 +805,18 @@ def _render_before_after_strip() -> None:
     if not st.session_state.art_applied_run or not st.session_state.art_results:
         return
 
-    asset_imgs = _asset_images()
+    ref_run = ''
+    summary = st.session_state.get('art_summary')
+    if summary:
+        ref_run = getattr(summary, 'reference_run', None) or ''
+    asset_imgs = _asset_images(ref_run)
     results = st.session_state.art_results
     show_names = [n for n in api.BASIC_ELEMENTS if n in results and results[n].image]
     if not show_names:
         return
 
-    st.caption('基本元素 · 原版 → 新版')
+    before_label = ref_run if ref_run else '原版'
+    st.caption(f'基本元素 · {before_label} → 新版')
     cols = st.columns(len(show_names))
     for col, name in zip(cols, show_names):
         with col:
@@ -796,7 +931,7 @@ def main() -> None:
         <div style="padding: 8px 0 0 0;">
           <h1 style="margin:0; font-size: 1.9em;">🖌️ AI Game Art Lab</h1>
           <p style="color:#666; margin: 4px 0 0 0;">
-            選一個風格 → 生成 5 色元素 → 右側立刻試玩
+            選風格 → 換皮或主題換物件 → 生成元素 → 右側立刻試玩
           </p>
         </div>
         ''',
