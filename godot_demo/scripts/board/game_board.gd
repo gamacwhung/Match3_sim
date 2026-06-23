@@ -238,6 +238,35 @@ func _calculate_offset() -> void:
 	)
 	position = Vector2.ZERO
 
+
+# ── 攤位專用相機：把盤面放大置中、裁掉多餘空白，適應不同顯示比例(16:9) ──
+var _fit_camera: Camera2D = null
+
+func enable_fit_camera() -> void:
+	if _fit_camera == null:
+		_fit_camera = Camera2D.new()
+		add_child(_fit_camera)
+	_fit_camera.enabled = true
+	_fit_camera.make_current()
+	call_deferred("_update_fit_camera")
+
+func _update_fit_camera() -> void:
+	if _fit_camera == null:
+		return
+	var board_w := grid_width * cell_size
+	var board_h := grid_height * cell_size
+	var vp := get_viewport_rect().size
+	var reserve_top := 200.0   # 上方保留給 HUD(剩餘步數/目標)
+	var margin := 1.08         # 盤面四周留一點邊
+	var need_w := board_w * margin
+	var need_h := (board_h + reserve_top) * margin
+	# Godot4：可見區域 = viewport / zoom；取較小者避免裁切到盤面本身
+	var z: float = min(vp.x / need_w, vp.y / need_h)
+	_fit_camera.zoom = Vector2(z, z)
+	# 相機中心 = 盤面中心，再往上挪 reserve_top/2 讓盤面落在 HUD 下方
+	var center := board_offset + Vector2(board_w, board_h) / 2.0
+	_fit_camera.position = Vector2(center.x, center.y - reserve_top / 2.0)
+
 func init_board(level_data: Resource = null) -> void:
 	_clear_board()
 	if level_data:
@@ -416,11 +445,19 @@ func _activate_special_directly(candy: CandyScript) -> void:
 	var ct = candy.candy_type
 	
 	if ct == CandyScript.CandyType.COLOR_BOMB:
-		var num_colors_local = 4
-		if filler:
-			num_colors_local = filler.num_colors
-		var target_color = randi() % num_colors_local
-		effect_spawner_node.spawn_firework(filler.grid_to_world(pos))
+		# 挑「盤面上最多的顏色」(不是隨機),並播放點亮動畫(閃一下最多色再消除)
+		var color_count: Dictionary = {}
+		for x in grid_width:
+			for y in grid_height:
+				var c = filler.get_candy_at(Vector2i(x, y))
+				if c and not c.is_being_destroyed and c.candy_type == CandyScript.CandyType.NORMAL:
+					color_count[c.candy_color] = int(color_count.get(c.candy_color, 0)) + 1
+		var target_color := 0
+		var best := -1
+		for col in color_count:
+			if int(color_count[col]) > best:
+				best = int(color_count[col])
+				target_color = col
 		_destroy_candy_at(pos, candy.candy_color, EXPLODE_MODE_SPECIAL)
 		# 光球只對基本元素產生影響，道具不受影響
 		var nc_targets: Array[Vector2i] = []
@@ -430,7 +467,7 @@ func _activate_special_directly(candy: CandyScript) -> void:
 				var c = filler.get_candy_at(p)
 				if c and not c.is_being_destroyed and c.candy_color == target_color and c.candy_type == CandyScript.CandyType.NORMAL:
 					nc_targets.append(p)
-		_explode_cells_no_chain(nc_targets)
+		await _animate_color_bomb_sequence(nc_targets, pos, -1)
 	else:
 		# STRIPED/WRAPPED:觸發自身,然後消除自己(SPECIAL mode → 該格直接打,不擴散到 4 鄰)
 		_trigger_special_candy(candy)
@@ -691,11 +728,10 @@ func _has_mud_at(pos: Vector2i) -> bool:
 
 ## 同格正上方是否有「上層障礙物」(Mud / Rope)。
 ## 用於水窪(底層)傷害判定:上層還蓋著時,要先清掉上層,水窪才會扣血。
-func _has_upper_obstacle_at(pos: Vector2i) -> bool:
-	if not obstacle_map.has(pos):
-		return false
-	var tid := str(obstacle_map[pos].get("tile_id", ""))
-	return tid.begins_with("Mud") or tid.begins_with("Rope")
+## 該格是否有「任何障礙物」蓋住底層水窪（中層 Crt/Barrel… 或上層 Mud/Rope 都算）。
+## 有覆蓋物時水窪要先等它清掉才受傷（兩階段：先打障礙物、再消水漥）。
+func _obstacle_covers_bottom_at(pos: Vector2i) -> bool:
+	return obstacle_map.has(pos)
 
 
 ## 泥巴完全遮住中層元素；繩索/水窪不藏元素（繩索僅鎖操作）
@@ -1049,24 +1085,30 @@ func _animate_color_bomb_sequence(targets: Array, bomb_pos: Vector2i, transform_
 	var n = targets.size()
 	if n == 0:
 		return
-	var orb_duration: float = stagger * float(n) + 0.25
-	if orb_duration < 0.5:
-		orb_duration = 0.5
+	# 點亮階段分批(最多 ~12 批)：格子很多時自動縮短每批間隔 → 整盤光球(尤其雙光球)
+	# 不會拖太久,也避免「逐格 await」累積大量單幀開銷(消除瞬間的 lag 來源之一)。
+	var max_steps := 12
+	var step_size := maxi(1, int(ceil(float(n) / float(max_steps))))
+	var steps := int(ceil(float(n) / float(step_size)))
+	var batch_wait := minf(stagger * float(step_size), 0.06)
+	var orb_duration: float = maxf(float(steps) * batch_wait + 0.2, 0.45)
 	effect_spawner_node.spawn_color_bomb_orb(filler.grid_to_world(bomb_pos), orb_duration)
-	for i in n:
-		var pos: Vector2i = targets[i] as Vector2i
-		var c = filler.get_candy_at(pos)
-		if c == null or c.is_being_destroyed:
-			await get_tree().create_timer(stagger).timeout
-			continue
-		var world: Vector2 = filler.grid_to_world(pos)
-		effect_spawner_node.spawn_target_highlight(world, c.candy_color)
-		if transform_to >= 0:
-			var ttype = transform_to
-			if randomize_striped:
-				ttype = [CandyScript.CandyType.STRIPED_H, CandyScript.CandyType.STRIPED_V].pick_random()
-			c.set_candy_type(ttype)
-		await get_tree().create_timer(stagger).timeout
+	var i := 0
+	while i < n:
+		var batch_end := mini(i + step_size, n)
+		for j in range(i, batch_end):
+			var pos2: Vector2i = targets[j] as Vector2i
+			var c2 = filler.get_candy_at(pos2)
+			if c2 == null or c2.is_being_destroyed:
+				continue
+			effect_spawner_node.spawn_target_highlight(filler.grid_to_world(pos2), c2.candy_color)
+			if transform_to >= 0:
+				var ttype = transform_to
+				if randomize_striped:
+					ttype = [CandyScript.CandyType.STRIPED_H, CandyScript.CandyType.STRIPED_V].pick_random()
+				c2.set_candy_type(ttype)
+		i = batch_end
+		await get_tree().create_timer(batch_wait).timeout
 	# 全部點亮 / 變身完成 → 短暫停頓讓玩家感受「滿盤亮起」 → 同時消除
 	#
 	# 模式選擇(user 確認):
@@ -1255,11 +1297,9 @@ func _chain_trigger(ct: int, pos: Vector2i, color: int) -> void:
 					var c2 = filler.get_candy_at(p)
 					if c2 and not c2.is_being_destroyed and c2.candy_color == picked and c2.candy_type == CandyScript.CandyType.NORMAL:
 						sub_targets.append(p)
-	# 道具連鎖:條紋/包裝/彩球 = 原地炸(SPECIAL);紙飛機 4 鄰 = 相鄰消除(MATCH)
-	var chain_mode := EXPLODE_MODE_SPECIAL
-	if ct == CandyScript.CandyType.SPIRAL:
-		chain_mode = EXPLODE_MODE_MATCH
-	_explode_cells(sub_targets, chain_mode)
+	# 道具連鎖一律用 SPECIAL：直接清掉目標格上的障礙物（含「只吃道具」的 SalmonCan）。
+	# (紙飛機十字原本用 MATCH → 打不到 SalmonCan；user 要求十字本身能清鮪魚罐頭 → 改 SPECIAL)
+	_explode_cells(sub_targets, EXPLODE_MODE_SPECIAL)
 
 
 # 延後 delay 秒後觸發 _explode_cells(targets)。用於紙飛機飛行動畫:等飛機落地再爆。
@@ -1299,6 +1339,12 @@ func _try_flush_deferred_queue() -> void:
 	_deferred_running = false
 	if _deferred_queue.size() == 0:
 		_post_turn_check()
+	else:
+		# 還有 entry 沒處理(front 還沒 ready,或某個 entry 的 timer 剛好在 flush 執行中
+		# 觸發、被 _deferred_running 擋掉而漏掉)→ 短延遲後「重試保險」,確保佇列一定會被
+		# 排空、_post_turn_check 一定會被呼叫。否則會卡死(is_processing 不解鎖)+ 留空格。
+		var t := get_tree().create_timer(0.12)
+		t.timeout.connect(_try_flush_deferred_queue)
 
 
 # 延後 delay 秒後 spawn 飛機落地特效(衝擊環 + 火光 + 閃光)。
@@ -1525,10 +1571,11 @@ func _cascade_loop() -> void:
 	while safety < (grid_width + grid_height) * 2:
 		safety += 1
 
-		# 可移動障礙物和 candy 同步下落
-		var obs_tweens = _apply_movable_obstacle_gravity()
-
+		# 順序很重要：先讓元素落下 → 再讓木桶落進元素讓出的空格 → 最後才補新元素。
+		# (若先補格，fill 會把木桶下方剛空出的格填回新元素——因為 fill 把可移動障礙當「會讓路」
+		#  → 木桶永遠等不到空格、卡在上面不落。Level 39「清下面元素、上面木桶不落」就是這個。)
 		var gravity_tweens = filler.apply_gravity()
+		var obs_tweens = _apply_movable_obstacle_gravity()
 		var fill_tweens = filler.fill_empty_cells()
 
 		# 新生成的 candy 接 input signals(舊的有 is_connected check,不會重複 connect)
@@ -1847,11 +1894,11 @@ static func _color_name_from_candy_idx(idx: int) -> String:
 func _damage_bottom_obstacle(pos: Vector2i) -> void:
 	if not bottom_obstacle_map.has(pos):
 		return
-	# 上層(Mud/Rope)還蓋在正上方 → 先擋著,水窪不扣血。
-	# 必須先把上層障礙物清掉,水窪才會開始受傷。
-	# 另外:即使上層在「這一 tick」被打死,同一 tick 內水窪仍不受傷
-	# (該擊算在清上層),要等下一擊才扣 —— 用 _upper_blocked_bottom_tick 判定。
-	if _has_upper_obstacle_at(pos) \
+	# 任何障礙物(中層 Crt/Barrel… 或上層 Mud/Rope)還蓋在這格 → 先擋著,水窪不扣血。
+	# 必須先把覆蓋的障礙物清掉,水窪才會開始受傷（兩階段：先打障礙再消水漥）。
+	# 另外:即使覆蓋物在「這一 tick」被打死,同一 tick 內水窪仍不受傷(該擊算在清障礙)，
+	# 要等下一擊才扣 —— 用 _upper_blocked_bottom_tick 判定（涵蓋道具爆炸同時打中層+底層的情況）。
+	if _obstacle_covers_bottom_at(pos) \
 			or int(_upper_blocked_bottom_tick.get(pos, -1)) == _damage_tick_id:
 		return
 	var obs = bottom_obstacle_map[pos]
@@ -1871,11 +1918,10 @@ func _damage_obstacle(pos: Vector2i, adj_color_name: String = "") -> void:
 	var obs = obstacle_map[pos]
 	var tid: String = str(obs.get("tile_id", ""))
 
-	# 水窪護盾:這一 tick 此格的上層(Mud/Rope)有被處理 → 記下來,
-	# 讓同 tick 的 _damage_bottom_obstacle 知道「上層擋了這擊」,水窪不受傷。
-	# (在扣 HP / 移除之前先記,確保「打死上層的那一擊」也算擋住。)
-	if tid.begins_with("Mud") or tid.begins_with("Rope"):
-		_upper_blocked_bottom_tick[pos] = _damage_tick_id
+	# 水窪護盾:這一 tick 此格有障礙物(任何中層/上層障礙)被處理 → 記下來,
+	# 讓同 tick 的 _damage_bottom_obstacle 知道「覆蓋物擋了這擊」,水窪不受傷。
+	# (在扣 HP / 移除之前先記,確保「打死覆蓋物的那一擊」也算擋住 → 道具爆炸不會同時打穿到水窪。)
+	_upper_blocked_bottom_tick[pos] = _damage_tick_id
 
 	if tid.begins_with("SalmonCan") \
 			and _obstacle_damage_mode != EXPLODE_MODE_SPECIAL \
@@ -1955,17 +2001,7 @@ func _try_damage_beverage_chiller(obs: Dictionary, adj_color_name: String) -> bo
 	elif adj_color_name == "":
 		return false
 	elif hp >= max_hp:
-		# 關門狀態：先驗證顏色是否匹配
-		var ok := false
-		for cell in obs.get("instance_cells", []):
-			if not bottle_alive.get(cell, true):
-				continue
-			if str(bottle_colors.get(cell, "")) == adj_color_name:
-				ok = true
-				break
-		if not ok:
-			return false
-		# 顏色匹配，dedup
+		# 關門狀態：任何相鄰消除都能開門（user 要求不需對色；瓶子才需對色）。只做 dedup。
 		if int(obs.get("_last_damage_tick", -1)) == _damage_tick_id:
 			return false
 		obs["_last_damage_tick"] = _damage_tick_id
@@ -2269,4 +2305,10 @@ func _on_obstacle_spawned(pos: Vector2i, tile_id: String) -> void:
 		blocked_cells.append(pos)
 	if _is_movable_obstacle(tile_id):
 		filler.movable_obstacle_cells[pos] = true
-	board_bg.queue_redraw()
+	# spawn 進來的障礙物也要像元素一樣「從盤面上方落下」,而不是瞬間出現在定點。
+	# 用 board_bg 既有的障礙物位移動畫:from = 盤面上方(-1),to = 落點 pos。
+	# (一般重力落下也是走 notify_obstacle_moved,所以非 spawn 的木桶才會有動畫；
+	#  spawn 的木桶之前直接 emit 到定點、漏了這段 → 看起來卡住不落。)
+	var start_above: Vector2i = Vector2i(pos.x, -1)
+	var fall_dist: int = pos.y - start_above.y
+	board_bg.notify_obstacle_moved(start_above, pos, filler._fall_duration(fall_dist))
