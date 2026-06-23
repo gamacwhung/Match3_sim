@@ -200,7 +200,7 @@ func _show_menu_button() -> void:
 
 	# 重玩本關 — 比 demo 跟客戶說「再來一次」最快的入口
 	var replay_btn = Button.new()
-	replay_btn.text = "↻ 重玩本關"
+	replay_btn.text = "重玩本關"
 	if font:
 		replay_btn.add_theme_font_override("font", font)
 	replay_btn.add_theme_font_size_override("font_size", 18)
@@ -215,7 +215,7 @@ func _show_menu_button() -> void:
 	# 選關 — 攤位模式（玩 AI 生成的關卡）不顯示，避免客人跳去玩官方 100 關
 	if _custom_level_data.is_empty():
 		var select_btn = Button.new()
-		select_btn.text = "☰ 選關"
+		select_btn.text = "選關"
 		if font:
 			select_btn.add_theme_font_override("font", font)
 		select_btn.add_theme_font_size_override("font_size", 18)
@@ -229,7 +229,7 @@ func _show_menu_button() -> void:
 	else:
 		# 攤位模式：放「🧠 AI 解關」開關（可開可關；重玩本關會重置成關）
 		var ai_btn = Button.new()
-		ai_btn.text = "🧠 AI 解關"
+		ai_btn.text = "AI 解關"
 		if font:
 			ai_btn.add_theme_font_override("font", font)
 		ai_btn.add_theme_font_size_override("font_size", 18)
@@ -248,10 +248,10 @@ func _toggle_ai_mode(btn: Button) -> void:
 	if current_board.has_method("is_ai_running") and current_board.is_ai_running():
 		if current_board.has_method("stop_ai_mode"):
 			current_board.stop_ai_mode()
-		btn.text = "🧠 AI 解關"
+		btn.text = "AI 解關"
 	elif current_board.has_method("start_ai_mode"):
 		current_board.start_ai_mode(0.8)
-		btn.text = "⏸ 停止 AI"
+		btn.text = "停止 AI"
 
 
 func _clear_current() -> void:

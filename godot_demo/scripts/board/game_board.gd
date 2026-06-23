@@ -37,6 +37,8 @@ var _obs_dragging: bool = false
 var _obs_drag_start_global: Vector2 = Vector2.ZERO
 var is_processing: bool = false
 var cascade_level: int = 0
+# 鎖死看門狗：is_processing 卡住(動畫跑完卻沒解鎖)時的累計秒數
+var _lock_watchdog: float = 0.0
 
 var _hint_timer: float = 0.0
 var _hint_delay: float = 3.0
@@ -201,6 +203,18 @@ func _relayout_board_positions() -> void:
 
 
 func _process(delta: float) -> void:
+	# 鎖死看門狗：special 道具(光球/紙飛機等)動畫跑完卻沒解鎖時，超時強制恢復可操作。
+	# 只在「真的閒置」(沒有待爆炸佇列、沒在跑 flush)時計時；正常動畫/連鎖遠在 5 秒內結束，
+	# 所以只有真的卡死才會觸發，不會誤判正常遊玩。
+	if is_processing and _deferred_queue.is_empty() and not _deferred_running:
+		_lock_watchdog += delta
+		if _lock_watchdog > 5.0:
+			_lock_watchdog = 0.0
+			push_warning("[watchdog] is_processing 卡住 >5s → 強制解鎖")
+			_post_turn_check()
+	else:
+		_lock_watchdog = 0.0
+
 	if filler == null or is_processing or _hint_shown:
 		return
 	_hint_timer += delta
