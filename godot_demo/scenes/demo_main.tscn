@@ -1,14 +1,8 @@
 [gd_scene format=3 uid="uid://b3demom4tch3sim"]
 
 [ext_resource type="Script" path="res://scripts/demo_main.gd" id="1_demo_main"]
-[ext_resource type="Shader" uid="uid://cb51bq1ma6xcv" path="res://shaders/background.gdshader" id="2_bg_shader"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_bg"]
-shader = ExtResource("2_bg_shader")
-shader_parameter/color_top = Color(0.15, 0.08, 0.3, 1)
-shader_parameter/color_bottom = Color(0.05, 0.02, 0.12, 1)
-shader_parameter/wave_speed = 0.3
-shader_parameter/wave_amplitude = 0.02
+[ext_resource type="Texture2D" uid="uid://uhaxt6nd1704" path="res://resources/sprites/board_bg.png" id="2_bg_tex"]
+[ext_resource type="Script" path="res://scripts/ui/bg_theme.gd" id="3_bg_theme"]
 
 [node name="DemoMain" type="Control"]
 layout_mode = 3
@@ -19,8 +13,10 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_demo_main")
 
-[node name="BGRect" type="ColorRect" parent="."]
-material = SubResource("ShaderMaterial_bg")
+[node name="BGRect" type="TextureRect" parent="."]
+texture = ExtResource("2_bg_tex")
+expand_mode = 1
+stretch_mode = 6
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -28,7 +24,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.1, 0.06, 0.18, 1)
+script = ExtResource("3_bg_theme")
 
 [node name="SceneContainer" type="Control" parent="."]
 layout_mode = 1
