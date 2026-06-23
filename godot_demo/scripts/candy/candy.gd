@@ -23,6 +23,13 @@ var _is_dragging: bool = false
 var _scale_tween: Tween = null
 
 func _ready() -> void:
+	# 主題(live 美術)就緒時強制重畫,否則已存在的糖果會沿用載入當下的貼圖,
+	# 要等到下一次 swap/match/掉落才換成新美術(看起來像「玩一陣子才全部置換」)。
+	if not ArtTheme.theme_ready.is_connected(_on_theme_ready):
+		ArtTheme.theme_ready.connect(_on_theme_ready)
+	queue_redraw()
+
+func _on_theme_ready() -> void:
 	queue_redraw()
 
 func init(color_idx: int, grid_position: Vector2i, type: CandyType = CandyType.NORMAL) -> void:
