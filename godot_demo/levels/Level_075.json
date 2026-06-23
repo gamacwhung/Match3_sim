@@ -14,63 +14,23 @@
     "middle": [
       [
         "TrafficCone_lv2",
-        "Pool_lv1#5",
-        "Pool_lv1#5",
+        "Pool_lv5#5",
+        "Pool_lv5#5",
         "Yel",
         "Red",
-        "Pool_lv1#6",
-        "Pool_lv1#6",
+        "Pool_lv5#6",
+        "Pool_lv5#6",
         "TrafficCone_lv2"
       ],
       [
         "TrafficCone_lv2",
-        "Pool_lv1#5",
-        "Pool_lv1#5",
+        "Pool_lv5#5",
+        "Pool_lv5#5",
         "Red",
         "Yel",
-        "Pool_lv1#6",
-        "Pool_lv1#6",
+        "Pool_lv5#6",
+        "Pool_lv5#6",
         "TrafficCone_lv2"
-      ],
-      [
-        "TrafficCone_lv2",
-        "TrafficCone_lv2",
-        "TrafficCone_lv2",
-        "Yel",
-        "Red",
-        "TrafficCone_lv2",
-        "TrafficCone_lv2",
-        "TrafficCone_lv2"
-      ],
-      [
-        "TrafficCone_lv2",
-        "TrafficCone_lv2",
-        "TrafficCone_lv2",
-        "Red",
-        "Yel",
-        "TrafficCone_lv2",
-        "TrafficCone_lv2",
-        "TrafficCone_lv2"
-      ],
-      [
-        "Pool_lv1#3",
-        "Pool_lv1#3",
-        "TrafficCone_lv2",
-        "Yel",
-        "Red",
-        "TrafficCone_lv2",
-        "Pool_lv1#4",
-        "Pool_lv1#4"
-      ],
-      [
-        "Pool_lv1#3",
-        "Pool_lv1#3",
-        "TrafficCone_lv2",
-        "Red",
-        "Yel",
-        "TrafficCone_lv2",
-        "Pool_lv1#4",
-        "Pool_lv1#4"
       ],
       [
         "TrafficCone_lv2",
@@ -86,6 +46,46 @@
         "TrafficCone_lv2",
         "TrafficCone_lv2",
         "TrafficCone_lv2",
+        "Red",
+        "Yel",
+        "TrafficCone_lv2",
+        "TrafficCone_lv2",
+        "TrafficCone_lv2"
+      ],
+      [
+        "Pool_lv5#3",
+        "Pool_lv5#3",
+        "TrafficCone_lv2",
+        "Yel",
+        "Red",
+        "TrafficCone_lv2",
+        "Pool_lv5#4",
+        "Pool_lv5#4"
+      ],
+      [
+        "Pool_lv5#3",
+        "Pool_lv5#3",
+        "TrafficCone_lv2",
+        "Red",
+        "Yel",
+        "TrafficCone_lv2",
+        "Pool_lv5#4",
+        "Pool_lv5#4"
+      ],
+      [
+        "TrafficCone_lv2",
+        "TrafficCone_lv2",
+        "TrafficCone_lv2",
+        "Yel",
+        "Red",
+        "TrafficCone_lv2",
+        "TrafficCone_lv2",
+        "TrafficCone_lv2"
+      ],
+      [
+        "TrafficCone_lv2",
+        "TrafficCone_lv2",
+        "TrafficCone_lv2",
         "TrafficCone_lv2",
         "TrafficCone_lv2",
         "TrafficCone_lv2",
@@ -94,22 +94,22 @@
       ],
       [
         "TrafficCone_lv2",
-        "Pool_lv1#1",
-        "Pool_lv1#1",
+        "Pool_lv5#1",
+        "Pool_lv5#1",
         "TrafficCone_lv2",
         "TrafficCone_lv2",
-        "Pool_lv1#2",
-        "Pool_lv1#2",
+        "Pool_lv5#2",
+        "Pool_lv5#2",
         "TrafficCone_lv2"
       ],
       [
         "TrafficCone_lv2",
-        "Pool_lv1#1",
-        "Pool_lv1#1",
+        "Pool_lv5#1",
+        "Pool_lv5#1",
         "TrafficCone_lv2",
         "TrafficCone_lv2",
-        "Pool_lv1#2",
-        "Pool_lv1#2",
+        "Pool_lv5#2",
+        "Pool_lv5#2",
         "TrafficCone_lv2"
       ]
     ],

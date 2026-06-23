@@ -403,6 +403,13 @@ class Match3Env:
         if gen_weights:
             self.board.generator_weights = gen_weights
 
+        # 障礙物 spawner（障礙雨）— 接給 board；把 goal 參考交給它，
+        # 讓它知道何時停止生成（盤面 + 已清除 >= 目標）。
+        self.board.spawners = data.get('spawners', []) or []
+        self.board._spawn_goals_required = self.goals_required
+        self.board._spawn_goals_current = self.goals_current
+        self.board._goal_key_fn = _normalize_goal_key
+
         board_data = data.get('board')
         if board_data is None:
             # 無盤面定義 → 隨機

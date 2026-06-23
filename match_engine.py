@@ -274,9 +274,19 @@ def _classify_pattern(board, positions, color):
         return 'FIVE_PLUS', pivot
 
     # --- L/T/+ 形 → TNT ---
-    # 在 positions 內找一個格子,該格 h_run≥3 且 v_run≥3
-    # 需 5+ 格才合成 TNT；4 格的小 L/T 不觸發
-    if len(positions) >= 5:
+    # 在 positions 內找一個格子,該格 h_run≥3 且 v_run≥2，需 5+ 格才合成 TNT。
+    # 但「含 2x2 方塊」的形狀(例如 xxx/xx：2x2 + 一格)視為 2x2 → 紙飛機(BLOCK_2x2)，不判 L_T。
+    _has_block = False
+    for _r, _c in positions:
+        for _dr in (0, -1):
+            for _dc in (0, -1):
+                _tr, _tc = _r + _dr, _c + _dc
+                if (_tr, _tc) in pos_set and (_tr, _tc + 1) in pos_set \
+                        and (_tr + 1, _tc) in pos_set and (_tr + 1, _tc + 1) in pos_set:
+                    _has_block = True
+        if _has_block:
+            break
+    if len(positions) >= 5 and not _has_block:
         for r, c in positions:
             h_run = 1
             cc = c + 1
@@ -658,9 +668,7 @@ def resolve(board: Board, track_goals=True, goals_current=None, goals_required=N
                 if not alive:
                     alive = set(tile.required_colors or [])
                 if tile.health >= 5:
-                    # 門關著:任一活著瓶色匹配 → 開門（不殺瓶）
-                    if alive and not (colors_hitting & alive):
-                        continue
+                    # 門關著:任何相鄰消除都能開門（不需對色；瓶子才需對色）。
                     bc_kill_color = None
                 else:
                     # 門開著:配色匹配某顆活著的瓶 → 殺那顆瓶
@@ -1143,7 +1151,7 @@ def activate_powerup(board: Board, r, c, goals_required=None,
         if not is_ltbl:
             cell = board.get_cell(tr, tc)
             # 水窪護盾：上層（Rope/Mud）若存在，這擊只清上層，水窪同 tick 不受傷
-            had_upper = cell.upper is not None
+            had_upper = cell.upper is not None or (cell.middle is not None and is_obstacle(cell.middle.tile_id))
             if cell.upper:
                 ud = get_def(cell.upper.tile_id)
                 if ud and ud.get('can_prop_elim', True):
@@ -1271,7 +1279,7 @@ def _process_powerup_chain(board, triggered_list, already_cleared,
             # 上層
             cell = board.get_cell(tr, tc)
             # 水窪護盾：上層存在 → 這擊只清上層，水窪同 tick 不受傷
-            had_upper = cell.upper is not None
+            had_upper = cell.upper is not None or (cell.middle is not None and is_obstacle(cell.middle.tile_id))
             if cell.upper:
                 ud = get_def(cell.upper.tile_id)
                 if ud and ud.get('can_prop_elim', True):
@@ -1425,7 +1433,7 @@ def combine_powerups(board: Board, r1, c1, r2, c2,
                 for c in range(board.cols):
                     cell = board.get_cell(r, c)
                     # 水窪護盾：上層存在 → 這擊只清上層，水窪同 tick 不受傷
-                    had_upper = cell.upper is not None
+                    had_upper = cell.upper is not None or (cell.middle is not None and is_obstacle(cell.middle.tile_id))
                     if cell.upper:
                         cell.upper.health -= 1
                         if cell.upper.health <= 0:
@@ -1499,7 +1507,7 @@ def _apply_combo_targets(board, targets, track_goals, goals_current, goals_requi
         # 道具消除也影響上/下層
         cell = board.get_cell(r, c)
         # 水窪護盾：上層存在 → 這擊只清上層，水窪同 tick 不受傷
-        had_upper = cell.upper is not None
+        had_upper = cell.upper is not None or (cell.middle is not None and is_obstacle(cell.middle.tile_id))
         if cell.upper:
             ud = get_def(cell.upper.tile_id)
             if ud and ud.get('can_prop_elim', True):
@@ -1617,6 +1625,17 @@ def find_valid_moves(board: Board):
 
                 t1 = grid[r][c].middle
                 t2 = grid[r2][c2].middle
+
+                # 滑進空洞：其中一格是空的(null 永久空位) → 只可能靠「移入後產生消除」成立。
+                # （can_swap 已放寬允許這種配對；這裡實際 swap 檢查有沒有消除，避免存取 None.tile_id。）
+                if t1 is None or t2 is None:
+                    board.swap(r, c, r2, c2)
+                    has_match = _has_match_near(board, r, c, r2, c2)
+                    board.swap(r, c, r2, c2)
+                    if has_match:
+                        moves.append({'pos1': (r, c), 'pos2': (r2, c2), 'type': 'match'})
+                    continue
+
                 p1 = t1.tile_id in pid_set
                 p2 = t2.tile_id in pid_set
 

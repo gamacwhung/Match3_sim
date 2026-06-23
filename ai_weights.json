@@ -1,0 +1,24 @@
+{
+  "weight_element": 1,
+  "weight_obstacle": 5,
+  "weight_goal_obstacle": 20,
+  "bonus_ltbl": 15,
+  "bonus_tnt": 8,
+  "bonus_soda": 5,
+  "bonus_trpr": 6,
+  "cost_normal_prop": 2,
+  "cost_rainbow": 10,
+  "endgame_obstacle_threshold": 10,
+  "combo_scores": {
+    "rainbow_rainbow": 999,
+    "rainbow_bomb": 999,
+    "rainbow_rocket": 999,
+    "rainbow_propeller": 999,
+    "bomb_bomb_area": "7x7",
+    "bomb_rocket_area": "cross_3",
+    "rocket_rocket_area": "cross_1",
+    "propeller_propeller_bonus": 3,
+    "propeller_bomb_area": "5x5",
+    "propeller_rocket_area": "line"
+  }
+}

@@ -171,14 +171,55 @@ def _build_system_prompt(params: dict) -> str:
 """
 
 
+def _balanced_brace_spans(text: str) -> list[str]:
+    """掃出所有「括號平衡」的頂層 {...} 子字串（忽略字串內的大括號）。"""
+    spans, depth, start, in_str, esc = [], 0, -1, False, False
+    for i, ch in enumerate(text):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == '\\':
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == '{':
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == '}':
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start >= 0:
+                    spans.append(text[start:i + 1])
+    return spans
+
+
 def extract_json_from_response(text: str) -> dict | None:
-    """從 AI 回應中提取 JSON"""
-    pattern = r'```json\s*([\s\S]*?)```'
-    for m in re.findall(pattern, text, re.IGNORECASE):
+    """從 AI 回應中提取 JSON（容錯：fenced 區塊 → 平衡括號候選 → 貪婪 fallback）。"""
+    # 1) ```json fenced 區塊
+    for m in re.findall(r'```json\s*([\s\S]*?)```', text, re.IGNORECASE):
         try:
             return json.loads(m.strip())
         except json.JSONDecodeError:
             continue
+    # 2) 任意 ``` fenced 區塊（內容像 JSON）
+    for m in re.findall(r'```\s*([\s\S]*?)```', text):
+        s = m.strip()
+        if s.startswith('{'):
+            try:
+                return json.loads(s)
+            except json.JSONDecodeError:
+                continue
+    # 3) 平衡括號候選：挑最大、可解析的（避開後面的「設計說明」等雜訊）
+    for s in sorted(_balanced_brace_spans(text), key=len, reverse=True):
+        try:
+            return json.loads(s)
+        except json.JSONDecodeError:
+            continue
+    # 4) 貪婪 fallback
     match = re.search(r'\{[\s\S]*\}', text)
     if match:
         try:
@@ -192,7 +233,7 @@ def extract_json_from_response(text: str) -> dict | None:
 # Google Gemini 呼叫
 # ---------------------------------------------------------------------------
 
-def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, image_media_type) -> str:
+def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, image_media_type, stream_callback=None) -> str:
     from google import genai
     from google.genai import types
 
@@ -230,18 +271,22 @@ def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, im
             parts = []
             for block in content:
                 if isinstance(block, dict):
-                    if block.get('type') == 'text':
+                    if block.get('type') == 'text' and block.get('text'):
                         parts.append(types.Part.from_text(text=block['text']))
                     elif block.get('type') == 'image':
                         src = block.get('source', {})
-                        if src.get('type') == 'base64':
+                        if src.get('type') == 'base64' and src.get('data'):
                             import base64 as b64mod
                             img_data = b64mod.b64decode(src['data'])
-                            parts.append(types.Part.from_bytes(
-                                data=img_data, mime_type=src['media_type']
-                            ))
-            contents.append(types.Content(role=role, parts=parts))
-        else:
+                            if img_data:
+                                parts.append(types.Part.from_bytes(
+                                    data=img_data, mime_type=src['media_type']
+                                ))
+            # 防呆：parts 全空時跳過此訊息，避免空 part 觸發 400 INVALID_ARGUMENT
+            if parts:
+                contents.append(types.Content(role=role, parts=parts))
+        elif content:
+            # 防呆：空/None 文字訊息不送（會造成空 part）
             contents.append(types.Content(
                 role=role,
                 parts=[types.Part.from_text(text=content)]
@@ -253,14 +298,67 @@ def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, im
             types.Part.from_bytes(data=image_bytes, mime_type=image_media_type)
         )
 
-    response = client.models.generate_content(
-        model=model,
-        contents=contents,
-        config=types.GenerateContentConfig(
+    # 開啟「思考」並要求把思考過程一起回傳(include_thoughts)：
+    # 思考歸思考、答案(JSON)歸答案 —— 既能即時顯示 AI 在想什麼(不再是空白長停頓)、
+    # 思考也能提升盤面品質，又不會把碎念混進 JSON 害解析失敗。
+    # thinking_config 在舊版 SDK / 不支援的模型上會失敗 → 自動 fallback。
+    def _build_config(with_thinking: bool):
+        kw = dict(
             system_instruction=system_prompt,
-            max_output_tokens=4096,
+            max_output_tokens=8192,
             temperature=0.9,
-        ),
+        )
+        if with_thinking:
+            kw['thinking_config'] = types.ThinkingConfig(include_thoughts=True)
+        return types.GenerateContentConfig(**kw)
+
+    try:
+        config = _build_config(True)
+    except Exception:
+        config = _build_config(False)
+
+    # 逐字串流：有 callback 時用 stream API，邊收邊回報。
+    # 把「思考」與「答案」分流：思考 → callback(text, is_thought=True) 只顯示不入庫；
+    # 答案 → 累積回傳(供解析 JSON)。
+    if stream_callback is not None:
+        answer_parts = []
+        thought_parts = []
+        for chunk in client.models.generate_content_stream(
+            model=model, contents=contents, config=config,
+        ):
+            cands = getattr(chunk, 'candidates', None) or []
+            if not cands:
+                continue
+            content = getattr(cands[0], 'content', None)
+            for part in (getattr(content, 'parts', None) or []):
+                txt = getattr(part, 'text', None)
+                if not txt:
+                    continue
+                is_thought = bool(getattr(part, 'thought', False))
+                if is_thought:
+                    thought_parts.append(txt)
+                else:
+                    answer_parts.append(txt)
+                try:
+                    stream_callback(txt, is_thought)
+                except TypeError:
+                    # 舊版 callback 只吃一個參數 → 思考不傳、只傳答案
+                    if not is_thought:
+                        try:
+                            stream_callback(txt)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+        answer_text = ''.join(answer_parts)
+        # 保險：萬一模型把 JSON 寫進「思考」而答案沒有 → 連思考一起回傳供解析，
+        # 才不會明明吐了 JSON 卻被判定「沒有有效 JSON」。
+        if '{' not in answer_text and thought_parts:
+            answer_text = ''.join(thought_parts) + '\n' + answer_text
+        return answer_text
+
+    response = client.models.generate_content(
+        model=model, contents=contents, config=config,
     )
     return response.text
 
@@ -385,9 +483,13 @@ def generate_level(
     image_bytes: bytes | None = None,
     image_media_type: str = 'image/png',
     model: str = DEFAULT_MODEL,
+    stream_callback=None,
 ) -> tuple:
     """
     呼叫 AI API 生成關卡（自動根據 model 路由到 OpenAI 或 Anthropic）。
+
+    stream_callback：傳入時，Gemini 會逐字串流，每收到一段文字就呼叫一次
+                     callback(piece)（目前只有 Gemini 路徑支援）。
 
     Returns:
         (assistant_text: str, level_dict: dict | None)
@@ -399,7 +501,7 @@ def generate_level(
     chat_history.append({'role': 'user', 'content': user_message})
 
     if provider == 'google':
-        assistant_text = _call_gemini(model, system_prompt, chat_history, image_bytes, image_media_type)
+        assistant_text = _call_gemini(model, system_prompt, chat_history, image_bytes, image_media_type, stream_callback=stream_callback)
     elif provider == 'anthropic':
         assistant_text = _call_anthropic(model, system_prompt, chat_history, image_bytes, image_media_type)
     else:

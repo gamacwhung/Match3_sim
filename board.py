@@ -125,6 +125,12 @@ class Board:
         self.manufacturer_produced = {}  # {tile_id: count}
         # 元素生成器參數
         self.generator_weights = None  # None=均等, 或 {tile_id: weight} 含顏色和非元素物件
+        # 障礙物 spawner（障礙雨）— 對齊 Godot board_filler 的 _try_spawn_obstacle。
+        # 每個 spawner: {spawn_cols, elements:[{tile_id,ratio}], set_ratio, total_weight}
+        self.spawners = []
+        self._spawn_goals_required = {}   # 由 env 設為參考 → 用來判斷 spawner 是否該停
+        self._spawn_goals_current = {}    # 同上（已清除數）
+        self._goal_key_fn = None          # tile_id → goal key 正規化函式（由 env 注入）
 
     def new_instance_id(self) -> int:
         iid = self._next_instance_id
@@ -319,16 +325,73 @@ class Board:
                                 overall_moved = True
 
     def fill_top(self):
-        """填充頂部空格（void 格略過,但不結束往下找）"""
+        """填充頂部空格（void 格略過,但不結束往下找）。
+        有 spawner 的欄：新落下的格子依機率改生障礙物（障礙雨）。"""
         for c in range(self.cols):
             for r in range(self.rows):
                 cell = self.grid[r][c]
                 if cell.is_void:
                     continue
                 if cell.middle is None:
-                    cell.middle = self.random_element()
+                    spawned = self._try_spawn_obstacle(c) if self.spawners else None
+                    cell.middle = spawned if spawned is not None else self.random_element()
                 else:
                     break  # 遇到非空非 void 就停
+
+    # ----- 障礙物 spawner（障礙雨）— 對齊 Godot board_filler -----
+
+    def _goal_key(self, tile_id: str) -> str:
+        return self._goal_key_fn(tile_id) if self._goal_key_fn else tile_id
+
+    def _count_family_on_board(self, key: str) -> int:
+        n = 0
+        for r in range(self.rows):
+            for c in range(self.cols):
+                m = self.grid[r][c].middle
+                if m is not None and self._goal_key(m.tile_id) == key:
+                    n += 1
+        return n
+
+    def _spawner_goal_satisfied(self, elements) -> bool:
+        """spawner 對應的目標是否已（盤面 + 已清除）達標 → 達標就停止生成。"""
+        for e in elements:
+            tid = str(e.get('tile_id', ''))
+            if not tid:
+                continue
+            key = self._goal_key(tid)
+            if key not in self._spawn_goals_required:
+                continue
+            target = self._spawn_goals_required.get(key, 0)
+            current = self._spawn_goals_current.get(key, 0)
+            on_board = self._count_family_on_board(key)
+            if current + on_board >= target:
+                return True
+        return False
+
+    def _try_spawn_obstacle(self, col: int):
+        """某欄要補新格時，依 spawner 機率回傳要生成的障礙 Tile；否則 None（生一般元素）。"""
+        for s in self.spawners:
+            if col not in s.get('spawn_cols', []):
+                continue
+            elements = s.get('elements', [])
+            if not elements:
+                continue
+            if self._spawner_goal_satisfied(elements):
+                continue
+            set_ratio = int(s.get('set_ratio', 1))
+            total_weight = int(s.get('total_weight', set_ratio)) or set_ratio
+            if random.random() >= set_ratio / total_weight:
+                continue
+            total_ratio = sum(int(e.get('ratio', 1)) for e in elements)
+            if total_ratio <= 0:
+                continue
+            roll = random.randrange(total_ratio)
+            accum = 0
+            for e in elements:
+                accum += int(e.get('ratio', 1))
+                if roll < accum:
+                    return Tile(str(e.get('tile_id', '')))
+        return None
 
     # ----- 交換 -----
 
@@ -355,8 +418,16 @@ class Board:
         if cell1.has_mud() or cell2.has_mud():
             return False
         t1, t2 = cell1.middle, cell2.middle
-        if t1 is None or t2 is None:
+        # 兩格都空 → 不可
+        if t1 is None and t2 is None:
             return False
+        # 一格是「空洞」(null，非 void，重力填不到的永久空位)：允許把另一格的可移動
+        # 物件滑進去。是否真的合法仍由「換完要產生消除」把關（step 的普通交換分支
+        # 沒消除會換回），所以只有元素能湊出消除時才成立。
+        if t1 is None or t2 is None:
+            filled = t2 if t1 is None else t1
+            return (is_movable(filled.tile_id) or is_element(filled.tile_id)
+                    or is_powerup(filled.tile_id))
         # 至少一個可移動
         m1 = is_movable(t1.tile_id) or is_element(t1.tile_id) or is_powerup(t1.tile_id)
         m2 = is_movable(t2.tile_id) or is_element(t2.tile_id) or is_powerup(t2.tile_id)
