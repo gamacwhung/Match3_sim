@@ -11,21 +11,35 @@ extends CanvasLayer
 @onready var star3: Node2D = $TopBar/ScoreBar/Star3
 
 const FONT_PATH: String = "res://resources/fonts/NotoSansTC-Regular.otf"
-const POSTMARK_CARD_TEX: Texture2D = preload("res://resources/sprites/Postmark_card.png")
 
-# 目標列用障礙物圖示(玩家不需記名稱)
-const OBJECTIVE_ICONS: Dictionary = {
-	"Crt": preload("res://resources/sprites/Crt1.png"),
+# 目標列 family → sprite stem(執行時由 ArtTheme 套上 live 覆蓋)
+const OBJECTIVE_ICON_STEMS: Dictionary = {
+	"Crt": "Crt1",
+	"Barrel": "Barrel",
+	"TrafficCone": "TrafficCone_lv1",
+	"SalmonCan": "SalmonCan",
+	"Stamp": "Postmark_goal",
+	"WaterChiller": "WaterChiller_closed",
+	"BeverageChiller": "BeverageChiller_closed",
+	"Pool": "Pool_lv5",
+	"Puddle": "Puddle_lv1",
+	"Rope": "Rope_lv1",
+	"Mud": "Mud",
+}
+
+const _FALLBACK_OBJECTIVE_TEXTURES: Dictionary = {
+	"Crt1": preload("res://resources/sprites/Crt1.png"),
 	"Barrel": preload("res://resources/sprites/Barrel.png"),
-	"TrafficCone": preload("res://resources/sprites/TrafficCone_lv1.png"),
+	"TrafficCone_lv1": preload("res://resources/sprites/TrafficCone_lv1.png"),
 	"SalmonCan": preload("res://resources/sprites/SalmonCan.png"),
-	"Stamp": preload("res://resources/sprites/Postmark_goal.png"),
-	"WaterChiller": preload("res://resources/sprites/WaterChiller_closed.png"),
-	"BeverageChiller": preload("res://resources/sprites/BeverageChiller_closed.png"),
-	"Pool": preload("res://resources/sprites/Pool_lv5.png"),
-	"Puddle": preload("res://resources/sprites/Puddle_lv1.png"),
-	"Rope": preload("res://resources/sprites/Rope_lv1.png"),
+	"Postmark_goal": preload("res://resources/sprites/Postmark_goal.png"),
+	"WaterChiller_closed": preload("res://resources/sprites/WaterChiller_closed.png"),
+	"BeverageChiller_closed": preload("res://resources/sprites/BeverageChiller_closed.png"),
+	"Pool_lv5": preload("res://resources/sprites/Pool_lv5.png"),
+	"Puddle_lv1": preload("res://resources/sprites/Puddle_lv1.png"),
+	"Rope_lv1": preload("res://resources/sprites/Rope_lv1.png"),
 	"Mud": preload("res://resources/sprites/Mud.png"),
+	"Postmark_card": preload("res://resources/sprites/Postmark_card.png"),
 }
 
 var _font: FontFile = null
@@ -47,6 +61,8 @@ func _ready() -> void:
 	star1.draw.connect(func(): _draw_star(star1, 0))
 	star2.draw.connect(func(): _draw_star(star2, 1))
 	star3.draw.connect(func(): _draw_star(star3, 2))
+	if not ArtTheme.theme_ready.is_connected(_on_theme_ready):
+		ArtTheme.theme_ready.connect(_on_theme_ready)
 
 
 func _apply_font_overrides() -> void:
@@ -145,11 +161,39 @@ func _build_objective_icons(objectives: Array) -> void:
 	_update_objective_icons(objectives)
 
 
+func _on_theme_ready() -> void:
+	_refresh_objective_textures()
+
+
+func _refresh_objective_textures() -> void:
+	for key in _objective_widgets:
+		var w: Dictionary = _objective_widgets[key]
+		var icon: TextureRect = w.get("icon")
+		if icon == null:
+			continue
+		var obj_ref: Dictionary = w.get("obj_ref", {})
+		var obj_type: String = str(obj_ref.get("type", ""))
+		icon.texture = _icon_for_family(key, obj_type)
+
+
+static func _named_or(name: String, fallback: Texture2D) -> Texture2D:
+	if ArtTheme.has_named_texture(name):
+		return ArtTheme.get_named_texture(name)
+	return fallback
+
+
+func _texture_for_stem(stem: String) -> Texture2D:
+	var fallback: Texture2D = _FALLBACK_OBJECTIVE_TEXTURES.get(stem)
+	if fallback == null:
+		return null
+	return _named_or(stem, fallback)
+
+
 func _icon_for_family(family: String, obj_type: String) -> Texture2D:
-	if family != "" and OBJECTIVE_ICONS.has(family):
-		return OBJECTIVE_ICONS[family]
+	if family != "" and OBJECTIVE_ICON_STEMS.has(family):
+		return _texture_for_stem(OBJECTIVE_ICON_STEMS[family])
 	if obj_type == "clear_manufacturer":
-		return OBJECTIVE_ICONS.get("Stamp", null)
+		return _texture_for_stem("Postmark_goal")
 	return null
 
 
@@ -237,7 +281,7 @@ func _format_objective_count(obj: Dictionary, cur: int, tgt: int, remaining: int
 
 
 func play_objective_fly(from_global: Vector2, family: String) -> void:
-	var tex: Texture2D = POSTMARK_CARD_TEX if family == "Stamp" else _icon_for_family(family, "")
+	var tex: Texture2D = _texture_for_stem("Postmark_card") if family == "Stamp" else _icon_for_family(family, "")
 	if tex == null:
 		return
 	var target: Vector2 = _objective_fly_target(family)
