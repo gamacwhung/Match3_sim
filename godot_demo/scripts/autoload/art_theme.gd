@@ -2,7 +2,8 @@ extends Node
 ##
 ## ArtTheme — runtime sprite overrides for AI-generated art.
 ##
-## Web: loads godot_demo/web/live_sprites/*.png over packed defaults.
+## Web: loads godot_demo/web/live_sprites/*.png only when URL has ?live=1
+##      (AI Art Lab sets this after「套用到遊戲」; normal page load uses packed defaults).
 ## Editor / desktop: uses res://resources/sprites/ (live folder ignored).
 ##
 
@@ -44,8 +45,9 @@ func reload() -> void:
 	_named.clear()
 	_load_packed_defaults()
 	if OS.has_feature("web"):
-		await _apply_live_overrides()
-		# 通知開機 splash:live 美術已全部載入,可以收掉進度條了
+		if _live_requested():
+			await _apply_live_overrides()
+		# 通知開機 splash:packed(或 live)美術就緒,可以收掉進度條
 		JavaScriptBridge.eval("window._artThemeReady=true;", true)
 	theme_ready.emit()
 
@@ -130,6 +132,20 @@ func _fetch_manifest(base_url: String) -> Array:
 func _js_progress(current: int, total: int) -> void:
 	# 回報 live 美術載入進度給開機 splash 的進度條
 	JavaScriptBridge.eval("window._artThemeProgress={current:%d,total:%d};" % [current, total], true)
+
+
+func _live_requested() -> bool:
+	if not OS.has_feature("web"):
+		return false
+	var js := """
+	(function() {
+	  var q = new URLSearchParams(window.location.search);
+	  var v = q.get('live');
+	  return v === '1' || v === 'true';
+	})()
+	"""
+	var result = JavaScriptBridge.eval(js, true)
+	return bool(result)
 
 
 func _live_base_url() -> String:

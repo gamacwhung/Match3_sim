@@ -115,7 +115,7 @@ const IN_IFRAME = window.self !== window.top;
 if (IN_IFRAME) {
 	document.body.classList.add('in-iframe');
 }
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":94454380,"index.wasm":39509339},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":94494172,"index.wasm":39509339},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -214,7 +214,7 @@ const engine = new Engine(GODOT_CONFIG);
 				}
 			},
 		}).then(() => {
-			// 等 ArtTheme 抓完 live 美術(或逾時)再收掉 splash 進度條
+			// 等 ArtTheme 就緒(僅 ?live=1 時會抓 live 美術;否則立即就緒)
 			const artStart = Date.now();
 			const pollArt = () => {
 				if (window._artThemeReady || Date.now() - artStart > 20000) {

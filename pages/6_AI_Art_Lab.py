@@ -7,8 +7,7 @@ AI Game Art Lab — 生成三消基本元素美術,即時套用到遊戲。
 流程:生成 → 套用到遊戲 → 右側盤面即時更新(可點擊交換試玩)
 
 前置:./run.sh  (Streamlit 8501)
-備註:Godot web build 的新美術需 CI 重新 Export(含 ArtTheme autoload)才會生效,
-      本機可玩盤面則即時生效,不需重新匯出。
+備註:Godot 預覽預設用 pck 打包美術;按「套用到遊戲」後 iframe 才帶 ?live=1 載入 live_sprites。
 """
 
 from __future__ import annotations
@@ -39,6 +38,7 @@ st.set_page_config(
 
 GODOT_PORT = 8765
 GODOT_URL = f'http://localhost:{GODOT_PORT}/'
+LIVE_SPRITES_DIR = _ROOT / 'godot_demo' / 'web' / 'live_sprites'
 GODOT_VIEWPORT_W = 720
 GODOT_VIEWPORT_H = 1280
 
@@ -212,6 +212,18 @@ def _godot_up() -> bool:
             return True
     except OSError:
         return False
+
+
+def _godot_embed_url() -> str:
+    """Godot iframe URL; ?live=1 only after「套用到遊戲」so web load skips live_sprites."""
+    buster = st.session_state.art_godot_buster
+    params = [f'v={buster}']
+    if st.session_state.art_applied_run:
+        params.append('live=1')
+        rev_path = LIVE_SPRITES_DIR / 'revision.txt'
+        if rev_path.is_file():
+            params.append(f'rev={rev_path.read_text(encoding="utf-8").strip()}')
+    return f'{GODOT_URL}?{"&".join(params)}'
 
 
 # ---------------------------------------------------------------------------
@@ -739,6 +751,7 @@ def _render_advanced_inner() -> None:
             api.restore_original_art()
             st.session_state.art_asset_version = int(time.time())
             st.session_state.art_applied_run = None
+            st.session_state.art_godot_buster = int(time.time())
             st.toast(f'已還原遊戲預設（{api.default_packed_art_run()}）', icon='↩️')
             st.rerun()
         except Exception as exc:
@@ -768,6 +781,7 @@ def _apply_to_game() -> None:
         st.session_state.art_asset_version = int(time.time())
         st.session_state.art_godot_buster = int(time.time())
         st.toast('已套用 — 右側遊戲預覽已重新載入', icon='🎮')
+        st.rerun()
     except Exception as exc:
         progress.empty()
         status.empty()
@@ -905,8 +919,7 @@ def _render_godot_embed() -> None:
     _render_before_after_strip()
 
     if _godot_up():
-        buster = st.session_state.art_godot_buster
-        embed_url = f'{GODOT_URL}?v={buster}'
+        embed_url = _godot_embed_url()
         # iframe 維持與 Godot 專案相同的直向比例,避免 expand 裁切左右
         components.html(
             f'''
@@ -930,7 +943,7 @@ def _render_godot_embed() -> None:
             height=int(520 * GODOT_VIEWPORT_H / GODOT_VIEWPORT_W),
             scrolling=False,
         )
-        st.caption('Godot 本機渲染 — 套用美術後會自動重新載入預覽')
+        st.caption('Godot 本機渲染 — 套用美術後會以 live 覆蓋重新載入預覽')
     else:
         st.warning('遊戲預覽未啟動。請在專案根目錄執行：')
         st.code('./run.sh', language='bash')
