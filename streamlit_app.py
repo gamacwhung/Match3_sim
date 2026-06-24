@@ -42,7 +42,14 @@ st.set_page_config(
     initial_sidebar_state='collapsed',
 )
 
-GODOT_DEMO_URL = 'https://gamacwhung.github.io/Match3_sim/'
+# 遊戲 iframe 來源：
+#   預設 = GitHub Pages(公開站，同事 main 版)。
+#   本機測試「整個網站 pipeline + 自己分支的 Godot」時，設環境變數 BOOTH_GODOT_LOCAL=1
+#   並另開 `python serve_godot_local.py`(localhost:8765 服務本機 godot_demo/web/)。
+GODOT_PAGES_URL = 'https://gamacwhung.github.io/Match3_sim/'
+GODOT_LOCAL_URL = 'http://localhost:8765/'
+_USE_LOCAL_GODOT = os.environ.get('BOOTH_GODOT_LOCAL', '0') == '1'
+GODOT_DEMO_URL = GODOT_LOCAL_URL if _USE_LOCAL_GODOT else GODOT_PAGES_URL
 
 # ── 後台設定：生成用模型（改這一行即可換模型）──────────────────────
 # 攤位用 Flash 求速度；要更高品質改成 'gemini-2.5-pro' 或 'gemini-3.1-pro-preview'。
@@ -483,7 +490,8 @@ def main():
         # Godot iframe — 一進頁面就載入（不用等關卡）
         st.markdown('##### 遊戲區')
         GODOT_IFRAME_KEY = 'godot_game_iframe'
-        godot_url = f'{GODOT_DEMO_URL}'
+        # ?booth=1 → Godot 進攤位模式(待機畫面/不顯示官方選單/結束回待機)
+        godot_url = f'{GODOT_DEMO_URL}?booth=1'
         st.components.v1.iframe(godot_url, height=650, scrolling=False)
 
         level = st.session_state.booth_level

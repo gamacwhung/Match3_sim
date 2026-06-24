@@ -52,7 +52,27 @@ _COMBO = _W.get('combo_scores', {})
 # Public API
 # ===========================================================================
 
-def find_best_action(env, *, rng: Optional[random.Random] = None) -> Optional[dict]:
+def _reason_for(action: dict, board) -> str:
+    """推論一個動作的「決策類別」(給報表/解說用,不影響選擇)。"""
+    if action.get('type') == 'activate':
+        return '啟動道具'
+    p1 = action.get('pos1'); p2 = action.get('pos2')
+    t1 = board.get_middle(*p1) if p1 else None
+    t2 = board.get_middle(*p2) if p2 else None
+    id1 = t1.tile_id if t1 else ''
+    id2 = t2.tile_id if t2 else ''
+    if is_powerup(id1) and is_powerup(id2):
+        return '道具合成'
+    if id1 == 'LtBl' or id2 == 'LtBl':
+        return '紙風車炸色'
+    if is_powerup(id1) or is_powerup(id2):
+        return '戰術佈局'
+    return '消除得分'
+
+
+def find_best_action(env, *, rng: Optional[random.Random] = None, explain: bool = False):
+    """選最佳動作。explain=False(預設)回傳 action dict(或 None);
+    explain=True 回傳 (action, score, reason) 供報表/解說使用。"""
     if rng is None:
         rng = random
 
@@ -137,13 +157,16 @@ def find_best_action(env, *, rng: Optional[random.Random] = None) -> Optional[di
                 candidates.append((score, {'type': 'activate', 'pos': (r, c)}))
 
     if not candidates:
-        return None
+        return (None, 0.0, '') if explain else None
 
     # 取最高分（同分隨機）
     candidates.sort(key=lambda x: x[0], reverse=True)
     top_score = candidates[0][0]
     top = [c for c in candidates if c[0] == top_score]
-    return rng.choice(top)[1]
+    chosen = rng.choice(top)
+    if explain:
+        return chosen[1], chosen[0], _reason_for(chosen[1], board)
+    return chosen[1]
 
 
 # ===========================================================================
