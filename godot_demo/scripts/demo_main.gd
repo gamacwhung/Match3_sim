@@ -39,6 +39,21 @@ var current_board: Node2D = null
 # 結束/Menu 也回到待機畫面，不掉回官方選關。
 var _booth_mode: bool = false
 var _idle_ui: CanvasLayer = null
+var _hint_ui: CanvasLayer = null
+
+# 機制提示（新手看不懂的障礙才提示；單純的 Crt 不提示）。家族名 → 一句白話玩法。
+const _MECHANIC_HINTS: Dictionary = {
+	"SalmonCan": "鮪魚罐頭只能用道具（火箭／TNT／紙飛機）打掉",
+	"BeverageChiller": "飲料櫃：消除對應顏色的瓶子來開門",
+	"WaterChiller": "冰箱櫃：在旁邊消除來敲開它",
+	"Puddle": "水窪：消除它正上方的元素就能清掉",
+	"Pool": "水池：血量高，要在旁邊多消幾次",
+	"Rope": "繩索：消除被綁住格子旁的元素來解開",
+	"Mud": "泥巴：消除旁邊的元素來清除",
+	"Stamp": "郵戳：在它旁邊消除來觸發",
+	"Barrel": "木桶：可以推到旁邊、或在旁邊消除",
+	"TrafficCone": "三角錐：可以推到旁邊、或在旁邊消除",
+}
 
 @onready var scene_container: Control = $SceneContainer
 
@@ -248,6 +263,88 @@ func _show_idle_screen() -> void:
 	tw.tween_property(hint, "modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_SINE)
 
 
+static func _tile_family(tile_id: String) -> String:
+	var s := tile_id.split("#")[0]
+	var lv_idx := s.find("_lv")
+	if lv_idx >= 0:
+		return s.substr(0, lv_idx)
+	var i := s.length()
+	while i > 0 and s.substr(i - 1, 1).is_valid_int():
+		i -= 1
+	return s.substr(0, i) if i > 0 else s
+
+
+func _show_mechanic_hint(level_data) -> void:
+	# 依關卡目標中的「需提示障礙」顯示底部非侵入提示；多個則輪播。
+	if _hint_ui != null:
+		_hint_ui.queue_free()
+		_hint_ui = null
+	var hints: Array[String] = []
+	var seen: Dictionary = {}
+	var objs = []
+	if level_data and "objectives" in level_data:
+		objs = level_data.objectives
+	for obj in objs:
+		var tid := str(obj.get("tile_id", ""))
+		if tid == "":
+			continue
+		var fam := _tile_family(tid)
+		if _MECHANIC_HINTS.has(fam) and not seen.has(fam):
+			seen[fam] = true
+			hints.append(str(_MECHANIC_HINTS[fam]))
+	if hints.is_empty():
+		return
+
+	var font = load("res://resources/fonts/NotoSansTC-Regular.otf") as Font
+	_hint_ui = CanvasLayer.new()
+	_hint_ui.layer = 18
+	add_child(_hint_ui)
+
+	var panel = PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	panel.offset_left = 40
+	panel.offset_right = -40
+	panel.offset_top = -72
+	panel.offset_bottom = -18
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = Color(0.10, 0.08, 0.16, 0.86)
+	sb.border_color = Color(0.5, 0.45, 0.75, 0.8)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(10)
+	sb.set_content_margin_all(10)
+	panel.add_theme_stylebox_override("panel", sb)
+	_hint_ui.add_child(panel)
+
+	var lb = Label.new()
+	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if font:
+		lb.add_theme_font_override("font", font)
+	lb.add_theme_font_size_override("font_size", 20)
+	lb.add_theme_color_override("font_color", Color(1, 0.95, 0.7))
+	lb.text = "提示：" + hints[0]
+	panel.add_child(lb)
+
+	# 淡入
+	panel.modulate.a = 0.0
+	var tw = create_tween()
+	tw.tween_property(panel, "modulate:a", 1.0, 0.4)
+
+	# 多個提示 → 每 4 秒輪播一句
+	if hints.size() > 1:
+		var state := {"i": 0}
+		var timer := Timer.new()
+		timer.wait_time = 4.0
+		timer.autostart = true
+		_hint_ui.add_child(timer)
+		timer.timeout.connect(func():
+			if not is_instance_valid(lb):
+				return
+			state.i = (int(state.i) + 1) % hints.size()
+			lb.text = "提示：" + hints[int(state.i)]
+		)
+
+
 func _show_level_select(from_game: bool = false) -> void:
 	# from_game = true 時表示「從遊戲中按選關」,需要顯示「取消」按鈕,
 	# 也不能 _clear_current()(否則當前關卡狀態被毀,取消就回不去)
@@ -391,6 +488,9 @@ func _clear_current() -> void:
 	if _idle_ui:
 		_idle_ui.queue_free()
 		_idle_ui = null
+	if _hint_ui:
+		_hint_ui.queue_free()
+		_hint_ui = null
 	current_board = null
 
 
@@ -432,6 +532,7 @@ func _start_level_from_dict(data: Dictionary) -> void:
 	scene_container.add_child(hud)
 	hud.setup(level_data)
 
+	_show_mechanic_hint(level_data)
 	_show_menu_button()
 
 	GameManager.level_completed.connect(_on_level_completed)
@@ -482,6 +583,7 @@ func _start_level(idx: int) -> void:
 	scene_container.add_child(hud)
 	hud.setup(level_data)
 
+	_show_mechanic_hint(level_data)
 	_show_menu_button()
 
 	GameManager.level_completed.connect(_on_level_completed)
