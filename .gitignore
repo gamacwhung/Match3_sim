@@ -70,10 +70,13 @@ godot_demo/.demo_logs/
 ai_test_reports/
 *.ai_report.json
 
-# AI 美術生成(staging 結果 + 原版備份不 commit;manifest 是生成物)
+# AI 美術生成
 generated_art/
 godot_demo/resources/sprites_original_backup/
 art_pipeline/asset_manifest.json
 
 # Python venv
 .venv/
+# AI 生成美術(本機產物,勿進版控,檔案大)
+test_pixel_art.zip
+*.zip
