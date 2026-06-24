@@ -84,3 +84,7 @@ test_pixel_art.zip
 # 機密/本機美術備份,絕不進版控
 godot_demo/web/live_sprites.local.bak/
 godot_demo/web/live_sprites/*.png
+
+# AI 破關示意影片(本機產物,大檔)
+ai_solve_*.mp4
+ai_solve_*.gif

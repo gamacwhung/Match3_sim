@@ -96,9 +96,12 @@ class Match3Env:
     # step
     # ------------------------------------------------------------------
 
-    def step(self, action):
+    def step(self, action, frame_cb=None):
         """
         執行一步動作。
+
+        frame_cb: 可選 callable(phase, board) — 穿給 match_engine.resolve 做逐階段截幀
+                  (動畫用)。預設 None → 不影響原行為。
 
         Args:
             action: dict
@@ -140,7 +143,7 @@ class Match3Env:
                 )
                 self.board.apply_gravity()
                 self.board.fill_top()
-                all_chains.extend(match_engine.resolve(self.board).get('chains', []))
+                all_chains.extend(match_engine.resolve(self.board, frame_cb=frame_cb).get('chains', []))
                 self.steps_taken += 1
 
             # 紙風車 + 元素
@@ -155,7 +158,7 @@ class Match3Env:
                 )
                 self.board.apply_gravity()
                 self.board.fill_top()
-                all_chains.extend(match_engine.resolve(self.board).get('chains', []))
+                all_chains.extend(match_engine.resolve(self.board, frame_cb=frame_cb).get('chains', []))
                 self.steps_taken += 1
 
             # 道具 + 非道具：道具在新位置啟動
@@ -179,7 +182,7 @@ class Match3Env:
                     )
                 self.board.apply_gravity()
                 self.board.fill_top()
-                all_chains.extend(match_engine.resolve(self.board).get('chains', []))
+                all_chains.extend(match_engine.resolve(self.board, frame_cb=frame_cb).get('chains', []))
                 self.steps_taken += 1
 
             else:
@@ -191,7 +194,7 @@ class Match3Env:
                     self.board.swap(r1, c1, r2, c2)
                     return self._get_state(), -1, False, {'msg': 'no match'}
 
-                all_chains.extend(match_engine.resolve(self.board).get('chains', []))
+                all_chains.extend(match_engine.resolve(self.board, frame_cb=frame_cb).get('chains', []))
                 self.steps_taken += 1
 
         elif action_type == 'activate':
@@ -206,7 +209,7 @@ class Match3Env:
             )
             self.board.apply_gravity()
             self.board.fill_top()
-            all_chains.extend(match_engine.resolve(self.board).get('chains', []))
+            all_chains.extend(match_engine.resolve(self.board, frame_cb=frame_cb).get('chains', []))
             self.steps_taken += 1
 
         else:

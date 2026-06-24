@@ -545,9 +545,13 @@ PATTERN_TO_POWERUP = {
 }
 
 
-def resolve(board: Board, track_goals=True, goals_current=None, goals_required=None):
+def resolve(board: Board, track_goals=True, goals_current=None, goals_required=None,
+            frame_cb=None):
     """
     主消除循環: 消除 → 鄰邊消除 → 原地消除 → 道具觸發 → 重力 → 填充 → repeat
+
+    frame_cb: 可選 callable(phase: str, board) — 在每輪連鎖的「消除後/重力後/填充後」
+              被呼叫，供外部逐階段截幀做動畫。預設 None → 完全不影響原行為。
 
     Returns:
         dict: {
@@ -755,9 +759,17 @@ def resolve(board: Board, track_goals=True, goals_current=None, goals_required=N
             'powerups_created': [(pid, pos) for pid, pos in chain_pups],
         })
 
+        # 消除後(含障礙受傷/道具觸發)的盤面 — 截幀做「消除淡出」動畫
+        if frame_cb is not None:
+            frame_cb('cleared', board)
+
         # 重力 + 填充
         board.apply_gravity()
+        if frame_cb is not None:
+            frame_cb('gravity', board)   # 截幀做「掉落滑動」動畫
         board.fill_top()
+        if frame_cb is not None:
+            frame_cb('fill', board)      # 截幀做「補新元素掉入」動畫
 
     return {
         'eliminated': total_eliminated,
