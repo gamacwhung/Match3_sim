@@ -40,6 +40,10 @@ var current_board: Node2D = null
 var _booth_mode: bool = false
 var _idle_ui: CanvasLayer = null
 var _hint_ui: CanvasLayer = null
+# attract mode：待機一段時間沒人玩 → AI 自動試玩一關循環吸引人
+var _in_attract: bool = false
+var _attract_timer: Timer = null
+const _ATTRACT_IDLE_SEC := 12.0   # 待機畫面停這麼久沒互動 → 開始 AI 自動試玩
 
 # 機制提示（新手看不懂的障礙才提示；單純的 Crt 不提示）。家族名 → 一句白話玩法。
 const _MECHANIC_HINTS: Dictionary = {
@@ -262,6 +266,48 @@ func _show_idle_screen() -> void:
 	tw.tween_property(hint, "modulate:a", 0.35, 0.9).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(hint, "modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_SINE)
 
+	# 待機一段時間沒人玩 → 啟動 attract(AI 自動試玩)
+	_start_attract_timer()
+
+
+func _start_attract_timer() -> void:
+	_cancel_attract_timer()
+	if not _booth_mode:
+		return   # 只有攤位模式才自動 attract
+	_attract_timer = Timer.new()
+	_attract_timer.one_shot = true
+	_attract_timer.wait_time = _ATTRACT_IDLE_SEC
+	add_child(_attract_timer)
+	_attract_timer.timeout.connect(_start_attract)
+	_attract_timer.start()
+
+
+func _cancel_attract_timer() -> void:
+	if _attract_timer != null:
+		_attract_timer.queue_free()
+		_attract_timer = null
+
+
+func _start_attract() -> void:
+	if _level_paths.is_empty() or not _booth_mode:
+		return
+	_in_attract = true
+	# 挑前幾關官方關卡來自動試玩(較好看)
+	var idx := randi() % mini(_level_paths.size(), 10)
+	_start_level(idx)   # 會 _clear_current(含 idle)、清 _custom_level_data
+	# 啟動 AI 自動解
+	await get_tree().create_timer(1.0).timeout
+	if _in_attract and current_board and current_board.has_method("start_ai_mode"):
+		current_board.start_ai_mode(0.7)
+
+
+func _schedule_attract_return() -> void:
+	# attract 那關結束後,稍等一下回待機畫面 → 又會啟動 attract → 循環
+	await get_tree().create_timer(2.5).timeout
+	if _in_attract:
+		_in_attract = false
+		_show_idle_screen()
+
 
 static func _tile_family(tile_id: String) -> String:
 	var s := tile_id.split("#")[0]
@@ -369,6 +415,8 @@ func _on_level_select_cancelled() -> void:
 
 
 func _on_level_button_pressed(idx: int) -> void:
+	_in_attract = false
+	_cancel_attract_timer()
 	if level_select_ui != null:
 		level_select_ui.queue_free()
 		level_select_ui = null
@@ -496,6 +544,9 @@ func _clear_current() -> void:
 
 func _start_level_from_dict(data: Dictionary) -> void:
 	"""從 URL 參數/postMessage 傳入的 level dict 直接載入遊戲"""
+	# 有真實關卡推進來 → 中止 attract 自動試玩
+	_in_attract = false
+	_cancel_attract_timer()
 	_custom_level_data = data.duplicate(true)  # 記住 → 重玩本關時重載這關，不掉回官方關
 	_clear_current()
 	var level_data = JsonLevelLoader.parse_level_dict(data)
@@ -594,9 +645,17 @@ func _on_level_completed(_level_id: int, score: int, stars: int) -> void:
 	var audio = get_node_or_null("/root/AudioManager")
 	if audio and audio.has_method("play_level_complete_sound"):
 		audio.play_level_complete_sound()
+	_disconnect_game_signals()
+	# attract 模式(idle 自動試玩)：不顯示結算，稍後回待機畫面循環
+	if _in_attract:
+		_schedule_attract_return()
+		return
 	level_complete_ui = level_complete_scene.instantiate()
 	scene_container.add_child(level_complete_ui)
 	level_complete_ui.show_result(score, stars)
+	# AI 評語(收尾)
+	if level_complete_ui.has_method("set_critique"):
+		level_complete_ui.set_critique(_make_critique(stars))
 	# 攤位模式（玩 AI 生成的關卡）：只給「再玩一次」，不跳官方下一關 / 選單
 	if not _custom_level_data.is_empty() and level_complete_ui.has_method("set_booth_mode"):
 		level_complete_ui.set_booth_mode()
@@ -604,19 +663,32 @@ func _on_level_completed(_level_id: int, score: int, stars: int) -> void:
 	level_complete_ui.retry_pressed.connect(_retry_level)
 	# menu_pressed → demo 沒有 menu,直接重新從 #0 開始
 	level_complete_ui.menu_pressed.connect(_restart_demo)
-	_disconnect_game_signals()
+
+
+func _make_critique(stars: int) -> String:
+	var used: int = maxi(0, GameManager.max_moves - GameManager.moves_remaining)
+	var line := "驚險達陣！"
+	if stars >= 3:
+		line = "神之一手！"
+	elif stars == 2:
+		line = "穩穩過關，漂亮！"
+	return "AI 評語：%s（%d 步通關）" % [line, used]
 
 
 func _on_level_failed(_level_id: int) -> void:
 	var audio = get_node_or_null("/root/AudioManager")
 	if audio and audio.has_method("play_level_failed_sound"):
 		audio.play_level_failed_sound()
+	_disconnect_game_signals()
+	# attract 模式：失敗也回待機循環
+	if _in_attract:
+		_schedule_attract_return()
+		return
 	level_failed_ui = level_failed_scene.instantiate()
 	scene_container.add_child(level_failed_ui)
 	level_failed_ui.show_failed()
 	level_failed_ui.retry_pressed.connect(_retry_level)
 	level_failed_ui.menu_pressed.connect(_restart_demo)
-	_disconnect_game_signals()
 
 
 func _next_level() -> void:

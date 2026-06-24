@@ -25,6 +25,22 @@ func set_booth_mode() -> void:
 		retry.add_theme_font_override("font", font)
 	retry.text = "再玩一次"
 
+func set_critique(text: String) -> void:
+	# 在分數下方顯示一句「AI 評語」(收尾用)。動態建立 Label 插進 VBox。
+	var vbox: Node = $Panel/VBox
+	var lb := Label.new()
+	lb.name = "CritiqueLabel"
+	lb.text = text
+	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var font := load("res://resources/fonts/NotoSansTC-Regular.otf") as Font
+	if font:
+		lb.add_theme_font_override("font", font)
+	lb.add_theme_font_size_override("font_size", 22)
+	lb.add_theme_color_override("font_color", Color(1, 0.9, 0.5))
+	vbox.add_child(lb)
+	vbox.move_child(lb, $Panel/VBox/ScoreLabel.get_index() + 1)
+
 func show_result(score: int, stars: int) -> void:
 	$Panel/VBox/ScoreLabel.text = "Score: %d" % score
 	_star_count = stars
