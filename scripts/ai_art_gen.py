@@ -149,27 +149,31 @@ def main():
     elif args.cmd == 'generate':
         from art_pipeline import gemini_api, pipeline
         mode = 'theme_swap' if args.mode == 'theme-swap' else 'restyle'
-        auto_expand = (
-            mode == 'theme_swap' and args.theme and '=' not in args.theme
+        expand_theme = pipeline.resolve_expand_theme(
+            mode, args.theme,
+            expand_theme_flag=args.expand_theme,
+            no_expand_theme=args.no_expand_theme,
         )
-        expand_theme = (not args.no_expand_theme) and (args.expand_theme or auto_expand)
-        pipeline.run(
-            style_text=args.style,
-            run_name=args.run,
-            style_image_path=args.style_image,
-            asset_names=args.assets.split(',') if args.assets else None,
-            family=args.family,
-            image_model=args.image_model or gemini_api.DEFAULT_IMAGE_MODEL,
-            critic_model=args.critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
-            max_iters=args.max_iters,
-            force=args.force,
-            dry_run=args.dry_run,
-            mode=mode,
-            theme_text=args.theme,
-            reference_image=not args.no_reference_image,
-            expand_theme=expand_theme,
-            reference_run=args.reference_run,
-        )
+        try:
+            pipeline.run(
+                style_text=args.style,
+                run_name=args.run,
+                style_image_path=args.style_image,
+                asset_names=args.assets.split(',') if args.assets else None,
+                family=args.family,
+                image_model=args.image_model or gemini_api.DEFAULT_IMAGE_MODEL,
+                critic_model=args.critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
+                max_iters=args.max_iters,
+                force=args.force,
+                dry_run=args.dry_run,
+                mode=mode,
+                theme_text=args.theme,
+                reference_image=not args.no_reference_image,
+                expand_theme=expand_theme,
+                reference_run=args.reference_run,
+            )
+        except (ValueError, FileNotFoundError) as e:
+            raise SystemExit(str(e)) from e
 
     elif args.cmd == 'apply':
         from art_pipeline.apply import apply_run

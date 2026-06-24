@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import pathlib
 import time
+from typing import Callable
 
 from .manifest import PROJECT_ROOT, SPRITES_DIR, build_manifest
 from .roles import GenerationMode, get_family_meta, role_mode_brief
@@ -36,6 +37,27 @@ DEFAULT_STYLE_IMAGE = PROJECT_ROOT / 'game_art_reference.png'
 PASS_STYLE = 7
 PASS_FUNCTION = 7
 PASS_ELEMENT = 7
+
+# 全域規則:遊戲素材不要有臉部五官(眼睛/嘴巴/表情等擬人化特徵),除非物件本身就是角色。
+NO_FACE_RULE = (
+    '- NO FACIAL FEATURES: do NOT add eyes, mouths, faces, expressions or any anthropomorphic '
+    'features to the asset. Keep objects as inanimate objects — no cartoon eyes or smiley faces.')
+
+# on_progress(current_index, total, asset_name, result_or_none)
+# result_or_none: generate_one 回傳 dict(含 image bytes),或跳過時為先前 report 條目 + image
+GenerationProgressCallback = Callable[[int, int, str, dict | None], None]
+
+
+def resolve_expand_theme(
+    mode: GenerationMode,
+    theme_text: str | None,
+    *,
+    expand_theme_flag: bool = False,
+    no_expand_theme: bool = False,
+) -> bool:
+    """與 CLI / Web 共用的主題展開邏輯。"""
+    auto_expand = bool(mode == 'theme_swap' and theme_text and '=' not in theme_text)
+    return (not no_expand_theme) and (expand_theme_flag or auto_expand)
 
 
 def resolve_style_image(
@@ -154,6 +176,7 @@ def build_generation_prompt(asset: dict, style_text: str, family_names: list[str
 
 [Output requirements]
 {bg_rule}
+{NO_FACE_RULE}
 - Preserve the original composition, silhouette proportions and meaning; change ONLY the art style
 - Square canvas, a single image — no collage, no multiple views{family_note}{feedback_note}"""
 
@@ -211,6 +234,7 @@ def _build_theme_swap_prompt(asset: dict, style_text: str, family_names: list[st
 
 [Output requirements]
 {bg_rule}
+{NO_FACE_RULE}
 - Invent a completely NEW subject — do NOT replicate any original game sprite
 - Square canvas, a single image — no collage, no multiple views{family_note}{feedback_note}"""
 
@@ -392,7 +416,8 @@ def run(style_text: str, run_name: str,
         theme_text: str | None = None,
         reference_image: bool = True,
         expand_theme: bool = False,
-        reference_run: str | None = None) -> pathlib.Path:
+        reference_run: str | None = None,
+        on_progress: GenerationProgressCallback | None = None) -> pathlib.Path:
     """跑整批生成。回傳 run 目錄。
 
     mode:
@@ -417,23 +442,23 @@ def run(style_text: str, run_name: str,
         targets = [a for a in targets if a['name'] in wanted]
         missing = wanted - {a['name'] for a in targets}
         if missing:
-            raise SystemExit(f'找不到這些 asset: {sorted(missing)}')
+            raise ValueError(f'找不到這些 asset: {sorted(missing)}')
     if family:
         targets = [a for a in targets if a.get('family') == family]
     if not targets:
-        raise SystemExit('沒有符合條件的 asset')
+        raise ValueError('沒有符合條件的 asset')
 
     if reference_run:
         if mode != 'restyle':
-            raise SystemExit('--reference-run 僅適用於 restyle 模式')
+            raise ValueError('--reference-run 僅適用於 restyle 模式')
         ref_dir = GENERATED_ROOT / reference_run / 'sprites'
         if not ref_dir.is_dir():
-            raise SystemExit(f'找不到 reference run: {ref_dir}')
+            raise FileNotFoundError(f'找不到 reference run: {ref_dir}')
         targets, ref_missing = filter_targets_for_reference_run(targets, reference_run)
         if ref_missing:
             print(f'[reference-run] 跳過 {len(ref_missing)} 張(reference run 無此圖): {ref_missing}')
         if not targets:
-            raise SystemExit(f'reference run {reference_run!r} 沒有任何符合的 sprite')
+            raise ValueError(f'reference run {reference_run!r} 沒有任何符合的 sprite')
 
     log = RunLog()
     run_dir = GENERATED_ROOT / run_name
@@ -449,6 +474,8 @@ def run(style_text: str, run_name: str,
     }
     if reference_run:
         report['reference_run'] = reference_run
+
+    report['target_assets'] = [a['name'] for a in targets]
 
     cached_plan = report.get('theme_plan')
     had_matching_cache = bool(
@@ -471,7 +498,7 @@ def run(style_text: str, run_name: str,
         resolved_style_path, style_image = resolve_style_image(
             style_image_path, reference_image=reference_image)
     except FileNotFoundError as e:
-        raise SystemExit(str(e)) from e
+        raise FileNotFoundError(str(e)) from e
 
     log.run_header(
         run_name=run_name,
@@ -497,12 +524,21 @@ def run(style_text: str, run_name: str,
 
     client = gemini_api.get_client()
     n_pass = n_review = n_fail = n_skip = 0
+    total = len(targets)
 
     for idx, asset in enumerate(targets, 1):
+        if on_progress:
+            on_progress(idx, total, asset['name'], None)
+
         prev = report['results'].get(asset['name'])
         if prev and prev.get('status') == 'pass' and not force:
             n_skip += 1
             log.asset_skip(idx, asset['name'])
+            if on_progress:
+                skip_image = (sprites_out / asset['file']).read_bytes() if (sprites_out / asset['file']).is_file() else None
+                on_progress(idx, total, asset['name'], {
+                    'name': asset['name'], **prev, 'image': skip_image,
+                })
             continue
 
         log.asset_start(idx, asset['name'], asset.get('family'))
@@ -522,6 +558,8 @@ def run(style_text: str, run_name: str,
         n_pass += result['status'] == 'pass'
         n_review += result['status'] == 'needs_review'
         n_fail += result['status'] == 'failed'
+        if on_progress:
+            on_progress(idx, total, asset['name'], {**result, 'image': image})
 
     log.run_summary(
         n_pass=n_pass, n_review=n_review, n_fail=n_fail, n_skip=n_skip,

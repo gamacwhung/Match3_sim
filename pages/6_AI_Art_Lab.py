@@ -167,6 +167,10 @@ def _init_state() -> None:
         'art_expand_theme': True,
         'art_theme_plan': None,
         'art_reference_run': '',
+        'art_max_iters': 3,
+        'art_force': False,
+        'art_image_model': '',
+        'art_critic_model': '',
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -553,14 +557,14 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
         tmp.write_bytes(style_upload.getvalue())
         style_path = tmp
 
+    from art_pipeline.pipeline import resolve_expand_theme
+
     st.session_state.art_generating = True
     mode = st.session_state.art_generation_mode
     theme_text = st.session_state.art_theme_text.strip() or None
-    expand_theme = (
-        mode == 'theme_swap'
-        and st.session_state.art_expand_theme
-        and theme_text
-        and '=' not in theme_text
+    expand_theme = resolve_expand_theme(
+        mode, theme_text,
+        no_expand_theme=not st.session_state.art_expand_theme,
     )
     mode_label = '主題換物件' if mode == 'theme_swap' else '換皮'
     ref_run = (st.session_state.get('art_reference_run') or None) if mode == 'restyle' else None
@@ -582,13 +586,19 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
             )
 
     try:
+        image_model = st.session_state.art_image_model.strip() or None
+        critic_model = st.session_state.art_critic_model.strip() or None
         summary = api.generate(
             style.strip(), run_name.strip(),
             asset_names=elements, style_image_path=style_path,
             reference_image=st.session_state.art_use_reference_image,
             mode=mode, theme_text=theme_text, expand_theme=expand_theme,
             reference_run=ref_run,
-            max_iters=3, on_progress=on_progress,
+            image_model=image_model,
+            critic_model=critic_model,
+            max_iters=st.session_state.art_max_iters,
+            force=st.session_state.art_force,
+            on_progress=on_progress,
         )
         st.session_state.art_summary = summary
         st.session_state.art_results = summary.results
@@ -682,6 +692,37 @@ def _queue_load_run() -> None:
 
 
 def _render_advanced_inner() -> None:
+    from art_pipeline import gemini_api
+
+    st.number_input(
+        '每張最多迭代次數',
+        min_value=1,
+        max_value=10,
+        value=st.session_state.art_max_iters,
+        key='art_max_iters',
+        help='與 CLI --max-iters 相同',
+    )
+    st.checkbox(
+        '強制重生已通過的資產',
+        value=st.session_state.art_force,
+        key='art_force',
+        help='與 CLI --force 相同',
+    )
+    st.text_input(
+        '生圖模型',
+        value=st.session_state.art_image_model,
+        key='art_image_model',
+        placeholder=gemini_api.DEFAULT_IMAGE_MODEL,
+        help='留空使用預設模型',
+    )
+    st.text_input(
+        '評審模型',
+        value=st.session_state.art_critic_model,
+        key='art_critic_model',
+        placeholder=gemini_api.DEFAULT_CRITIC_MODEL,
+        help='留空使用預設模型',
+    )
+
     prev_runs = api.list_runs()
     if prev_runs:
         st.selectbox(
