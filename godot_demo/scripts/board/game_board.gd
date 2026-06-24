@@ -279,21 +279,12 @@ func _clear_hint() -> void:
 	_hint_shown = false
 
 func _calculate_offset() -> void:
-	# 自動縮放 cell_size，讓盤面塞滿可用空間（適應任何盤面大小 + 螢幕比例，含橫式）。
-	# 上方保留給 HUD(關卡/步數/目標列)，其餘空間置中放盤面。
-	var viewport_size = get_viewport_rect().size
-	var top_reserve := 170.0
-	var margin := 24.0
-	var avail_w: float = viewport_size.x - margin * 2.0
-	var avail_h: float = viewport_size.y - top_reserve - margin
-	if grid_width > 0 and grid_height > 0 and avail_w > 0 and avail_h > 0:
-		cell_size = minf(avail_w / grid_width, avail_h / grid_height)
-		cell_size = clampf(cell_size, 28.0, 120.0)
 	var board_width = grid_width * cell_size
 	var board_height = grid_height * cell_size
+	var viewport_size = get_viewport_rect().size
 	board_offset = Vector2(
 		(viewport_size.x - board_width) / 2.0,
-		top_reserve + (avail_h - board_height) / 2.0
+		(viewport_size.y - board_height) / 2.0 + 60
 	)
 	position = Vector2.ZERO
 
@@ -2244,9 +2235,37 @@ func _mark_all_stamps_victory() -> void:
 	board_bg.queue_redraw()
 
 
+func _final_settle_barrels() -> void:
+	# 收尾保險:掃描「下方是空格卻沒落下的可移動障礙(木桶/錐)」,強制再落定一次。
+	# 解決「某些時序/路徑下木桶沒跟著重力落下」的問題;正常情況下沒有 stuck → 直接 return。
+	var stuck: Array[Vector2i] = []
+	for pos in obstacle_map.keys():
+		var obs = obstacle_map[pos]
+		if not _is_movable_obstacle(str(obs.get("tile_id", ""))):
+			continue
+		if obs.get("instance_cells", []).size() > 1:
+			continue
+		var below: Vector2i = pos + Vector2i(0, 1)
+		if below.y < grid_height and filler.get_candy_at(below) == null \
+				and not obstacle_map.has(below) and not (below in blocked_cells):
+			stuck.append(pos)
+	if stuck.is_empty():
+		return
+	push_warning("[barrel-settle] 收尾發現 %d 個木桶下方空卻沒落,強制落定: %s" % [stuck.size(), str(stuck)])
+	var tws: Array[Tween] = _apply_movable_obstacle_gravity()
+	var grav: Array[Tween] = filler.apply_gravity()
+	var fil: Array[Tween] = filler.fill_empty_cells()
+	for tw in (tws + grav + fil):
+		if tw and tw.is_running():
+			await tw.finished
+	_sync_candy_layer_visibility()
+	board_bg.queue_redraw()
+
+
 func _post_turn_check() -> void:
 	GameManager.reset_combo()
 	_reset_hint_timer()
+	await _final_settle_barrels()
 
 	if GameManager.current_state == GameManager.GameState.LEVEL_COMPLETE:
 		is_processing = false
