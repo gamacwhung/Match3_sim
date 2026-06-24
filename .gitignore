@@ -63,3 +63,8 @@ godot_demo/.demo_logs/
 # AI 自動測試報表(JSON)
 ai_test_reports/
 *.ai_report.json
+
+# AI 生成美術(本機產物,勿進版控,檔案大)
+generated_art/
+test_pixel_art.zip
+*.zip
