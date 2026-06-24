@@ -88,3 +88,7 @@ godot_demo/web/live_sprites/*.png
 # AI 破關示意影片(本機產物,大檔)
 ai_solve_*.mp4
 ai_solve_*.gif
+
+# 本機美術 pipeline 暫存/預覽產物(同事規則)
+match3_board_component/frontend/assets_original_backup/
+match3_board_component/frontend/assets/

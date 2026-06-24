@@ -122,7 +122,7 @@ if '_artThemeReady' not in src:
     needle = "\t\t}).then(() => {\n\t\t\tsetStatusMode('hidden');\n\t\t}, displayFailureNotice);"
     repl = (
         "\t\t}).then(() => {\n"
-        "\t\t\t// 等 ArtTheme 抓完 live 美術(或逾時)再收掉 splash 進度條\n"
+        "\t\t\t// 等 ArtTheme 就緒(僅 ?live=1 時會抓 live 美術;否則立即就緒)\n"
         "\t\t\tconst artStart = Date.now();\n"
         "\t\t\tconst pollArt = () => {\n"
         "\t\t\t\tif (window._artThemeReady || Date.now() - artStart > 20000) {\n"

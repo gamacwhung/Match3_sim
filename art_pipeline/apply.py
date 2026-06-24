@@ -137,7 +137,7 @@ def _copy_png_to_live(png: pathlib.Path, target: pathlib.Path) -> None:
 def _write_live_manifest() -> None:
     """寫出 live_sprites/manifest.json,列出目前所有可覆蓋的 sprite 名稱。
 
-    ArtTheme(Godot web)會讀此清單決定要 fetch 哪些 live 覆蓋圖。
+    ArtTheme(Godot web)僅在 iframe URL 含 ?live=1 時讀此清單並 fetch 覆蓋圖。
     """
     names = sorted(p.stem for p in LIVE_SPRITES_DIR.glob('*.png'))
     (LIVE_SPRITES_DIR / 'manifest.json').write_text(
@@ -219,8 +219,8 @@ def apply_run_to_live(run_name: str, asset_names: list[str] | None = None) -> tu
     """
     Copy generated sprites into godot_demo/web/live_sprites/ for runtime override.
 
-    Godot web build loads these over the packed defaults — no re-export needed.
-  Returns (applied, skipped).
+    Godot web loads these only when the page URL includes ?live=1
+    (AI Art Lab adds this after apply). No re-export needed.
     """
     run_sprites = GENERATED_ROOT / run_name / 'sprites'
     if not run_sprites.is_dir():

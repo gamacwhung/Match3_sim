@@ -389,9 +389,8 @@ def apply_run_to_game(
     - to_component: copy into the Streamlit playable board component
       (reflected instantly in the web UI — the only path that works locally
       without a Godot re-export). Default on.
-    - to_live: copy into godot_demo/web/live_sprites/ (Godot runtime override;
-      requires the web build to be re-exported once with the ArtTheme autoload,
-      which currently happens in CI).
+    - to_live: copy into godot_demo/web/live_sprites/ (Godot loads these only when
+      the preview iframe URL includes ?live=1, e.g. after apply in AI Art Lab).
     - to_project: copy into godot_demo/resources/sprites/ (persistent source art,
       backs up originals; picked up on the next Godot export).
     - on_progress: optional callback(current_index, total, asset_name) per file.
