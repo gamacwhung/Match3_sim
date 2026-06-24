@@ -153,7 +153,25 @@ elif '_artThemeReady' in src:
 PY
 }
 
+sync_default_packed_art() {
+  local py="$REPO_ROOT/.venv/bin/python"
+  if [[ ! -x "$py" ]]; then
+    py="$(command -v python3 || true)"
+  fi
+  if [[ -z "$py" ]]; then
+    echo "[!] 找不到 python,無法同步預設打包美術" >&2
+    exit 1
+  fi
+  echo "[export] 同步預設打包美術 → resources/sprites/ …"
+  (
+    cd "$REPO_ROOT"
+    "$py" -c "from art_pipeline.apply import apply_default_packed_art; apply_default_packed_art()"
+  )
+}
+
 export_web() {
+  sync_default_packed_art
+
   local godot_bin
   godot_bin="$(find_godot)" || {
     echo "[!] 找不到 Godot。請安裝 Godot 4.6 並設定:" >&2

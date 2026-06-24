@@ -1,11 +1,13 @@
 """
 套用 / 還原生成美術。
 
-- apply 前自動把原版 sprites 備份到 godot_demo/resources/sprites_original_backup/
-  (只備份一次,之後 apply 都不會覆寫備份,確保永遠能回到最初的原版)
+- apply 前自動把 M8 原版 sprites 備份到 godot_demo/resources/sprites_original_backup/
+  (只備份一次,之後 apply 都不會覆寫備份)
+- 遊戲預設打包美術為 generated_art/<DEFAULT_PACKED_ART_RUN>/sprites/
+  (匯入 godot_demo/resources/sprites/ 後隨 Web export 進 index.pck)
 - apply 只覆蓋「生成結果中存在」的同名檔,Godot 的 .import 設定不動,
   下次用 Godot Editor 開啟/Export 時會自動 re-import
-- restore 把備份完整複製回去
+- restore 還原遊戲預設美術(DEFAULT_PACKED_ART_RUN),並清除 live 覆蓋
 """
 
 from __future__ import annotations
@@ -17,9 +19,13 @@ import time
 from typing import Callable
 
 from .manifest import SPRITES_DIR
-from .pipeline import GENERATED_ROOT
+
+GENERATED_ROOT = pathlib.Path(__file__).resolve().parent.parent / 'generated_art'
 
 ApplyProgressCallback = Callable[[int, int, str], None]
+
+# 打包進 index.pck 的預設美術來源(generated_art/<run>/sprites/)
+DEFAULT_PACKED_ART_RUN = 'pixar_cartoon'
 
 BACKUP_DIR = SPRITES_DIR.parent / 'sprites_original_backup'
 LIVE_SPRITES_DIR = SPRITES_DIR.parent.parent / 'web' / 'live_sprites'
@@ -68,16 +74,34 @@ def apply_run(run_name: str) -> None:
     print('[apply] 注意: Godot Web build 需重新 Export 才會看到新美術。')
 
 
-def restore() -> None:
+def restore_m8_official() -> None:
+    """還原 M8 官方原版(僅 godot_demo/resources/sprites/,不含 component/live)。"""
     if not BACKUP_DIR.is_dir():
         raise FileNotFoundError(f'沒有備份可還原({BACKUP_DIR} 不存在)')
     n = 0
     for png in BACKUP_DIR.glob('*.png'):
         shutil.copy2(png, SPRITES_DIR / png.name)
         n += 1
-    print(f'[restore] 已從備份還原 {n} 張原版 sprite')
+    print(f'[restore] 已從備份還原 {n} 張 M8 原版 sprite')
+
+
+def apply_default_packed_art(*, to_component: bool = True) -> tuple[list[str], list[str], list[str], list[str]]:
+    """將預設打包美術(DEFAULT_PACKED_ART_RUN)套入 resources/sprites/(及可選 component)。"""
+    return apply_run_batch(
+        DEFAULT_PACKED_ART_RUN,
+        None,
+        to_component=to_component,
+        to_live=False,
+        to_project=True,
+    )
+
+
+def restore() -> None:
+    """還原遊戲預設美術(pixar_cartoon 打包版),並清除 live / component 覆蓋。"""
     clear_live_sprites()
-    restore_component()
+    comp, _, proj, _ = apply_default_packed_art(to_component=True)
+    print(f'[restore] 已還原遊戲預設美術 {DEFAULT_PACKED_ART_RUN!r} '
+          f'({len(proj)} 張 project, {len(comp)} 張 component)')
 
 
 def _resolve_run_pngs(run_name: str, asset_names: list[str] | None = None) -> list[pathlib.Path]:

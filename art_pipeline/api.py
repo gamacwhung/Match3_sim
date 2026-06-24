@@ -20,17 +20,14 @@ from typing import Callable
 
 from . import gemini_api, pipeline
 from .apply import (
+    DEFAULT_PACKED_ART_RUN,
     ApplyProgressCallback,
     apply_run_batch,
+    apply_default_packed_art,
     restore,
 )
 from .manifest import PROJECT_ROOT, build_manifest, families
-from .pipeline import (
-    GENERATED_ROOT,
-    generate_one,
-    prepare_theme_for_targets,
-    filter_targets_for_reference_run,
-)
+from .pipeline import GENERATED_ROOT, resolve_expand_theme
 from .theme_planner import expand_theme_for_elements
 
 BASIC_ELEMENTS: tuple[str, ...] = ('Red', 'Grn', 'Blu', 'Yel', 'Pur')
@@ -233,6 +230,55 @@ def suggest_run_name(style_text: str) -> str:
 # Generation
 # ---------------------------------------------------------------------------
 
+def _raw_to_asset_result(raw: dict) -> AssetResult:
+    return AssetResult(
+        name=raw['name'],
+        status=raw.get('status', 'failed'),
+        iters=raw.get('iters', 0),
+        image=raw.get('image'),
+        verdict=raw.get('verdict'),
+        chosen_iter=raw.get('chosen_iter'),
+    )
+
+
+def _load_generation_summary(
+    run_name: str,
+    *,
+    style_text: str,
+    mode: str,
+    theme_text: str | None,
+    reference_run: str | None,
+    asset_names: list[str] | None = None,
+) -> GenerationSummary:
+    report = load_report(run_name)
+    names = asset_names or report.get('target_assets') or list(report.get('results', {}))
+    if asset_names and report.get('target_assets'):
+        names = [n for n in asset_names if n in report['target_assets']]
+    results: dict[str, AssetResult] = {}
+    for name in names:
+        raw = report.get('results', {}).get(name, {})
+        image = raw.get('image') or load_sprite_bytes(run_name, name)
+        results[name] = AssetResult(
+            name=name,
+            status=raw.get('status', 'failed'),
+            iters=raw.get('iters', 0),
+            image=image,
+            verdict=raw.get('verdict'),
+            chosen_iter=raw.get('chosen_iter'),
+        )
+    return GenerationSummary(
+        run_name=run_name,
+        run_dir=run_dir(run_name),
+        style=style_text,
+        results=results,
+        generation_mode=mode,
+        theme_text=theme_text,
+        theme_plan=report.get('theme_plan'),
+        theme_expanded=report.get('theme_expanded'),
+        reference_run=reference_run,
+    )
+
+
 def generate(
     style_text: str,
     run_name: str,
@@ -256,122 +302,42 @@ def generate(
 
     on_progress(current_index, total, asset_name, result_or_none)
       is called before each asset (result=None) and after completion.
+
+    Delegates to pipeline.run so Web and CLI share the same generation path.
     """
-    manifest = build_manifest()
-    by_family = families(manifest)
+    progress_adapter = None
+    if on_progress:
+        def progress_adapter(cur: int, total: int, name: str, raw: dict | None) -> None:
+            if raw is None:
+                on_progress(cur, total, name, None)
+            else:
+                on_progress(cur, total, name, _raw_to_asset_result(raw))
 
-    targets = manifest
-    if asset_names:
-        wanted = set(asset_names)
-        targets = [a for a in targets if a['name'] in wanted]
-        missing = wanted - {a['name'] for a in targets}
-        if missing:
-            raise ValueError(f'Unknown assets: {sorted(missing)}')
-    if family:
-        targets = [a for a in targets if a.get('family') == family]
-    if not targets:
-        raise ValueError('No assets matched the selection')
-
-    if reference_run:
-        if mode != 'restyle':
-            raise ValueError('reference_run is only supported in restyle mode')
-        ref_dir = GENERATED_ROOT / reference_run / 'sprites'
-        if not ref_dir.is_dir():
-            raise FileNotFoundError(f'Reference run not found: {ref_dir}')
-        targets, ref_missing = filter_targets_for_reference_run(targets, reference_run)
-        if ref_missing:
-            print(f'[reference-run] skipping {len(ref_missing)} assets (not in {reference_run}): {ref_missing}')
-        if not targets:
-            raise ValueError(f'No assets from selection exist in reference run {reference_run!r}')
-
-    out_dir = run_dir(run_name)
-    sprites_out = out_dir / 'sprites'
-    history_dir = out_dir / 'history'
-    sprites_out.mkdir(parents=True, exist_ok=True)
-
-    report_path = out_dir / 'report.json'
-    report = json.loads(report_path.read_text(encoding='utf-8')) if report_path.exists() else {
-        'style': style_text,
-        'generation_mode': mode,
-        'theme': theme_text,
-        'reference_run': reference_run,
-        'image_model': image_model or gemini_api.DEFAULT_IMAGE_MODEL,
-        'critic_model': critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
-        'results': {},
-    }
-    report['style'] = style_text
-    report['generation_mode'] = mode
-    if theme_text is not None:
-        report['theme'] = theme_text
-    if reference_run:
-        report['reference_run'] = reference_run
-
-    style_path, style_image = pipeline.resolve_style_image(
-        style_image_path, reference_image=reference_image)
-    if style_path and not style_path.is_file():
-        raise FileNotFoundError(f'Style image not found: {style_path}')
-
-    client = gemini_api.get_client()
-    img_model = image_model or gemini_api.DEFAULT_IMAGE_MODEL
-    crit_model = critic_model or gemini_api.DEFAULT_CRITIC_MODEL
-
-    resolved_theme, theme_plan = prepare_theme_for_targets(
-        mode, theme_text, expand_theme, targets, style_text, crit_model,
-        report, report_path, client=client,
-    )
-
-    summary = GenerationSummary(
-        run_name=run_name, run_dir=out_dir, style=style_text,
-        generation_mode=mode, theme_text=theme_text,
-        theme_plan=theme_plan, theme_expanded=report.get('theme_expanded'),
+    pipeline.run(
+        style_text=style_text,
+        run_name=run_name,
+        style_image_path=style_image_path,
+        asset_names=asset_names,
+        family=family,
+        image_model=image_model or gemini_api.DEFAULT_IMAGE_MODEL,
+        critic_model=critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
+        max_iters=max_iters,
+        force=force,
+        mode=mode,
+        theme_text=theme_text,
+        reference_image=reference_image,
+        expand_theme=expand_theme,
         reference_run=reference_run,
+        on_progress=progress_adapter,
     )
-    total = len(targets)
-
-    for idx, asset in enumerate(targets, 1):
-        if on_progress:
-            on_progress(idx, total, asset['name'], None)
-
-        prev = report['results'].get(asset['name'])
-        if prev and prev.get('status') == 'pass' and not force:
-            sprite = load_sprite_bytes(run_name, asset['name'])
-            result = AssetResult(
-                name=asset['name'], status='pass', iters=prev.get('iters', 0),
-                image=sprite, verdict=prev.get('verdict'), chosen_iter=prev.get('chosen_iter'),
-            )
-            summary.results[asset['name']] = result
-            if on_progress:
-                on_progress(idx, total, asset['name'], result)
-            continue
-
-        raw = generate_one(
-            client, asset, style_text, style_image,
-            by_family.get(asset.get('family') or 'misc', []),
-            img_model, crit_model, max_iters,
-            history_dir=history_dir,
-            mode=mode, theme_text=resolved_theme, theme_plan=theme_plan,
-            reference_run=reference_run,
-        )
-        image = raw.pop('image')
-        if image:
-            (sprites_out / asset['file']).write_bytes(image)
-
-        report['results'][asset['name']] = raw
-        report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
-
-        result = AssetResult(
-            name=asset['name'],
-            status=raw['status'],
-            iters=raw['iters'],
-            image=image,
-            verdict=raw.get('verdict'),
-            chosen_iter=raw.get('chosen_iter'),
-        )
-        summary.results[asset['name']] = result
-        if on_progress:
-            on_progress(idx, total, asset['name'], result)
-
-    return summary
+    return _load_generation_summary(
+        run_name,
+        style_text=style_text,
+        mode=mode,
+        theme_text=theme_text,
+        reference_run=reference_run,
+        asset_names=asset_names,
+    )
 
 
 def preview_theme_plan(
@@ -458,5 +424,11 @@ def apply_run_to_game(
     return ApplySummary(run_name=run_name)
 
 
+def default_packed_art_run() -> str:
+    """Run name whose sprites are baked into the Godot web pck by default."""
+    return DEFAULT_PACKED_ART_RUN
+
+
 def restore_original_art() -> None:
+    """Restore game default packed art and clear live overrides."""
     restore()

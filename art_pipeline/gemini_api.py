@@ -17,6 +17,12 @@ DEFAULT_CRITIC_MODEL = 'gemini-2.5-flash'
 _MAX_API_RETRIES = 3
 _RETRY_BACKOFF_SEC = 5.0
 
+# 全域規則:素材不可有臉部五官(眼睛/嘴巴/表情)— 評審發現時須列為 issue 並判定 retry。
+NO_FACE_REVIEW_NOTE = (
+    '\n[Hard rule] The asset MUST NOT have any facial features (eyes, mouth, face, expression) '
+    'or anthropomorphic traits. If you see any, list it under "issues" and set "verdict" to '
+    '"retry" regardless of the other scores.')
+
 
 def get_client():
     """建立 google-genai client(Vertex AI 優先,否則 API Key)。"""
@@ -137,7 +143,7 @@ def _critique_restyle(client, model: str, original_png: bytes, generated_png: by
 [Asset function] {asset['name']}: {asset['function']}
 [Visual constraints]
 {constraints}
-[Target art style (text)] {style_text}
+[Target art style (text)] {style_text}{NO_FACE_REVIEW_NOTE}
 
 The first image is the original asset (the baseline for function and composition);
 the last image is the AI-generated new version.{ref_line}
@@ -222,7 +228,7 @@ def _critique_theme_swap(client, model: str, generated_png: bytes,
 [Must preserve (gameplay readability)] {preserve}
 [Visual constraints]
 {constraints}
-[Target art style (text)] {style_text}{family_line}{ref_line}
+[Target art style (text)] {style_text}{family_line}{ref_line}{NO_FACE_REVIEW_NOTE}
 
 The image is the AI-generated new version. Judge ONLY whether it fulfills the gameplay role and constraints — do NOT penalize for looking different from any legacy sprite.
 Score it and return ONLY JSON (no other text):
