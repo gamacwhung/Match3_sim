@@ -24,8 +24,8 @@ ArtTheme="*res://scripts/autoload/art_theme.gd"
 
 [display]
 
-window/size/viewport_width=720
-window/size/viewport_height=1280
+window/size/viewport_width=1280
+window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep"
 window/stretch/scale=1.0

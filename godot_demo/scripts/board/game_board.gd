@@ -279,12 +279,21 @@ func _clear_hint() -> void:
 	_hint_shown = false
 
 func _calculate_offset() -> void:
+	# 自動縮放 cell_size，讓盤面塞滿可用空間（適應任何盤面大小 + 螢幕比例，含橫式）。
+	# 上方保留給 HUD(關卡/步數/目標列)，其餘空間置中放盤面。
+	var viewport_size = get_viewport_rect().size
+	var top_reserve := 170.0
+	var margin := 24.0
+	var avail_w: float = viewport_size.x - margin * 2.0
+	var avail_h: float = viewport_size.y - top_reserve - margin
+	if grid_width > 0 and grid_height > 0 and avail_w > 0 and avail_h > 0:
+		cell_size = minf(avail_w / grid_width, avail_h / grid_height)
+		cell_size = clampf(cell_size, 28.0, 120.0)
 	var board_width = grid_width * cell_size
 	var board_height = grid_height * cell_size
-	var viewport_size = get_viewport_rect().size
 	board_offset = Vector2(
 		(viewport_size.x - board_width) / 2.0,
-		(viewport_size.y - board_height) / 2.0 + 60
+		top_reserve + (avail_h - board_height) / 2.0
 	)
 	position = Vector2.ZERO
 
