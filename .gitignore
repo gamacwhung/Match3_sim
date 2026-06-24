@@ -68,3 +68,7 @@ ai_test_reports/
 generated_art/
 test_pixel_art.zip
 *.zip
+
+# 機密/本機美術備份,絕不進版控
+godot_demo/web/live_sprites.local.bak/
+godot_demo/web/live_sprites/*.png

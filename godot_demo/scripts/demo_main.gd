@@ -35,6 +35,10 @@ var level_failed_ui: Control = null
 var level_select_ui: CanvasLayer = null
 var menu_button_ui: CanvasLayer = null
 var current_board: Node2D = null
+# 攤位模式(?booth=1)：開機不顯示官方 100 關選單，改顯示乾淨的待機畫面；
+# 結束/Menu 也回到待機畫面，不掉回官方選關。
+var _booth_mode: bool = false
+var _idle_ui: CanvasLayer = null
 
 @onready var scene_container: Control = $SceneContainer
 
@@ -62,6 +66,16 @@ func _ready() -> void:
 		var audio = get_node_or_null("/root/AudioManager")
 		if audio and audio.has_method("start_bgm"):
 			audio.start_bgm()
+
+	# 攤位模式偵測(?booth=1)：開機顯示待機畫面、不顯示官方 100 關選單
+	if OS.has_feature("web"):
+		var booth_param = JavaScriptBridge.eval("""
+			(function() {
+				var p = new URLSearchParams(window.location.search);
+				return p.get('booth') || '';
+			})()
+		""")
+		_booth_mode = (booth_param is String and booth_param == "1")
 
 	# Web: 檢查 URL 參數是否帶 level JSON
 	if OS.has_feature("web"):
@@ -105,7 +119,11 @@ func _ready() -> void:
 			});
 		""")
 
-	_show_level_select()
+	# 攤位模式 → 乾淨待機畫面（等左邊 Streamlit 生成關卡推進來）；否則官方選關
+	if _booth_mode:
+		_show_idle_screen()
+	else:
+		_show_level_select()
 
 
 func _check_url_autoplay() -> void:
@@ -171,6 +189,65 @@ func _process(_delta: float) -> void:
 			current_board.start_ai_mode(0.8)
 
 
+func _show_idle_screen() -> void:
+	# 攤位待機畫面：乾淨、置中，提示玩家從左邊輸入生成關卡。
+	_clear_current()
+	if _idle_ui != null:
+		_idle_ui.queue_free()
+		_idle_ui = null
+	_idle_ui = CanvasLayer.new()
+	_idle_ui.layer = 15
+	add_child(_idle_ui)
+
+	var font = load("res://resources/fonts/NotoSansTC-Regular.otf") as Font
+
+	var bg = ColorRect.new()
+	bg.color = Color(0.05, 0.04, 0.10, 1.0)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_idle_ui.add_child(bg)
+
+	var center_box = CenterContainer.new()
+	center_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_idle_ui.add_child(center_box)
+
+	var vbox = VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 20)
+	center_box.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "Match3 AI 關卡生成"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if font:
+		title.add_theme_font_override("font", font)
+	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_color_override("font_color", Color(1, 0.95, 0.55))
+	vbox.add_child(title)
+
+	var sub = Label.new()
+	sub.text = "在左邊輸入一句話，AI 立刻幫你生成關卡並試玩"
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if font:
+		sub.add_theme_font_override("font", font)
+	sub.add_theme_font_size_override("font_size", 26)
+	sub.add_theme_color_override("font_color", Color(0.82, 0.82, 0.92))
+	vbox.add_child(sub)
+
+	var hint = Label.new()
+	hint.text = "等待生成中…"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if font:
+		hint.add_theme_font_override("font", font)
+	hint.add_theme_font_size_override("font_size", 22)
+	hint.add_theme_color_override("font_color", Color(0.6, 0.7, 1.0))
+	vbox.add_child(hint)
+
+	# 呼吸動畫,讓待機畫面有生命感
+	var tw = create_tween().set_loops()
+	tw.tween_property(hint, "modulate:a", 0.35, 0.9).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(hint, "modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_SINE)
+
+
 func _show_level_select(from_game: bool = false) -> void:
 	# from_game = true 時表示「從遊戲中按選關」,需要顯示「取消」按鈕,
 	# 也不能 _clear_current()(否則當前關卡狀態被毀,取消就回不去)
@@ -225,6 +302,22 @@ func _show_menu_button() -> void:
 	replay_btn.pressed.connect(func(): _retry_level())
 	menu_button_ui.add_child(replay_btn)
 
+	# 音效開關 — 左上角
+	var audio_btn = Button.new()
+	var am0 = get_node_or_null("/root/AudioManager")
+	var is_muted: bool = am0 != null and ("muted" in am0) and am0.muted
+	audio_btn.text = "音效 關" if is_muted else "音效 開"
+	if font:
+		audio_btn.add_theme_font_override("font", font)
+	audio_btn.add_theme_font_size_override("font_size", 18)
+	audio_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	audio_btn.offset_left = 16
+	audio_btn.offset_right = 132
+	audio_btn.offset_top = 16
+	audio_btn.offset_bottom = 62
+	audio_btn.pressed.connect(func(): _toggle_audio(audio_btn))
+	menu_button_ui.add_child(audio_btn)
+
 	# 選關 — 攤位模式（玩 AI 生成的關卡）不顯示，避免客人跳去玩官方 100 關
 	if _custom_level_data.is_empty():
 		var select_btn = Button.new()
@@ -253,6 +346,14 @@ func _show_menu_button() -> void:
 		ai_btn.offset_bottom = 62
 		ai_btn.pressed.connect(func(): _toggle_ai_mode(ai_btn))
 		menu_button_ui.add_child(ai_btn)
+
+
+func _toggle_audio(btn: Button) -> void:
+	var am = get_node_or_null("/root/AudioManager")
+	if am == null or not am.has_method("toggle_muted"):
+		return
+	var muted: bool = am.toggle_muted()
+	btn.text = "音效 關" if muted else "音效 開"
 
 
 func _toggle_ai_mode(btn: Button) -> void:
@@ -287,6 +388,9 @@ func _clear_current() -> void:
 	if menu_button_ui:
 		menu_button_ui.queue_free()
 		menu_button_ui = null
+	if _idle_ui:
+		_idle_ui.queue_free()
+		_idle_ui = null
 	current_board = null
 
 
@@ -426,8 +530,11 @@ func _retry_level() -> void:
 
 
 func _restart_demo() -> void:
-	# 通關/失敗的 Menu 按鈕 → 回到選關
-	_show_level_select()
+	# 攤位模式 → 回乾淨待機畫面；否則回官方選關
+	if _booth_mode:
+		_show_idle_screen()
+	else:
+		_show_level_select()
 
 
 func _disconnect_game_signals() -> void:

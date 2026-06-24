@@ -10,6 +10,22 @@ var music_volume: float = 0.4
 var _bgm_stream: AudioStream = null
 const _BGM_PATH = "res://resources/audio/SugarcubePuzzles.mp3"
 
+# 音效/音樂總開關(攤位用，靜音整個 Master bus)
+var muted: bool = false
+
+
+func set_muted(m: bool) -> void:
+	muted = m
+	var idx := AudioServer.get_bus_index("Master")
+	if idx < 0:
+		idx = 0
+	AudioServer.set_bus_mute(idx, m)
+
+
+func toggle_muted() -> bool:
+	set_muted(not muted)
+	return muted
+
 func _ready() -> void:
 	# BGM 是 optional — 如果檔案不存在(godot_demo 沒帶 audio 資產),
 	# fallback 到程式合成的 _generate_bgm_loop()
