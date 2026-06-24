@@ -39,6 +39,8 @@ var is_processing: bool = false
 var cascade_level: int = 0
 # 鎖死看門狗：is_processing 卡住(動畫跑完卻沒解鎖)時的累計秒數
 var _lock_watchdog: float = 0.0
+# flush 卡住看門狗：_deferred_running 一直 true(延遲爆炸/cascade 卡死)時的累計秒數
+var _flush_watchdog: float = 0.0
 
 var _hint_timer: float = 0.0
 var _hint_delay: float = 3.0
@@ -80,6 +82,21 @@ func _ready() -> void:
 	_ai_controller = AIController.new()
 	_ai_controller.name = "AIController"
 	add_child(_ai_controller)
+	# ArtTheme 載完(或套用新主題)後，對盤面現有糖果重新換皮 → 初始盤面也即時變新美術。
+	# （否則 web 端非同步載入 live_sprites 時，初始盤面用舊圖，要移動一步、新糖果生成才換。）
+	var art := get_node_or_null("/root/ArtTheme")
+	if art and art.has_signal("theme_ready") and not art.theme_ready.is_connected(_on_theme_ready):
+		art.theme_ready.connect(_on_theme_ready)
+
+
+func _on_theme_ready() -> void:
+	# draw_candy 會動態讀 ArtTheme 的新貼圖 → 對現有糖果 + 背景 queue_redraw 即可即時換皮
+	if candy_container:
+		for c in candy_container.get_children():
+			if c.has_method("queue_redraw"):
+				c.queue_redraw()
+	if board_bg and board_bg.has_method("queue_redraw"):
+		board_bg.queue_redraw()
 
 
 ## Autoplay: 外部傳入動作序列,自動逐步執行並播放動畫
@@ -206,14 +223,29 @@ func _process(delta: float) -> void:
 	# 鎖死看門狗：special 道具(光球/紙飛機等)動畫跑完卻沒解鎖時，超時強制恢復可操作。
 	# 只在「真的閒置」(沒有待爆炸佇列、沒在跑 flush)時計時；正常動畫/連鎖遠在 5 秒內結束，
 	# 所以只有真的卡死才會觸發，不會誤判正常遊玩。
-	if is_processing and _deferred_queue.is_empty() and not _deferred_running:
-		_lock_watchdog += delta
-		if _lock_watchdog > 5.0:
+	if is_processing:
+		if _deferred_queue.is_empty() and not _deferred_running:
+			# 全部 settle 了卻沒解鎖 → 5 秒後強制恢復
+			_lock_watchdog += delta
+			_flush_watchdog = 0.0
+		elif _deferred_running:
+			# flush/cascade 卡住(例如 tween 被 free 後 await 永遠不回)→ 8 秒後強制恢復
+			_flush_watchdog += delta
 			_lock_watchdog = 0.0
-			push_warning("[watchdog] is_processing 卡住 >5s → 強制解鎖")
+		else:
+			# 佇列有 entry 但還沒 ready(飛機飛行中)→ 正常，不計時
+			_lock_watchdog = 0.0
+			_flush_watchdog = 0.0
+		if _lock_watchdog > 5.0 or _flush_watchdog > 8.0:
+			_lock_watchdog = 0.0
+			_flush_watchdog = 0.0
+			push_warning("[watchdog] is_processing 卡住 → 強制解鎖")
+			_deferred_running = false
+			_deferred_queue.clear()
 			_post_turn_check()
 	else:
 		_lock_watchdog = 0.0
+		_flush_watchdog = 0.0
 
 	if filler == null or is_processing or _hint_shown:
 		return
@@ -470,7 +502,7 @@ func _activate_special_directly(candy: CandyScript) -> void:
 	await get_tree().create_timer(0.3).timeout
 	await _cascade_loop()
 	_sync_candy_layer_visibility()
-	if _deferred_queue.size() == 0:
+	if _deferred_queue.size() == 0 and not _deferred_running:
 		_post_turn_check()
 
 func _on_candy_swiped(candy: CandyScript, direction: Vector2i) -> void:
@@ -697,7 +729,7 @@ func _run_swap_movable_into_empty(obs_pos: Vector2i, empty_pos: Vector2i) -> voi
 	GameManager.use_move()
 	cascade_level = 0
 	await _process_matches(matches, [obs_pos, empty_pos])
-	if _deferred_queue.size() == 0:
+	if _deferred_queue.size() == 0 and not _deferred_running:
 		_post_turn_check()
 
 
@@ -757,7 +789,7 @@ func _try_move_into_empty(candy: CandyScript, empty_pos: Vector2i) -> void:
 		is_processing = false
 		return
 	await _process_matches(matches, [from_pos, empty_pos])
-	if _deferred_queue.size() == 0:
+	if _deferred_queue.size() == 0 and not _deferred_running:
 		_post_turn_check()
 
 func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
@@ -804,7 +836,7 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 		GameManager.use_move()
 		cascade_level = 0
 		await _handle_special_combo(candy_a, candy_b, combo["effect"])
-		if _deferred_queue.size() == 0:
+		if _deferred_queue.size() == 0 and not _deferred_running:
 			_post_turn_check()
 		return
 
@@ -833,7 +865,7 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 			_chain_trigger(sp_type, sp_pos, sp_color)
 			await get_tree().create_timer(0.3).timeout
 			await _cascade_loop()
-			if _deferred_queue.size() == 0:
+			if _deferred_queue.size() == 0 and not _deferred_running:
 				_post_turn_check()
 			return
 		# 兩邊都是 normal candy 又沒 match → 真的無效,換回去
@@ -877,7 +909,7 @@ func _try_swap(candy_a: CandyScript, candy_b: CandyScript) -> void:
 	#    若道具效果剛把某些 match cell 也炸掉了,_process_matches 內部 get_candy_at == null 自然 skip。
 	await _process_matches(matches, [pos_a, pos_b])
 
-	if _deferred_queue.size() == 0:
+	if _deferred_queue.size() == 0 and not _deferred_running:
 		_post_turn_check()
 
 
@@ -959,13 +991,13 @@ func _try_swap_with_movable_obstacle(candy: CandyScript, obs_pos: Vector2i) -> v
 		_chain_trigger(sp_type, obs_pos, sp_color)
 		await get_tree().create_timer(0.3).timeout
 		await _cascade_loop()
-		if _deferred_queue.size() == 0:
+		if _deferred_queue.size() == 0 and not _deferred_running:
 			_post_turn_check()
 		return
 
 	# 有 match → 正常 match 流程
 	await _process_matches(matches, [candy_pos, obs_pos])
-	if _deferred_queue.size() == 0:
+	if _deferred_queue.size() == 0 and not _deferred_running:
 		_post_turn_check()
 
 
@@ -1059,7 +1091,7 @@ func _handle_color_bomb_swap(candy_a: CandyScript, candy_b: CandyScript, drag_de
 	await get_tree().create_timer(0.3).timeout
 	await _cascade_loop()
 	_sync_candy_layer_visibility()
-	if _deferred_queue.size() == 0:
+	if _deferred_queue.size() == 0 and not _deferred_running:
 		_post_turn_check()
 
 
@@ -1326,7 +1358,7 @@ func _try_flush_deferred_queue() -> void:
 		await _cascade_loop()
 		_sync_candy_layer_visibility()
 	_deferred_running = false
-	if _deferred_queue.size() == 0:
+	if _deferred_queue.size() == 0 and not _deferred_running:
 		_post_turn_check()
 	else:
 		# 還有 entry 沒處理(front 還沒 ready,或某個 entry 的 timer 剛好在 flush 執行中
