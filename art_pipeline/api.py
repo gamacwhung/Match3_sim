@@ -20,8 +20,10 @@ from typing import Callable
 
 from . import gemini_api, pipeline
 from .apply import (
+    DEFAULT_PACKED_ART_RUN,
     ApplyProgressCallback,
     apply_run_batch,
+    apply_default_packed_art,
     restore,
 )
 from .manifest import PROJECT_ROOT, build_manifest, families
@@ -422,5 +424,11 @@ def apply_run_to_game(
     return ApplySummary(run_name=run_name)
 
 
+def default_packed_art_run() -> str:
+    """Run name whose sprites are baked into the Godot web pck by default."""
+    return DEFAULT_PACKED_ART_RUN
+
+
 def restore_original_art() -> None:
+    """Restore game default packed art and clear live overrides."""
     restore()

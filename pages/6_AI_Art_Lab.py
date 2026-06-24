@@ -338,7 +338,7 @@ def _render_generation_mode_panel(selected_assets: list[str]) -> None:
 
         def _ref_a_label(run_name: str) -> str:
             if not run_name:
-                return '官方原版（godot_demo/resources/sprites）'
+                return f'遊戲預設（{api.default_packed_art_run()}）'
             n = len(list(api.run_dir(run_name).glob('sprites/*.png')))
             return f'{run_name}（{n} 張）'
 
@@ -734,12 +734,12 @@ def _render_advanced_inner() -> None:
     else:
         st.caption('尚無既有版本')
 
-    if st.button('還原原版美術', use_container_width=True, key='art_restore'):
+    if st.button('還原遊戲預設美術', use_container_width=True, key='art_restore'):
         try:
             api.restore_original_art()
             st.session_state.art_asset_version = int(time.time())
             st.session_state.art_applied_run = None
-            st.toast('已還原原版美術', icon='↩️')
+            st.toast(f'已還原遊戲預設（{api.default_packed_art_run()}）', icon='↩️')
             st.rerun()
         except Exception as exc:
             st.error(str(exc))
