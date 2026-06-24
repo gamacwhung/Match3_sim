@@ -107,7 +107,7 @@ def main():
     draw_comic(d, img, lx, ly, lw, lh)
     _ctext(d, lx + lw / 2, ly - 56, "WATCH", f_lbl, DIM)
     _ctext(d, lx + lw / 2, ly + lh + 12,
-           "漫畫 · 角色 · 美術（看）" if ZH else "comics · characters · art  (passive)", f_sub, DIM)
+           "靜態內容 · 你只能看" if ZH else "static content  ·  you only watch", f_sub, DIM)
 
     # 右:PLAY (真實盤面)
     bw = 5 * 52 + 2 * 10            # 盤面尺寸(n*cell + pad*2),直接算不畫
@@ -119,7 +119,7 @@ def main():
     img.alpha_composite(img2)
     _ctext(d, rx + bw / 2, ly - 56, "PLAY", f_lbl, GBLUE)
     _ctext(d, rx + bw / 2, ry + bw + 12,
-           "可玩的互動小遊戲（玩）" if ZH else "interactive mini-game  (play)", f_sub, GBLUE)
+           "互動可玩 · 你能玩" if ZH else "interactive game  ·  you play", f_sub, GBLUE)
 
     # 中:AI 箭頭
     ax1 = lx + lw + 24
