@@ -45,7 +45,7 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     out = args[0] if args else os.path.join(_ROOT, "workflow_diagram.png")
 
-    W, H = 1300, 430
+    W, H = 1300, 470
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
 
@@ -55,9 +55,9 @@ def main():
             ("遊戲設計", "人主導", GREY, None),
             ("美術", "IP/主題換皮", GBLUE, "Feature 1"),
             ("關卡", "一句話生成", GBLUE, "Feature 2"),
-            ("驗證", "規則檢查", GYELLOW, None),
+            ("驗證", "規則檢查", GBLUE, "Feature 2"),
             ("自動測試", "100場·<2秒", GGREEN, "Feature 3"),
-            ("調整→上線", "依數據平衡", GGREEN, None),
+            ("調整→上線", "人依數據平衡", GREY, None),
         ]
         bracket = "AI 自動化最重的幾段"
     else:
@@ -65,9 +65,9 @@ def main():
             ("Game Design", "human-led", GREY, None),
             ("Art", "theme re-skin", GBLUE, "Feature 1"),
             ("Levels", "1 sentence → level", GBLUE, "Feature 2"),
-            ("Validate", "rule-based check", GYELLOW, None),
+            ("Validate", "rule-based check", GBLUE, "Feature 2"),
             ("Auto-test", "100 runs · <2s", GGREEN, "Feature 3"),
-            ("Tune → Ship", "data-driven balance", GGREEN, None),
+            ("Tune → Ship", "human-led", GREY, None),
         ]
         bracket = "AI automates the heavy lifting"
 
@@ -77,9 +77,9 @@ def main():
     x0 = (W - total) // 2
     cy = 250
 
-    # 上方括號:標示中間 5 段被 AI 自動化(第 2~6 段)
-    bx1 = x0 + bw + gap // 2 - 6
-    bx2 = x0 + n * bw + (n - 1) * gap
+    # 上方括號:只蓋 AI 自動化的段(Art~Auto-test = idx 1~4),不含人工的 Tune&Ship
+    bx1 = x0 + (bw + gap) - 8
+    bx2 = x0 + 4 * (bw + gap) + bw
     byb = cy - bh // 2 - 40
     d.line([(bx1, byb + 14), (bx1, byb), (bx2, byb), (bx2, byb + 14)], fill=GBLUE, width=3)
     _ctext(d, (bx1 + bx2) / 2, byb - 30, bracket, F(24), GBLUE)
@@ -104,16 +104,31 @@ def main():
             d.line([(ax + 4, cy), (ax + gap - 8, cy)], fill=LINE, width=4)
             d.polygon([(ax + gap - 10, cy - 7), (ax + gap, cy), (ax + gap - 10, cy + 7)], fill=LINE)
 
-    # 迴圈:自動測試/調整 → 回關卡(快速迭代)
-    f3x = x0 + 4 * (bw + gap) + bw // 2     # Auto-test 中心
+    bot = cy + bh // 2
     lvx = x0 + 2 * (bw + gap) + bw // 2     # Levels 中心
-    ly = cy + bh // 2 + 56
-    d.line([(f3x, cy + bh // 2), (f3x, ly)], fill=GBLUE, width=3)
-    d.line([(f3x, ly), (lvx, ly)], fill=GBLUE, width=3)
-    d.line([(lvx, ly), (lvx, cy + bh // 2 + 1)], fill=GBLUE, width=3)
-    d.polygon([(lvx - 7, cy + bh // 2 + 11), (lvx, cy + bh // 2), (lvx + 7, cy + bh // 2 + 11)], fill=GBLUE)
-    loop = "秒級迭代：自動測完馬上回頭調關卡" if ZH else "second-scale iteration loop"
-    _ctext(d, (f3x + lvx) / 2, ly + 8, loop, F(18), GBLUE)
+    vx = x0 + 3 * (bw + gap) + bw // 2      # Validate 中心
+    tsx = x0 + 5 * (bw + gap) + bw // 2     # Tune&Ship 中心
+
+    # 迴圈 1(自動,F2 內部):驗證不過 → 叫 generator 重生
+    ly1 = bot + 40
+    ax1 = lvx + 26                          # 進 Levels 底部偏右
+    d.line([(vx, bot), (vx, ly1)], fill=GBLUE, width=3)
+    d.line([(vx, ly1), (ax1, ly1)], fill=GBLUE, width=3)
+    d.line([(ax1, ly1), (ax1, bot + 1)], fill=GBLUE, width=3)
+    d.polygon([(ax1 - 7, bot + 11), (ax1, bot), (ax1 + 7, bot + 11)], fill=GBLUE)
+    _ctext(d, (vx + lvx) / 2 + 10, ly1 - 2,
+           "驗證不過→自動重生" if ZH else "invalid → auto-regenerate", F(15), GBLUE)
+
+    # 迴圈 2(人工):Tune&Ship 看數據 → 回頭調關卡重生
+    ly2 = bot + 94
+    ax2 = lvx - 26                          # 進 Levels 底部偏左
+    d.line([(tsx, bot), (tsx, ly2)], fill=GREY, width=3)
+    d.line([(tsx, ly2), (ax2, ly2)], fill=GREY, width=3)
+    d.line([(ax2, ly2), (ax2, bot + 1)], fill=GREY, width=3)
+    d.polygon([(ax2 - 7, bot + 11), (ax2, bot), (ax2 + 7, bot + 11)], fill=GREY)
+    _ctext(d, (tsx + lvx) / 2, ly2 + 6,
+           "人依數據判斷 → 調整 / 重生關卡" if ZH else "human reviews data → adjust & regenerate",
+           F(17), INK)
 
     img.save(out)
     print(f"已輸出: {out}  ({W}x{H}, 透明背景)")
