@@ -47,7 +47,10 @@ st.set_page_config(
 #   本機測試「整個網站 pipeline + 自己分支的 Godot」時，設環境變數 BOOTH_GODOT_LOCAL=1
 #   並另開 `python serve_godot_local.py`(localhost:8765 服務本機 godot_demo/web/)。
 GODOT_PAGES_URL = 'https://gamacwhung.github.io/Match3_sim/'
-GODOT_LOCAL_URL = 'http://localhost:8765/'
+# 遊戲伺服器位址：別台(攤位筆電)要連得到「這台」，就把 BOOTH_GODOT_HOST 設成這台的
+# 區網 IP:8765（例：172.23.19.106:8765）；自己這台玩就用預設 localhost:8765。
+_GODOT_HOST = os.environ.get('BOOTH_GODOT_HOST', 'localhost:8765')
+GODOT_LOCAL_URL = f'http://{_GODOT_HOST}/'
 _USE_LOCAL_GODOT = os.environ.get('BOOTH_GODOT_LOCAL', '0') == '1'
 GODOT_DEMO_URL = GODOT_LOCAL_URL if _USE_LOCAL_GODOT else GODOT_PAGES_URL
 # 找 Godot iframe 用的 host 標記（本機/Pages 都通）：localhost:8765 或 gamacwhung.github.io
@@ -400,12 +403,11 @@ def _do_generate(user_msg: str, live: bool = False, status=None, big_board: bool
 
     st.session_state.booth_level = level_dict
 
-    # 關卡就緒 先讓玩家玩；AI 難度測試移到背景（main() 結尾才跑，不擋遊玩）
+    # 關卡就緒 先讓玩家玩；難度測試改成報表裡按鈕觸發（不自動跑，不卡畫面）
     if validation.valid:
         st.session_state.booth_sim_results = None
-        st.session_state.booth_sim_pending = True
+        st.session_state.booth_sim_pending = False
         emit('success', '關卡就緒，可以開始玩了！')
-        emit('tool', 'AI 難度測試將在背景進行（玩你的，測它的）…')
     return True  # 有成功生成關卡（即使驗證有警告也算，關卡仍可玩）
 
 
@@ -676,6 +678,26 @@ def main():
         _GW = round(_GH * 720 / 1280)  # 9:16 ≈ 461；再放大，12×12 大盤面也塞得下
         st.components.v1.iframe(godot_url, width=_GW, height=_GH, scrolling=False)
 
+        # 🔍 全螢幕遊玩：訪客可把整個遊戲畫面放到全螢幕（按 Esc 退出）。
+        # 用元件內的真實 <button>（直接點擊手勢）對父頁的 Godot iframe requestFullscreen。
+        st.components.v1.html(
+            '''<button onclick="
+                var fs=window.parent.document.querySelectorAll('iframe');
+                for(var i=0;i<fs.length;i++){
+                    if(fs[i].src && fs[i].src.indexOf('__HOST__')!==-1){
+                        var el=fs[i];
+                        var rf=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
+                        if(rf){ try{ rf.call(el); }catch(e){} }
+                        break;
+                    }
+                }"
+                style="width:100%;padding:10px 0;font-size:16px;font-weight:600;cursor:pointer;
+                       background:#4285F4;color:#fff;border:none;border-radius:8px;">
+                🔍 全螢幕遊玩（按 Esc 退出）
+            </button>'''.replace('__HOST__', GODOT_HOST_MARKER),
+            height=54,
+        )
+
         level = st.session_state.booth_level
 
         # 關卡已載入時：用 postMessage 傳送到 Godot（不重新載入 iframe）
@@ -718,8 +740,6 @@ def main():
             if sim:
                 _bl, _bc, _be, _bd = _difficulty_badge(sim.win_rate)
                 _rep_label = f'📊 關卡報表　·　{_be} 難度：{_bl}（AI 勝率 {sim.win_rate:.0%}）'
-            elif st.session_state.get('booth_sim_pending'):
-                _rep_label = '📊 關卡報表（⏳ AI 正在背景測試難度…）'
             else:
                 _rep_label = '📊 關卡報表'
 
@@ -746,9 +766,18 @@ def main():
                         for err in v.errors[:3]:
                             st.caption(f'　· {err}')
 
-                # 難度 + AI 測試報表
-                if sim is None and st.session_state.get('booth_sim_pending'):
-                    st.caption('⏳ AI 正在背景試玩這關、評估難度…（不影響你先玩）')
+                # 難度 + AI 測試報表（按鈕觸發；不自動跑，避免一載入就模擬把畫面卡住）
+                if sim is None:
+                    if st.button('🤖 讓 AI 自動試玩、測這關難度（15 場）',
+                                 use_container_width=True, key='run_sim_btn'):
+                        with st.spinner('AI 試玩中…（約 1 秒）'):
+                            try:
+                                st.session_state.booth_sim_results = run_simulation_batch(
+                                    level_dict=level, n_games=15,
+                                    steps_multiplier=1.0, max_workers=2)
+                            except Exception as _e:
+                                st.error(f'測試失敗：{_e}')
+                        st.rerun()
                 elif sim:
                     wr = sim.win_rate
                     _lbl, _clr, _emo, _desc = _difficulty_badge(wr)
@@ -838,22 +867,7 @@ def main():
                         st.markdown('　'.join(goals_str_parts))
                     st.caption(f"剩餘步數：{frame['steps_left']}")
 
-    # 背景 AI 難度測試 — 在兩欄都畫完(關卡已 postMessage 給 Godot、玩家可開始玩)之後才跑。
-    # Streamlit 是同步的，這幾秒 Python 會 blocking，但 Godot iframe 是 client-side、照常可玩。
-    if (st.session_state.get('booth_sim_pending')
-            and st.session_state.get('booth_level')
-            and st.session_state.get('booth_validation')
-            and st.session_state.booth_validation.valid):
-        st.session_state.booth_sim_pending = False
-        try:
-            results = run_simulation_batch(
-                level_dict=st.session_state.booth_level, n_games=15,
-                steps_multiplier=1.0, max_workers=2,
-            )
-            st.session_state.booth_sim_results = results
-        except Exception:
-            pass
-        st.rerun()
+    # （難度測試改成報表裡的按鈕觸發，不再一載入就自動背景模擬把畫面卡住）
 
     # 底部 footer
     st.markdown('---')
