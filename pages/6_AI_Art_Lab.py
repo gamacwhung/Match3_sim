@@ -55,10 +55,6 @@ ELEMENT_LABELS: dict[str, str] = {
     'Red': '紅', 'Grn': '綠', 'Blu': '藍', 'Yel': '黃', 'Pur': '紫',
 }
 
-WORKFLOW_STEPS = ('① 選風格', '② 生成', '③ 審核', '④ 套用', '⑤ 試玩')
-
-STATUS_ICON = {'pass': '✅', 'needs_review': '🟡', 'failed': '❌'}
-
 RESULT_FILTERS = ('全部', '通過', '待審', '失敗')
 RESULT_FILTER_STATUS = {
     '通過': 'pass',
@@ -66,11 +62,24 @@ RESULT_FILTER_STATUS = {
     '失敗': 'failed',
 }
 
+STATUS_ICON = {'pass': '✅', 'needs_review': '🟡', 'failed': '❌'}
+
 
 def _inject_css() -> None:
     st.markdown(
         '''
         <style>
+        .block-container h1:first-of-type {
+            text-align: center !important;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+        }
+        .block-container [data-testid="stCaptionContainer"]:first-of-type p {
+            text-align: center !important;
+            color: #666 !important;
+            font-size: 1.05em !important;
+            padding-bottom: 8px !important;
+        }
         .art-section-label {
             font-size: 0.72rem;
             font-weight: 600;
@@ -78,34 +87,6 @@ def _inject_css() -> None:
             color: #888;
             margin: 0 0 6px 0;
             text-transform: uppercase;
-        }
-        .art-workflow {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            margin: 12px 0 16px 0;
-        }
-        .art-step {
-            flex: 1;
-            min-width: 72px;
-            text-align: center;
-            padding: 8px 4px;
-            border-radius: 8px;
-            font-size: 0.82rem;
-            background: #f4f4f5;
-            color: #888;
-            border: 1px solid #e8e8ea;
-        }
-        .art-step.active {
-            background: #e8f0fe;
-            color: #1a73e8;
-            border-color: #1a73e8;
-            font-weight: 600;
-        }
-        .art-step.done {
-            background: #e6f4ea;
-            color: #0d904f;
-            border-color: #c8e6c9;
         }
         .art-godot-dot {
             display: inline-block;
@@ -177,33 +158,6 @@ def _init_state() -> None:
             st.session_state[key] = val
     if st.session_state.art_env is None:
         st.session_state.art_env = Match3Env(rows=8, cols=8, num_colors=5, max_steps=999)
-
-
-def _workflow_step() -> int:
-    if st.session_state.get('art_applied_run'):
-        return 5
-    if st.session_state.art_results:
-        return 3
-    if st.session_state.get('art_generating'):
-        return 2
-    return 1
-
-
-def _render_workflow_stepper() -> None:
-    current = _workflow_step()
-    parts = []
-    for i, label in enumerate(WORKFLOW_STEPS, start=1):
-        if i < current:
-            cls = 'art-step done'
-        elif i == current:
-            cls = 'art-step active'
-        else:
-            cls = 'art-step'
-        parts.append(f'<div class="{cls}">{label}</div>')
-    st.markdown(
-        f'<div class="art-workflow">{"".join(parts)}</div>',
-        unsafe_allow_html=True,
-    )
 
 
 def _godot_up() -> bool:
@@ -976,22 +930,15 @@ def _render_game_panel() -> None:
             st.rerun()
 
 
+def _render_page_header() -> None:
+    st.title('AI Game Art Lab')
+    st.caption('一鍵打造你的專屬遊戲美術')
+
+
 def main() -> None:
     _init_state()
     _inject_css()
-
-    st.markdown(
-        '''
-        <div style="padding: 8px 0 0 0;">
-          <h1 style="margin:0; font-size: 1.9em;">🖌️ AI Game Art Lab</h1>
-          <p style="color:#666; margin: 4px 0 0 0;">
-            選風格 → 換皮或主題換物件 → 生成元素 → 右側立刻試玩
-          </p>
-        </div>
-        ''',
-        unsafe_allow_html=True,
-    )
-    _render_workflow_stepper()
+    _render_page_header()
 
     left, right = st.columns([0.95, 1.05], gap='large')
     with left:

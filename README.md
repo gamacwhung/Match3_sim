@@ -186,6 +186,14 @@ python scripts/ai_art_gen.py generate \
   --family elements \
   --no-reference-image
 
+python scripts/ai_art_gen.py generate \
+  --mode theme-swap \
+  --style "2D Disney cartoon style" \
+  --theme "糖果屋" \
+  --run candy_house \
+  --family elements \
+  --no-reference-image
+
 # 先 dry-run 看 prompt / 展開結果
 python scripts/ai_art_gen.py generate \
   --mode theme-swap \
