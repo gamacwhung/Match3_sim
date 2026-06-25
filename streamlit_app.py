@@ -559,12 +559,17 @@ def main():
         _adv_label = '⚙️ 進階選項：指定形狀 / 難度（可不選）' \
             + ('​' * st.session_state.get('booth_adv_collapse_n', 0))
         with st.expander(_adv_label, expanded=st.session_state.get('booth_adv_open', False)):
-            _sel_shape = st.pills('🔷 形狀', list(_SHAPE_DIR.keys()) + ['其他'],
-                                  selection_mode='single', key='booth_shape_pill')
-            _custom_shape = ''
-            if _sel_shape == '其他':
-                _custom_shape = st.text_input('自己打一個形狀', key='booth_custom_shape',
-                                              placeholder='例：星星、貓、閃電…')
+            if SAFE_MODE:
+                _sel_shape = None
+                _custom_shape = ''
+                st.caption('🔷 形狀：demo 安全模式期間停用（形狀會挖 void → 卡死）')
+            else:
+                _sel_shape = st.pills('🔷 形狀', list(_SHAPE_DIR.keys()) + ['其他'],
+                                      selection_mode='single', key='booth_shape_pill')
+                _custom_shape = ''
+                if _sel_shape == '其他':
+                    _custom_shape = st.text_input('自己打一個形狀', key='booth_custom_shape',
+                                                  placeholder='例：星星、貓、閃電…')
             _sel_diff = st.pills('🎚️ 難度', list(_DIFF_DIR.keys()) + ['其他'],
                                  selection_mode='single', key='booth_diff_pill')
             _custom_diff = ''
