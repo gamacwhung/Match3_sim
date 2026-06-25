@@ -25,11 +25,16 @@ const ELEMENT_INDEX: Dictionary = {
 # board_bg 一定要有 packed 預設(全螢幕背景 + 盤面木框 fallback)
 const NAMED_TEXTURES: Array[String] = ["board_bg"]
 
-# Web 端 live 貼圖最大邊長(避免大圖吃光 WASM 記憶體)
-const LIVE_MAX_DIM_ELEMENTS: int = 512
-const LIVE_MAX_DIM_NAMED: Dictionary = {"board_bg": 1024}
+# Web 端 live 貼圖最大邊長(避免大圖吃光 WASM/GPU 記憶體)。攤位畫面小，256 就很夠，
+# 換皮一次載 60+ 張，太大會 GPU OOM 整個瀏覽器當掉。
+const LIVE_MAX_DIM_ELEMENTS: int = 256
+const LIVE_MAX_DIM_NAMED: Dictionary = {"board_bg": 512}
 
 var theme_revision: int = 0
+# 目前套用的換皮主題:空字串 = 預設 candy(flat live_sprites/);否則 = live_sprites/themes/<name>/。
+var current_theme: String = ""
+# themes.json 內容(切換 UI 用):[{name,label,default?}, ...]
+var available_themes: Array = []
 var _textures: Dictionary = {}
 # 任意具名 sprite 的 live 覆蓋(stem → Texture2D);board_bg 另含 packed 預設。
 var _named: Dictionary = {}
@@ -45,11 +50,64 @@ func reload() -> void:
 	_named.clear()
 	_load_packed_defaults()
 	if OS.has_feature("web"):
-		if _live_requested():
+		# 換風格走「外面(Streamlit)選 → 重載 iframe ?theme=xxx → 開機套用」流程
+		#（跟 AI Art Lab 一樣是乾淨重開，不會像在 WASM 內反覆載貼圖那樣 GPU OOM）
+		var url_theme := _url_param("theme")
+		if url_theme != "":
+			current_theme = url_theme
+		if available_themes.is_empty():
+			await _load_themes_index()
+		# 有選主題(current_theme)或 URL ?live=1 都要套 live 覆蓋
+		if current_theme != "" or _live_requested():
 			await _apply_live_overrides()
 		# 通知開機 splash:packed(或 live)美術就緒,可以收掉進度條
 		JavaScriptBridge.eval("window._artThemeReady=true;", true)
 	theme_ready.emit()
+
+
+# 切換換皮主題("" = 預設 candy);重載 + 重新 emit theme_ready 讓全場 re-skin。
+func set_theme(theme_name: String) -> void:
+	if theme_name == current_theme:
+		return
+	current_theme = theme_name
+	await reload()
+
+
+# 循環切到下一套主題,回傳新主題的顯示 label(給按鈕顯示用)。
+func cycle_theme() -> String:
+	if OS.has_feature("web") and available_themes.is_empty():
+		await _load_themes_index()
+	if available_themes.is_empty():
+		return ""
+	var idx := -1
+	for i in available_themes.size():
+		if str(available_themes[i].get("name", "")) == current_theme:
+			idx = i
+			break
+	var nxt: Dictionary = available_themes[(idx + 1) % available_themes.size()]
+	await set_theme(str(nxt.get("name", "")))
+	return str(nxt.get("label", nxt.get("name", "")))
+
+
+# 載入 themes.json(切換清單);固定從 flat live_sprites/ 取(與 current_theme 無關)。
+func _load_themes_index() -> void:
+	var base := _flat_base_url()
+	if base.is_empty():
+		return
+	var http := HTTPRequest.new()
+	add_child(http)
+	if http.request("%sthemes.json?v=%d" % [base, theme_revision]) != OK:
+		http.queue_free()
+		return
+	var args = await http.request_completed
+	http.queue_free()
+	var code: int = args[1]
+	var body: PackedByteArray = args[3]
+	if code != 200 or body.is_empty():
+		return
+	var parsed = JSON.parse_string(body.get_string_from_utf8())
+	if parsed is Array:
+		available_themes = parsed
 
 
 func get_element_texture(color_index: int) -> Texture2D:
@@ -148,7 +206,17 @@ func _live_requested() -> bool:
 	return bool(result)
 
 
-func _live_base_url() -> String:
+# 讀任意 URL query 參數(如 ?theme=ocean_theme)；非 web 或沒有則回空字串。
+func _url_param(key: String) -> String:
+	if not OS.has_feature("web"):
+		return ""
+	var js := "(function(){var q=new URLSearchParams(window.location.search);return q.get('%s')||'';})()" % key
+	var r = JavaScriptBridge.eval(js, true)
+	return str(r) if r != null else ""
+
+
+# flat live_sprites/ 根目錄(預設 candy + themes.json 都在這層)
+func _flat_base_url() -> String:
 	if not OS.has_feature("web"):
 		return ""
 	var js := """
@@ -161,6 +229,16 @@ func _live_base_url() -> String:
 	"""
 	var result = JavaScriptBridge.eval(js, true)
 	return str(result) if result != null else ""
+
+
+# 目前主題的 sprite 基底:選了主題就指到 themes/<name>/,否則用 flat(預設 candy)。
+func _live_base_url() -> String:
+	var base := _flat_base_url()
+	if base.is_empty():
+		return ""
+	if current_theme != "":
+		return base + "themes/" + current_theme + "/"
+	return base
 
 
 func _fetch_texture(url: String, max_dim: int = 0) -> Texture2D:

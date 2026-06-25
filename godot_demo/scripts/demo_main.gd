@@ -27,6 +27,7 @@ var _level_index: int = 0
 # 外部(iframe/postMessage)推進來的自訂關卡原始 dict；非空時「重玩本關」要重載它，
 # 不能掉回官方關卡清單。載入官方關卡時會清空。
 var _custom_level_data: Dictionary = {}
+var _last_level_json: String = ""   # 去重：同一關卡重複推送(換風格/重載的重試)不重啟
 
 var current_scene: Node = null
 var hud: CanvasLayer = null
@@ -44,6 +45,7 @@ var _hint_ui: CanvasLayer = null
 var _in_attract: bool = false
 var _attract_timer: Timer = null
 const _ATTRACT_IDLE_SEC := 12.0   # 待機畫面停這麼久沒互動 → 開始 AI 自動試玩
+const _ATTRACT_ENABLED := false   # demo 暫時關閉 attract：idle→AI 試玩那瞬間會卡，先讓 idle 維持靜止
 
 # 機制提示（新手看不懂的障礙才提示；單純的 Crt 不提示）。家族名 → 一句白話玩法。
 const _MECHANIC_HINTS: Dictionary = {
@@ -187,9 +189,12 @@ func _process(_delta: float) -> void:
 	var pending = JavaScriptBridge.eval("window._godotLevelJson || ''")
 	if pending is String and pending.length() > 2:
 		JavaScriptBridge.eval("window._godotLevelJson = '';")
-		var json = JSON.new()
-		if json.parse(pending) == OK and json.data is Dictionary:
-			_start_level_from_dict(json.data)
+		# 去重：重載後 Streamlit 會重試推送同一關卡好幾次，只在「內容變了」時才重載
+		if pending != _last_level_json:
+			var json = JSON.new()
+			if json.parse(pending) == OK and json.data is Dictionary:
+				_last_level_json = pending
+				_start_level_from_dict(json.data)
 
 	# Autoplay: 接收動作序列
 	var autoplay = JavaScriptBridge.eval("window._godotAutoplayMoves || ''")
@@ -272,6 +277,8 @@ func _show_idle_screen() -> void:
 
 func _start_attract_timer() -> void:
 	_cancel_attract_timer()
+	if not _ATTRACT_ENABLED:
+		return   # demo 暫時關閉：idle 保持靜止，不自動切 AI 試玩
 	if not _booth_mode:
 		return   # 只有攤位模式才自動 attract
 	_attract_timer = Timer.new()
@@ -462,6 +469,8 @@ func _show_menu_button() -> void:
 	audio_btn.offset_bottom = 62
 	audio_btn.pressed.connect(func(): _toggle_audio(audio_btn))
 	menu_button_ui.add_child(audio_btn)
+	# 換風格改由外面 Streamlit 下拉選 → 重載 iframe(?theme=xxx)套用，
+	# 不在遊戲內反覆載貼圖(會 GPU OOM 讓整個瀏覽器當掉)。
 
 	# 選關 — 攤位模式（玩 AI 生成的關卡）不顯示，避免客人跳去玩官方 100 關
 	if _custom_level_data.is_empty():
@@ -491,6 +500,17 @@ func _show_menu_button() -> void:
 		ai_btn.offset_bottom = 62
 		ai_btn.pressed.connect(func(): _toggle_ai_mode(ai_btn))
 		menu_button_ui.add_child(ai_btn)
+
+
+func _cycle_theme(btn: Button) -> void:
+	# 循環切到下一套換皮主題;切換過程逐張 fetch sprite,故先 disable 按鈕避免連點。
+	if not ArtTheme.has_method("cycle_theme"):
+		return
+	btn.disabled = true
+	btn.text = "切換中…"
+	var label: String = await ArtTheme.cycle_theme()
+	btn.disabled = false
+	btn.text = label if label != "" else "換風格"
 
 
 func _toggle_audio(btn: Button) -> void:

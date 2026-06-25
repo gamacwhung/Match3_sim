@@ -279,9 +279,18 @@ func _clear_hint() -> void:
 	_hint_shown = false
 
 func _calculate_offset() -> void:
+	var viewport_size = get_viewport_rect().size
+	# 動態縮放 cell_size：大盤面/異形(到 13×13、14×14)也要整個塞進直式畫面，
+	# 不然固定 70px 下超過 ~10 欄就會溢出、左右被卡掉。預設 70 為上限、28 為下限。
+	if grid_width > 0 and grid_height > 0:
+		var max_w = viewport_size.x * 0.90   # 左右各留一點邊，大盤面才不會貼邊被卡
+		var max_h = viewport_size.y * 0.68   # 上面留 HUD、下面留邊
+		var fit = min(max_w / float(grid_width), max_h / float(grid_height))
+		cell_size = clampf(fit, 28.0, 70.0)
+		if filler:
+			filler.cell_size = cell_size
 	var board_width = grid_width * cell_size
 	var board_height = grid_height * cell_size
-	var viewport_size = get_viewport_rect().size
 	board_offset = Vector2(
 		(viewport_size.x - board_width) / 2.0,
 		(viewport_size.y - board_height) / 2.0 + 60
@@ -2150,50 +2159,84 @@ static func _is_movable_obstacle(tile_id: String) -> bool:
 	return tile_id.begins_with("Barrel") or tile_id.begins_with("TrafficCone")
 
 
+# 單格可移動障礙物能不能進入 target 格（空、在界內、非 void/blocked/糖/障礙）。
+func _barrel_can_enter(target: Vector2i) -> bool:
+	if target.x < 0 or target.x >= grid_width or target.y < 0 or target.y >= grid_height:
+		return false
+	if target in blocked_cells:
+		return false
+	if filler.void_cells.has(target):
+		return false
+	if filler.get_candy_at(target) != null:
+		return false
+	if obstacle_map.has(target):
+		return false
+	return true
+
+
+# 這個位置是不是「可以掉的單格可移動障礙物」。
+func _is_single_movable_at(pos: Vector2i) -> bool:
+	if not obstacle_map.has(pos):
+		return false
+	var obs = obstacle_map[pos]
+	if not _is_movable_obstacle(str(obs.get("tile_id", ""))):
+		return false
+	var cells: Array = obs.get("instance_cells", [])
+	return cells.size() <= 1
+
+
+# 把 from→to 的單格障礙物搬過去，並維護所有對應狀態（start_positions 為 by-ref）。
+func _move_obstacle_to(from_pos: Vector2i, to_pos: Vector2i, start_positions: Dictionary) -> void:
+	var obs = obstacle_map[from_pos]
+	var orig: Vector2i = start_positions.get(from_pos, from_pos)
+	start_positions.erase(from_pos)
+	start_positions[to_pos] = orig
+	obstacle_map[to_pos] = obs
+	obstacle_map.erase(from_pos)
+	blocked_cells.erase(from_pos)
+	blocked_cells.append(to_pos)
+	filler.movable_obstacle_cells.erase(from_pos)
+	filler.movable_obstacle_cells[to_pos] = true
+
+
 # 把可移動障礙物往下挪到最底 — 回傳 tween 列表，跟 candy 一起 await。
-# 演算法跟糖的重力類似：多輪 column-drop bottom-up。
+# 演算法跟糖的重力一致：直落 + 斜落（直下被擋、斜下空就滑過去），對齊 Python board.apply_gravity。
 func _apply_movable_obstacle_gravity() -> Array[Tween]:
 	var tweens: Array[Tween] = []
 	# 記錄每個障礙物的原始位置 → 最終位置
 	var start_positions: Dictionary = {}  # final_pos → original_pos
 
 	var iter = 0
-	while iter < grid_height * 2:
+	while iter < (grid_width + grid_height) * 2:
 		iter += 1
 		var moved_this_round = false
+		# Phase 1：直落
 		for y in range(grid_height - 2, -1, -1):
 			for x in range(grid_width):
 				var pos = Vector2i(x, y)
-				if not obstacle_map.has(pos):
-					continue
-				var obs = obstacle_map[pos]
-				var tid = str(obs.get("tile_id", ""))
-				if not _is_movable_obstacle(tid):
-					continue
-				var cells: Array = obs.get("instance_cells", [])
-				if cells.size() > 1:
+				if not _is_single_movable_at(pos):
 					continue
 				var below = Vector2i(x, y + 1)
-				if below.y >= grid_height:
+				if _barrel_can_enter(below):
+					_move_obstacle_to(pos, below, start_positions)
+					moved_this_round = true
+		# Phase 2：斜落（直下被擋，但斜下空 → 滑過去；左優先再右）
+		for y in range(grid_height - 2, -1, -1):
+			for x in range(grid_width):
+				var pos2 = Vector2i(x, y)
+				if not _is_single_movable_at(pos2):
 					continue
-				if below in blocked_cells:
-					continue
-				if filler.get_candy_at(below) != null:
-					continue
-				if obstacle_map.has(below):
-					continue
-				# 追蹤原始位置
-				var orig: Vector2i = start_positions.get(pos, pos)
-				start_positions.erase(pos)
-				start_positions[below] = orig
-				# 直落
-				obstacle_map[below] = obs
-				obstacle_map.erase(pos)
-				blocked_cells.erase(pos)
-				blocked_cells.append(below)
-				filler.movable_obstacle_cells.erase(pos)
-				filler.movable_obstacle_cells[below] = true
-				moved_this_round = true
+				var below2 = Vector2i(x, y + 1)
+				if _barrel_can_enter(below2):
+					continue  # 還能直落 → 留給下一輪 Phase 1
+				var dl = Vector2i(x - 1, y + 1)
+				var dr = Vector2i(x + 1, y + 1)
+				if _barrel_can_enter(dl):
+					_move_obstacle_to(pos2, dl, start_positions)
+					moved_this_round = true
+				elif _barrel_can_enter(dr):
+					_move_obstacle_to(pos2, dr, start_positions)
+					moved_this_round = true
 		if not moved_this_round:
 			break
 
