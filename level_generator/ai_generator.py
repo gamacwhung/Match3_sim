@@ -302,20 +302,24 @@ def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, im
     # 思考歸思考、答案(JSON)歸答案 —— 既能即時顯示 AI 在想什麼(不再是空白長停頓)、
     # 思考也能提升盤面品質，又不會把碎念混進 JSON 害解析失敗。
     # thinking_config 在舊版 SDK / 不支援的模型上會失敗 → 自動 fallback。
-    def _build_config(with_thinking: bool):
+    def _build_config(thinking_mode: str):
         kw = dict(
             system_instruction=system_prompt,
             max_output_tokens=8192,
             temperature=0.9,
         )
-        if with_thinking:
+        if thinking_mode == 'off':
+            # 攤位求快：thinking_budget=0 直接關閉思考，生成快很多（不再有思考停頓）
+            kw['thinking_config'] = types.ThinkingConfig(thinking_budget=0)
+        elif thinking_mode == 'show':
             kw['thinking_config'] = types.ThinkingConfig(include_thoughts=True)
         return types.GenerateContentConfig(**kw)
 
+    # 先試「關閉思考」(最快)；舊 SDK/模型不支援 thinking_config 就退回模型預設。
     try:
-        config = _build_config(True)
+        config = _build_config('off')
     except Exception:
-        config = _build_config(False)
+        config = _build_config('none')
 
     # 逐字串流：有 callback 時用 stream API，邊收邊回報。
     # 把「思考」與「答案」分流：思考 → callback(text, is_thought=True) 只顯示不入庫；

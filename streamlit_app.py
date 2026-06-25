@@ -62,15 +62,21 @@ BOOTH_MODEL = 'gemini-3.5-flash'
 # 顯示用的漂亮名稱（單一來源：改 BOOTH_MODEL，標題/頁尾/log 全部跟著變）
 BOOTH_MODEL_LABEL = BOOTH_MODEL.replace('gemini-', 'Gemini ').replace('-', ' ').title()
 
+# Demo 安全模式：只生「不會卡死」的簡單關（無木桶雨、無異形 void）。
+# 木桶/異形那條路目前會觸發遊戲端死鎖，修好後把這個改 False 即可恢復全功能。
+SAFE_MODE = True
+
 # (按鈕文字, 選之前就顯示的白話說明, 實際送給 AI 的 prompt)
 QUICK_PROMPTS = [
     ('💥 超爽連鎖', '一次消掉超多、超有成就感',
      '做一個中間有一大片空地、障礙物集中在四周和底部的關卡，讓我容易累積很多道具、一次消掉超多東西，超有成就感。'),
     ('🧩 步步為營', '從小空間慢慢往外清、越玩越大',
      '做一個障礙物幾乎塞滿、只在中間留一小塊空間的關卡，讓我從那一小塊慢慢往外消、把可以玩的範圍越玩越大。'),
-    ('🛢️ 障礙雨', '木桶一直從上面掉下來',
-     '做一個木桶會一直從上面掉下來的關卡，讓我一邊消除、一邊把掉下來的木桶清掉。'),
 ]
+if not SAFE_MODE:
+    QUICK_PROMPTS.append(
+        ('🛢️ 障礙雨', '木桶一直從上面掉下來',
+         '做一個木桶會一直從上面掉下來的關卡，讓我一邊消除、一邊把掉下來的木桶清掉。'))
 
 # 攤位快速體驗版：所有生成都附上這個指示（白話，不含技術術語；技術規則寫在系統 prompt 的設計指南）。
 BOOTH_LEVEL_HINT = (
@@ -81,6 +87,14 @@ BOOTH_LEVEL_HINT = (
     '障礙物不要多到把盤面塞爆（要留得下操作空間），'
     '讓人 1~2 分鐘內玩完、需要稍微動點腦、過關有成就感的短關卡，重點是好玩、有挑戰但不卡死。）'
 )
+if SAFE_MODE:
+    # 安全模式：明確禁止會觸發遊戲端死鎖的設計（木桶/連續掉落 + 異形 void）
+    BOOTH_LEVEL_HINT += (
+        '\n\n（重要安全限制：請用「普通方形盤面」，'
+        '絕對不要使用 void、不要做特殊形狀（不要愛心/G/十字/菱形等）；'
+        '絕對不要放木桶(Barrel)、也不要任何會從上方持續掉落或不斷生成的障礙（不要 spawner/障礙雨）；'
+        '障礙物只用少量「固定箱子 Crt」，其餘留空地給元素，確保盤面好操作、不會卡死。）'
+    )
 
 # 形狀關專用指示：盤面要大才畫得出形狀，所以不講「小盤面」，其餘要求一樣（單純、不卡死）。
 BOOTH_LEVEL_HINT_SHAPE = (
@@ -617,6 +631,8 @@ def main():
             st.session_state['booth_adv_collapse_n'] = \
                 st.session_state.get('booth_adv_collapse_n', 0) + 1
             _base = user_input.strip() if _has_input else '做一個好玩、有挑戰的小關卡。'
+            if SAFE_MODE:
+                _shape_dir = ''   # 安全模式：形狀要挖 void → 會觸發遊戲端死鎖，一律不套形狀
             _prompt = _base + _shape_dir + _diff_dir
             st.session_state.booth_last_prompt = _base
             # 記下這一輪「實際送出的需求」，生成後在下面的小框框可展開查看
@@ -677,26 +693,7 @@ def main():
         _GH = 820
         _GW = round(_GH * 720 / 1280)  # 9:16 ≈ 461；再放大，12×12 大盤面也塞得下
         st.components.v1.iframe(godot_url, width=_GW, height=_GH, scrolling=False)
-
-        # 🔍 全螢幕遊玩：訪客可把整個遊戲畫面放到全螢幕（按 Esc 退出）。
-        # 用元件內的真實 <button>（直接點擊手勢）對父頁的 Godot iframe requestFullscreen。
-        st.components.v1.html(
-            '''<button onclick="
-                var fs=window.parent.document.querySelectorAll('iframe');
-                for(var i=0;i<fs.length;i++){
-                    if(fs[i].src && fs[i].src.indexOf('__HOST__')!==-1){
-                        var el=fs[i];
-                        var rf=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
-                        if(rf){ try{ rf.call(el); }catch(e){} }
-                        break;
-                    }
-                }"
-                style="width:100%;padding:10px 0;font-size:16px;font-weight:600;cursor:pointer;
-                       background:#4285F4;color:#fff;border:none;border-radius:8px;">
-                🔍 全螢幕遊玩（按 Esc 退出）
-            </button>'''.replace('__HOST__', GODOT_HOST_MARKER),
-            height=54,
-        )
+        # （全螢幕按鈕暫移除：Godot 畫布在全螢幕沒置中、會跑到左上。demo 用這個直式視窗即可。）
 
         level = st.session_state.booth_level
 
