@@ -1593,6 +1593,24 @@ func _process_matches(matches: Array[Dictionary], swap_cells: Array[Vector2i] = 
 	await get_tree().create_timer(0.25).timeout
 	await _cascade_loop()
 
+# 等一批 tween 全部跑完，但「每個都有逾時保護」：tween 中途被 free / finished 訊號永遠不來時，
+# 用逐幀輪詢 + 上限秒數收尾，絕不會卡死 await（這是輸入鎖死的根因）。
+func _await_tweens_safe(tweens: Array, max_sec: float = 2.5) -> void:
+	var pending: Array = []
+	for tw in tweens:
+		if tw and is_instance_valid(tw) and tw.is_running():
+			pending.append(tw)
+	var t := 0.0
+	while not pending.is_empty() and t < max_sec:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var still: Array = []
+		for tw in pending:
+			if tw and is_instance_valid(tw) and tw.is_running():
+				still.append(tw)
+		pending = still
+
+
 func _cascade_loop() -> void:
 	# Gravity 跟 fill 一起 tween:
 	# - 可移動障礙物 (Barrel / TrafficCone) 先掉(它們不在 grid 裡,要另外處理)
@@ -1628,10 +1646,8 @@ func _cascade_loop() -> void:
 		if all_tweens.size() == 0:
 			break
 
-		# 等 tween 完(sequential await,但 tween 本身平行跑)
-		for tw in all_tweens:
-			if tw and tw.is_running():
-				await tw.finished
+		# 等 tween 完(逾時保護,tween 被 free 也不會卡死)
+		await _await_tweens_safe(all_tweens)
 		if first_round:
 			await get_tree().create_timer(0.08).timeout
 			first_round = false
@@ -2308,9 +2324,7 @@ func _final_settle_barrels() -> void:
 	var tws: Array[Tween] = _apply_movable_obstacle_gravity()
 	var grav: Array[Tween] = filler.apply_gravity()
 	var fil: Array[Tween] = filler.fill_empty_cells()
-	for tw in (tws + grav + fil):
-		if tw and tw.is_running():
-			await tw.finished
+	await _await_tweens_safe(tws + grav + fil)
 	_sync_candy_layer_visibility()
 	board_bg.queue_redraw()
 

@@ -96,6 +96,7 @@ func _load_themes_index() -> void:
 		return
 	var http := HTTPRequest.new()
 	add_child(http)
+	http.accept_gzip = false  # GitHub Pages 會 gzip 回傳；Godot gzip 解壓失敗會卡在 _process 狂噴錯 → 關掉
 	if http.request("%sthemes.json?v=%d" % [base, theme_revision]) != OK:
 		http.queue_free()
 		return
@@ -171,6 +172,7 @@ func _apply_live_overrides() -> void:
 func _fetch_manifest(base_url: String) -> Array:
 	var http := HTTPRequest.new()
 	add_child(http)
+	http.accept_gzip = false  # GitHub Pages 會 gzip 回傳；Godot gzip 解壓失敗會卡在 _process 狂噴錯 → 關掉
 	var err := http.request("%smanifest.json?v=%d" % [base_url, theme_revision])
 	if err != OK:
 		http.queue_free()
@@ -244,6 +246,7 @@ func _live_base_url() -> String:
 func _fetch_texture(url: String, max_dim: int = 0) -> Texture2D:
 	var http := HTTPRequest.new()
 	add_child(http)
+	http.accept_gzip = false  # GitHub Pages 會 gzip 回傳；Godot gzip 解壓失敗會卡在 _process 狂噴錯 → 關掉
 	if http.request(url) != OK:
 		http.queue_free()
 		return null

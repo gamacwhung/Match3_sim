@@ -63,8 +63,8 @@ BOOTH_MODEL = 'gemini-3.5-flash'
 BOOTH_MODEL_LABEL = BOOTH_MODEL.replace('gemini-', 'Gemini ').replace('-', ' ').title()
 
 # Demo 安全模式：只生「不會卡死」的簡單關（無木桶雨、無異形 void）。
-# 木桶/異形那條路目前會觸發遊戲端死鎖，修好後把這個改 False 即可恢復全功能。
-SAFE_MODE = True
+# 死鎖根因（tween await 卡住 + gzip 卡住）已修，先關掉恢復全功能測試；若還會卡再開回 True。
+SAFE_MODE = False
 
 # (按鈕文字, 選之前就顯示的白話說明, 實際送給 AI 的 prompt)
 QUICK_PROMPTS = [
