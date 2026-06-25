@@ -1,0 +1,31 @@
+[
+  {
+    "name": "",
+    "label": "糖果 Candy",
+    "default": true
+  },
+  {
+    "name": "candy_pixar_cyberpunk_yuan",
+    "label": "賽博龐克 Cyberpunk"
+  },
+  {
+    "name": "ocean_theme",
+    "label": "海洋 Ocean"
+  },
+  {
+    "name": "pixar_cartoon",
+    "label": "皮克斯卡通 Pixar"
+  },
+  {
+    "name": "pixel_restyle",
+    "label": "像素 Pixel"
+  },
+  {
+    "name": "steampunk",
+    "label": "蒸氣龐克 Steampunk"
+  },
+  {
+    "name": "zen_garden_pool",
+    "label": "禪意庭園 Zen"
+  }
+]
