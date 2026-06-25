@@ -12,6 +12,8 @@ AI Game Art Lab — 生成三消基本元素美術,即時套用到遊戲。
 
 from __future__ import annotations
 
+import base64
+import io
 import pathlib
 import socket
 import sys
@@ -20,6 +22,7 @@ import time
 
 import streamlit as st
 import streamlit.components.v1 as components
+from PIL import Image
 
 _ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(_ROOT))
@@ -42,6 +45,11 @@ LIVE_SPRITES_DIR = _ROOT / 'godot_demo' / 'web' / 'live_sprites'
 GODOT_VIEWPORT_W = 720
 GODOT_VIEWPORT_H = 1280
 
+HEADER_WALL_DIR = _ROOT / 'web_static' / 'art_lab_header_wall' / 'sprites'
+HEADER_WALL_THUMB_PX = 88
+HEADER_WALL_GAP_PX = 12
+HEADER_WALL_ANIM_SECS = 90
+
 # (chip label, full style prompt)
 STYLE_CHIPS: list[tuple[str, str]] = [
     ('像素復古', '像素風格 pixel art, crisp edges, retro game'),
@@ -55,10 +63,6 @@ ELEMENT_LABELS: dict[str, str] = {
     'Red': '紅', 'Grn': '綠', 'Blu': '藍', 'Yel': '黃', 'Pur': '紫',
 }
 
-WORKFLOW_STEPS = ('① 選風格', '② 生成', '③ 審核', '④ 套用', '⑤ 試玩')
-
-STATUS_ICON = {'pass': '✅', 'needs_review': '🟡', 'failed': '❌'}
-
 RESULT_FILTERS = ('全部', '通過', '待審', '失敗')
 RESULT_FILTER_STATUS = {
     '通過': 'pass',
@@ -66,11 +70,94 @@ RESULT_FILTER_STATUS = {
     '失敗': 'failed',
 }
 
+STATUS_ICON = {'pass': '✅', 'needs_review': '🟡', 'failed': '❌'}
 
-def _inject_css() -> None:
-    st.markdown(
-        '''
+
+def _page_css() -> str:
+    return '''
         <style>
+        .block-container {
+            padding-top: 0 !important;
+            max-width: 100% !important;
+        }
+        .block-container > div > div:first-child {
+            margin-top: 0 !important;
+        }
+        div[data-testid="stVerticalBlock"] { gap: 0.5rem; }
+        .art-header-shell {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0 0 12px 12px;
+            margin: var(--st-topbar-height, 3.75rem) -1rem 12px -1rem;
+            min-height: 132px;
+            background: #f4f4f5;
+        }
+        .art-header-wall {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+        .art-header-wall::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0.92) 0%,
+                rgba(255, 255, 255, 0.55) 18%,
+                rgba(255, 255, 255, 0.55) 82%,
+                rgba(255, 255, 255, 0.92) 100%
+            );
+            pointer-events: none;
+        }
+        .art-header-track {
+            display: flex;
+            width: max-content;
+            height: 100%;
+            align-items: center;
+            animation: art-wall-scroll var(--art-wall-duration, 50s) linear infinite;
+        }
+        .art-header-strip {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-right: 12px;
+        }
+        .art-header-strip img {
+            height: 88px;
+            width: 88px;
+            object-fit: contain;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.72);
+            border-radius: 10px;
+            padding: 6px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+        @keyframes art-wall-scroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .art-header-track { animation: none; }
+        }
+        .art-header-overlay {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 28px 16px 22px;
+        }
+        .art-header-overlay h1 {
+            margin: 0;
+            font-size: 2.2em;
+            line-height: 1.15;
+            text-shadow: 0 1px 10px rgba(255, 255, 255, 0.95);
+        }
+        .art-header-overlay p {
+            color: #666;
+            margin: 6px 0 0 0;
+            font-size: 1.05em;
+            text-shadow: 0 1px 8px rgba(255, 255, 255, 0.95);
+        }
         .art-section-label {
             font-size: 0.72rem;
             font-weight: 600;
@@ -78,34 +165,6 @@ def _inject_css() -> None:
             color: #888;
             margin: 0 0 6px 0;
             text-transform: uppercase;
-        }
-        .art-workflow {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            margin: 12px 0 16px 0;
-        }
-        .art-step {
-            flex: 1;
-            min-width: 72px;
-            text-align: center;
-            padding: 8px 4px;
-            border-radius: 8px;
-            font-size: 0.82rem;
-            background: #f4f4f5;
-            color: #888;
-            border: 1px solid #e8e8ea;
-        }
-        .art-step.active {
-            background: #e8f0fe;
-            color: #1a73e8;
-            border-color: #1a73e8;
-            font-weight: 600;
-        }
-        .art-step.done {
-            background: #e6f4ea;
-            color: #0d904f;
-            border-color: #c8e6c9;
         }
         .art-godot-dot {
             display: inline-block;
@@ -139,9 +198,7 @@ def _inject_css() -> None:
         }
         .art-ba-arrow { color: #aaa; font-size: 0.7rem; }
         </style>
-        ''',
-        unsafe_allow_html=True,
-    )
+        '''
 
 
 def _init_state() -> None:
@@ -177,33 +234,6 @@ def _init_state() -> None:
             st.session_state[key] = val
     if st.session_state.art_env is None:
         st.session_state.art_env = Match3Env(rows=8, cols=8, num_colors=5, max_steps=999)
-
-
-def _workflow_step() -> int:
-    if st.session_state.get('art_applied_run'):
-        return 5
-    if st.session_state.art_results:
-        return 3
-    if st.session_state.get('art_generating'):
-        return 2
-    return 1
-
-
-def _render_workflow_stepper() -> None:
-    current = _workflow_step()
-    parts = []
-    for i, label in enumerate(WORKFLOW_STEPS, start=1):
-        if i < current:
-            cls = 'art-step done'
-        elif i == current:
-            cls = 'art-step active'
-        else:
-            cls = 'art-step'
-        parts.append(f'<div class="{cls}">{label}</div>')
-    st.markdown(
-        f'<div class="art-workflow">{"".join(parts)}</div>',
-        unsafe_allow_html=True,
-    )
 
 
 def _godot_up() -> bool:
@@ -976,22 +1006,70 @@ def _render_game_panel() -> None:
             st.rerun()
 
 
-def main() -> None:
-    _init_state()
-    _inject_css()
+def _header_wall_stamp(sprites_dir: pathlib.Path) -> str:
+    pngs = sorted(sprites_dir.glob('*.png'))
+    if not pngs:
+        return ''
+    return f'{len(pngs)}:{max(p.stat().st_mtime for p in pngs):.0f}'
 
+
+@st.cache_data(show_spinner=False)
+def _header_wall_data_urls(sprites_dir: str, thumb_px: int, stamp: str) -> tuple[str, ...]:
+    if not stamp:
+        return ()
+    root = pathlib.Path(sprites_dir)
+    urls: list[str] = []
+    for path in sorted(root.glob('*.png')):
+        try:
+            with Image.open(path) as im:
+                im = im.convert('RGBA')
+                im.thumbnail((thumb_px, thumb_px), Image.Resampling.LANCZOS)
+                buf = io.BytesIO()
+                im.save(buf, format='PNG', optimize=True)
+                b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+                urls.append(f'data:image/png;base64,{b64}')
+        except OSError:
+            continue
+    return tuple(urls)
+
+
+def _header_wall_strip(urls: tuple[str, ...]) -> str:
+    if not urls:
+        return ''
+    return ''.join(f'<img src="{url}" alt="" />' for url in urls)
+
+
+def _render_page_header() -> None:
+    stamp = _header_wall_stamp(HEADER_WALL_DIR)
+    urls = _header_wall_data_urls(str(HEADER_WALL_DIR), HEADER_WALL_THUMB_PX, stamp)
+    strip = _header_wall_strip(urls)
+    wall_html = ''
+    if strip:
+        wall_html = (
+            f'<div class="art-header-wall" style="--art-wall-duration: {HEADER_WALL_ANIM_SECS}s;">'
+            f'<div class="art-header-track">'
+            f'<div class="art-header-strip">{strip}</div>'
+            f'<div class="art-header-strip" aria-hidden="true">{strip}</div>'
+            f'</div></div>'
+        )
     st.markdown(
-        '''
-        <div style="padding: 8px 0 0 0;">
-          <h1 style="margin:0; font-size: 1.9em;">🖌️ AI Game Art Lab</h1>
-          <p style="color:#666; margin: 4px 0 0 0;">
-            選風格 → 換皮或主題換物件 → 生成元素 → 右側立刻試玩
-          </p>
+        _page_css()
+        + f'''
+        <div class="art-header-shell">
+          {wall_html}
+          <div class="art-header-overlay">
+            <h1>AI Game Art Lab</h1>
+            <p>一鍵打造你的專屬遊戲美術</p>
+          </div>
         </div>
         ''',
         unsafe_allow_html=True,
     )
-    _render_workflow_stepper()
+
+
+def main() -> None:
+    _init_state()
+    _render_page_header()
 
     left, right = st.columns([0.95, 1.05], gap='large')
     with left:
