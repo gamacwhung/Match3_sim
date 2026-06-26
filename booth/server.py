@@ -274,7 +274,7 @@ async def api_generate_stream(req: GenReq):
                 _text, level = generate_level(
                     user_message=full_prompt + feedback, chat_history=[],
                     params=params, model=BOOTH_MODEL, stream_callback=cb,
-                    thinking="show",  # 串流要顯示 AI 思考 → 開啟 thinking
+                    thinking="off",  # 關閉思考(較快);串流仍會即時顯示 JSON 產出打字效果
                 )
             except Exception as e:
                 q.put({"type": "error", "error": f"生成失敗：{e}"})

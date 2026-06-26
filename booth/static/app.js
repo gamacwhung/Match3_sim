@@ -149,7 +149,7 @@ async function generate() {
   setStatus("work", '<span class="spinner"></span>AI 生成關卡中…');
   const tBox = $("thinking"), tText = $("thinking-text"), tLabel = $("thinking-label");
   tText.textContent = "";
-  tLabel.textContent = "🧠 AI 思考中…";
+  tLabel.textContent = "✨ AI 生成關卡中…";
   tBox.hidden = false;
 
   let acc = "";
@@ -181,7 +181,7 @@ async function generate() {
         if (!m) continue;
         let evt;
         try { evt = JSON.parse(m[1]); } catch (e) { continue; }
-        if (evt.type === "phase") { tLabel.textContent = "🧠 " + evt.data; }
+        if (evt.type === "phase") { tLabel.textContent = "✨ " + evt.data; }
         else if (evt.type === "thought") { appendThink(evt.data); }
         else if (evt.type === "text") { tLabel.textContent = "✍️ 正在產出關卡…"; appendThink(evt.data); }
         else if (evt.type === "error") { setStatus("err", "❌ " + (evt.error || "生成失敗")); }
