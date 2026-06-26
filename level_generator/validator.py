@@ -257,13 +257,18 @@ def _check_goal_consistency(d: dict, result: ValidationResult):
     fam_cap = {}
     for tid, n in _count_tiles_on_board(d).items():
         fam = _tile_family(tid)
-        defn = get_def(tid)
-        hp = defn.get('health', 1) if defn else 1
+        defn = get_def(tid) or {}
+        hp = defn.get('health', 1)
+        elim = defn.get('elimination_type', 'single')
         fam_count[fam] = fam_count.get(fam, 0) + n
-        if hp >= 9999:  # Stamp/Postmark 觸發型 → 可重複觸發，不受盤面數量限制
+        # 目標只在「物件被消滅」時 +1(match_engine);受擊降血不算、tile_id 不變。
+        #   single(紙箱/水漥/木桶/三角錐…):打爆才算 1 → 上限 = 物件數(HP 不乘)
+        #   multi (冰箱…):會逐階降階成別的 tile_id → 每階都算 → 上限 = HP 累計
+        if hp >= 9999:  # Stamp/Postmark 觸發型 → 可重複觸發,不受盤面數量限制
             fam_cap[fam] = float('inf')
         else:
-            fam_cap[fam] = fam_cap.get(fam, 0) + n * hp
+            contrib = hp if elim == 'multi' else 1
+            fam_cap[fam] = fam_cap.get(fam, 0) + n * contrib
 
     # 有 spawner 持續生成的家族 → 視為可無限補充，目標一定達得到
     spawner_fams = set()

@@ -152,17 +152,38 @@ func _apply_live_overrides() -> void:
 	var total := names.size()
 	var done := 0
 	_js_progress(0, total)
-	for nm in names:
-		var max_dim: int = int(LIVE_MAX_DIM_NAMED.get(nm, LIVE_MAX_DIM_ELEMENTS))
-		var url := "%s%s.png?v=%d" % [base_url, nm, theme_revision]
-		var tex := await _fetch_texture(url, max_dim)
-		done += 1
-		_js_progress(done, total)
-		if tex == null:
-			continue
-		loaded_named[nm] = tex
-		if ELEMENT_INDEX.has(nm):
-			loaded_textures[ELEMENT_INDEX[nm]] = tex
+	# 併發下載(每批 BATCH 張同時抓,而非一張載完才下一張)→ 切主題從「閃糖果+等好幾秒」變幾乎瞬間。
+	# 一批先把所有 request() 發出去(in-flight),再逐一 await 完成 → 該批是真的並行。
+	const BATCH := 12
+	var i := 0
+	while i < names.size():
+		var batch: Array = names.slice(i, mini(i + BATCH, names.size()))
+		var pending: Array = []
+		for nm in batch:
+			var max_dim: int = int(LIVE_MAX_DIM_NAMED.get(nm, LIVE_MAX_DIM_ELEMENTS))
+			var url := "%s%s.png?v=%d" % [base_url, nm, theme_revision]
+			var http := HTTPRequest.new()
+			add_child(http)
+			http.accept_gzip = false
+			if http.request(url) == OK:
+				pending.append([nm, http, max_dim])
+			else:
+				http.queue_free()
+		for p in pending:
+			var nm: String = p[0]
+			var http: HTTPRequest = p[1]
+			var args = await http.request_completed
+			http.queue_free()
+			var tex := _texture_from_response(args, int(p[2]))
+			done += 1
+			_js_progress(done, total)
+			if tex == null:
+				push_warning("[theme] 貼圖載入失敗: " + nm + " (" + current_theme + ")")
+				continue
+			loaded_named[nm] = tex
+			if ELEMENT_INDEX.has(nm):
+				loaded_textures[ELEMENT_INDEX[nm]] = tex
+		i += BATCH
 	for key in loaded_named:
 		_named[key] = loaded_named[key]
 	for idx in loaded_textures:
