@@ -210,7 +210,9 @@ func _on_viewport_resized() -> void:
 
 
 func _relayout_board_positions() -> void:
+	print("[R>] relayout IN w=%d h=%d cs=%.1f" % [grid_width, grid_height, cell_size])
 	_calculate_offset()
+	print("[R.] relayout 重定位糖中...")
 	if filler:
 		filler.board_offset = board_offset
 		for x in grid_width:
@@ -219,6 +221,7 @@ func _relayout_board_positions() -> void:
 				if candy:
 					candy.position = filler.grid_to_world(Vector2i(x, y))
 	board_bg.queue_redraw()
+	print("[R<] relayout OUT")
 
 
 func _process(delta: float) -> void:
