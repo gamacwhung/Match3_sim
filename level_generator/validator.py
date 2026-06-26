@@ -282,6 +282,7 @@ def _check_goal_consistency(d: dict, result: ValidationResult):
     # 目標也按家族聚合(Crt1:15 + Crt2:15 → Crt 家族總目標 30),再跟家族 cap 比 —— 避免
     # 同家族有多個變體目標時,拿單一目標去比家族總 cap 而誤判。
     goal_by_fam = {}
+    fam_tile_ids = {}
     for goal_tile, goal_count in goals.items():
         if not isinstance(goal_count, (int, float)) or goal_count <= 0:
             result.errors.append(f'goal "{goal_tile}" 的數量必須是正整數')
@@ -289,9 +290,19 @@ def _check_goal_consistency(d: dict, result: ValidationResult):
         if is_element(goal_tile):          # 元素：遊戲動態無限補充
             continue
         fam = _tile_family(goal_tile)
+        fam_tile_ids.setdefault(fam, set()).add(goal_tile)
         if fam not in goal_by_fam:
             goal_by_fam[fam] = [0, goal_tile]
         goal_by_fam[fam][0] += goal_count
+
+    # 同一家族障礙物不要拆成多個目標(Crt1+Crt2)→ HUD 會出現重複/多餘的目標格子
+    for fam, tids in fam_tile_ids.items():
+        if len(tids) > 1:
+            s = "、".join(sorted(tids))
+            result.errors.append(
+                f'同一種障礙物用了多個目標（{s}）會讓目標欄出現多餘格子。'
+                f'請只用「一個」目標（挑一種，例如只用 {sorted(tids)[-1]}），或改用不同家族的障礙物（如 Crt + Barrel）。'
+            )
 
     for fam, info in goal_by_fam.items():
         total_goal, label = info[0], info[1]
