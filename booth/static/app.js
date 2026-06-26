@@ -110,7 +110,6 @@ clearBtn.addEventListener("click", () => {
   ["shapes", "diffs"].forEach((id) => {
     [...$(id).children].forEach((c, i) => c.classList.toggle("active", i === 0));
   });
-  $("last-sent").hidden = true;
   refreshButtons();
   promptEl.focus();
 });
@@ -138,9 +137,6 @@ async function generate() {
     reloadGame(); // reload iframe → 帶新關卡網址（level_lz），遊戲開機直接載入
     $("game-hint").style.display = "none";
 
-    const ls = $("last-sent");
-    ls.textContent = "上次送出：" + prompt;
-    ls.hidden = false;
     $("full-prompt").textContent = data.full_prompt || prompt;
     $("prompt-detail").hidden = false;
 

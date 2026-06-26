@@ -66,11 +66,13 @@ func _ready() -> void:
 
 
 func _apply_font_overrides() -> void:
-	if _font == null:
-		return
 	for lb in [score_label, level_label, moves_label, objective_label]:
 		if lb:
-			lb.add_theme_font_override("font", _font)
+			if _font:
+				lb.add_theme_font_override("font", _font)
+			# 黑色描邊 → 黃字/白字在淺色遊戲背景上才看得清楚(關卡/剩餘步數)
+			lb.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+			lb.add_theme_constant_override("outline_size", 6)
 
 
 func setup(level_data: Resource) -> void:

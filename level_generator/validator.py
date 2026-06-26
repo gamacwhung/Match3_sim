@@ -279,6 +279,9 @@ def _check_goal_consistency(d: dict, result: ValidationResult):
             if isinstance(e, dict):
                 spawner_fams.add(_tile_family(e.get('tile_id', '')))
 
+    # 目標也按家族聚合(Crt1:15 + Crt2:15 → Crt 家族總目標 30),再跟家族 cap 比 —— 避免
+    # 同家族有多個變體目標時,拿單一目標去比家族總 cap 而誤判。
+    goal_by_fam = {}
     for goal_tile, goal_count in goals.items():
         if not isinstance(goal_count, (int, float)) or goal_count <= 0:
             result.errors.append(f'goal "{goal_tile}" 的數量必須是正整數')
@@ -286,21 +289,34 @@ def _check_goal_consistency(d: dict, result: ValidationResult):
         if is_element(goal_tile):          # 元素：遊戲動態無限補充
             continue
         fam = _tile_family(goal_tile)
+        if fam not in goal_by_fam:
+            goal_by_fam[fam] = [0, goal_tile]
+        goal_by_fam[fam][0] += goal_count
+
+    for fam, info in goal_by_fam.items():
+        total_goal, label = info[0], info[1]
         if fam in spawner_fams:            # 有 spawner 補充 → 一定達得到
             continue
-
         if fam_count.get(fam, 0) == 0:
             result.errors.append(
-                f'目標 "{goal_tile}"×{int(goal_count)} 無法達成：盤面上沒有任何 "{goal_tile}"，'
-                f'也沒有 spawner 會生成它。請在盤面放足夠的 "{goal_tile}"，或加一個生成它的 spawner。'
+                f'目標 "{label}"×{int(total_goal)} 無法達成：盤面上沒有任何 "{label}"，'
+                f'也沒有 spawner 會生成它。請在盤面放足夠的 "{label}"，或加一個生成它的 spawner。'
             )
             continue
         cap = fam_cap.get(fam, 0)
-        if goal_count > cap:
+        if cap == float('inf'):   # Stamp/Postmark 觸發型 → 不受盤面數量限制,跳過上下限檢查
+            continue
+        if total_goal > cap:
             result.errors.append(
-                f'目標 "{goal_tile}"×{int(goal_count)} 無法達成：盤面最多只能消 {int(cap)} 點'
-                f'（共 {fam_count[fam]} 個物件），且無 spawner 補充。'
-                f'請把目標降到 {int(cap)} 以下，或在盤面增加數量／加一個生成它的 spawner。'
+                f'目標 "{label}"×{int(total_goal)} 無法達成：盤面最多只能消 {int(cap)} 個，'
+                f'且無 spawner 補充。請把目標降到 {int(cap)} 以下，或在盤面增加數量／加一個生成它的 spawner。'
+            )
+        elif total_goal < cap * 0.7:
+            # 目標遠少於盤面可消數 → 清完目標仍剩一堆障礙物,「還有障礙物卻贏了」很怪。
+            result.errors.append(
+                f'目標 "{label}"×{int(total_goal)} 太少：盤面共可消 {int(cap)} 個，'
+                f'贏了還會剩 ~{int(cap) - int(total_goal)} 個障礙物沒清，玩家會覺得「還有障礙物怎麼就贏了」。'
+                f'請把目標設成接近盤面總數 {int(cap)}（清完剛好達標），或把盤面該障礙物減少到約 {int(total_goal)} 個。'
             )
 
 

@@ -152,33 +152,41 @@ func _apply_live_overrides() -> void:
 	var total := names.size()
 	var done := 0
 	_js_progress(0, total)
-	# 併發下載(每批 BATCH 張同時抓,而非一張載完才下一張)→ 切主題從「閃糖果+等好幾秒」變幾乎瞬間。
-	# 一批先把所有 request() 發出去(in-flight),再逐一 await 完成 → 該批是真的並行。
+	# 併發下載(每批 BATCH 張同時抓)→ 切主題從「閃糖果+等好幾秒」變快。
+	# 用 callback(在 request 之前就連好,不會像 await signal 那樣 miss 掉已回來的訊號)+ 輪詢計數,
+	# 等整批回來再進下一批。避免「先發再逐一 await」在本機快速回應時 miss signal 卡住的 bug。
 	const BATCH := 12
 	var i := 0
 	while i < names.size():
 		var batch: Array = names.slice(i, mini(i + BATCH, names.size()))
-		var pending: Array = []
+		var remaining := [batch.size()]
+		var results := {}
 		for nm in batch:
 			var max_dim: int = int(LIVE_MAX_DIM_NAMED.get(nm, LIVE_MAX_DIM_ELEMENTS))
 			var url := "%s%s.png?v=%d" % [base_url, nm, theme_revision]
 			var http := HTTPRequest.new()
 			add_child(http)
 			http.accept_gzip = false
-			if http.request(url) == OK:
-				pending.append([nm, http, max_dim])
-			else:
+			var nm2 := nm
+			http.request_completed.connect(
+				func(result, code, _headers, body):
+					results[nm2] = _texture_from_response([result, code, _headers, body], max_dim)
+					remaining[0] -= 1
+					http.queue_free(),
+				CONNECT_ONE_SHOT)
+			if http.request(url) != OK:
+				remaining[0] -= 1
 				http.queue_free()
-		for p in pending:
-			var nm: String = p[0]
-			var http: HTTPRequest = p[1]
-			var args = await http.request_completed
-			http.queue_free()
-			var tex := _texture_from_response(args, int(p[2]))
+		var guard := 0.0
+		while remaining[0] > 0 and guard < 15.0:
+			await get_tree().process_frame
+			guard += get_process_delta_time()
+		for nm in results:
 			done += 1
 			_js_progress(done, total)
+			var tex = results[nm]
 			if tex == null:
-				push_warning("[theme] 貼圖載入失敗: " + nm + " (" + current_theme + ")")
+				push_warning("[theme] 貼圖載入失敗: " + str(nm) + " (" + current_theme + ")")
 				continue
 			loaded_named[nm] = tex
 			if ELEMENT_INDEX.has(nm):
