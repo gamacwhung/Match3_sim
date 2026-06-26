@@ -184,14 +184,14 @@ func _check_url_autoplay() -> void:
 
 
 func _process(_delta: float) -> void:
-	# FREEZE-PROBE 心跳:每 ~60 幀(約 1 秒)印一次。凍住時:
-	#  心跳停 = 引擎同步 hang;心跳續+is_processing=true = 輸入鎖;續+false = 輸入沒送到糖。
+	# FREEZE-PROBE 心跳。待機(no-board)每 60 幀印一次;載入後改「每一幀」印進出,
+	# 凍住時最後印的標記就是 hang 的確切位置(demo._process? game_board._process? 還是 render?)。
 	_hb_frames += 1
-	if _hb_frames % 60 == 0:
-		var ip := "no-board"
-		if current_board and is_instance_valid(current_board) and "is_processing" in current_board:
-			ip = "is_processing=" + str(current_board.is_processing)
-		print("[HB] frame=%d %s" % [_hb_frames, ip])
+	var _has_board := current_board != null and is_instance_valid(current_board)
+	if _has_board:
+		print("[P1>] f=%d demo IN ip=%s" % [_hb_frames, str(current_board.is_processing) if "is_processing" in current_board else "?"])
+	elif _hb_frames % 60 == 0:
+		print("[HB] frame=%d no-board" % _hb_frames)
 
 	if not OS.has_feature("web"):
 		return
@@ -222,6 +222,9 @@ func _process(_delta: float) -> void:
 		JavaScriptBridge.eval("window._godotAiMode = '';")
 		if current_board and current_board.has_method("start_ai_mode"):
 			current_board.start_ai_mode(0.8)
+
+	if _has_board:
+		print("[P1<] f=%d demo OUT" % _hb_frames)
 
 
 func _show_idle_screen() -> void:

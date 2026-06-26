@@ -222,6 +222,8 @@ func _relayout_board_positions() -> void:
 
 
 func _process(delta: float) -> void:
+	if filler != null:
+		print("[P2>] f=%d gb IN ip=%s hint=%s" % [Engine.get_process_frames(), str(is_processing), str(_hint_shown)])
 	# 鎖死看門狗：special 道具(光球/紙飛機等)動畫跑完卻沒解鎖時，超時強制恢復可操作。
 	# 只在「真的閒置」(沒有待爆炸佇列、沒在跑 flush)時計時；正常動畫/連鎖遠在 5 秒內結束，
 	# 所以只有真的卡死才會觸發，不會誤判正常遊玩。
@@ -255,10 +257,14 @@ func _process(delta: float) -> void:
 		_stuck_watchdog = 0.0
 
 	if filler == null or is_processing or _hint_shown:
+		if filler != null:
+			print("[P2<] f=%d gb OUT(early)" % Engine.get_process_frames())
 		return
 	_hint_timer += delta
 	if _hint_timer >= _hint_delay:
+		print("[P2!] f=%d gb 觸發 _show_hint" % Engine.get_process_frames())
 		_show_hint()
+	print("[P2<] f=%d gb OUT(end)" % Engine.get_process_frames())
 
 func _reset_hint_timer() -> void:
 	_hint_timer = 0.0
