@@ -68,6 +68,13 @@ $("fs-exit").addEventListener("click", () => {
   if (document.exitFullscreen) document.exitFullscreen();
   else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
 });
+// 進/出全螢幕時強制遊戲重新量測 canvas → 用全螢幕的解析度重繪(否則是放大糊的)。
+// 同源 /game/ 才能 dispatch;多丟幾次確保 Godot 抓到新尺寸。
+document.addEventListener("fullscreenchange", () => {
+  [100, 400, 800].forEach((t) => setTimeout(() => {
+    try { gameFrame.contentWindow.dispatchEvent(new Event("resize")); } catch (e) {}
+  }, t));
+});
 
 // ── 範本 pill：填進輸入框 ─────────────────────────────────────────
 $("presets").addEventListener("click", (e) => {
