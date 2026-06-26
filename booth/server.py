@@ -32,8 +32,29 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from level_generator.ai_generator import generate_level
-from level_generator.validator import validate_level
+from level_generator.validator import validate_level, _tile_family
 from level_generator.sim_runner import run_simulation_batch
+
+
+def _merge_same_family_goals(level: dict) -> None:
+    """同一家族障礙物若被拆成多個目標(Crt1+Crt2)→ 合併成一個家族目標(Crt:總和)。
+    讓目標欄乾淨只一格,且遊戲端會把所有變體一起算(_normalize_goal_key)。就地修改 level。"""
+    goals = level.get("goals")
+    if not isinstance(goals, dict) or len(goals) < 2:
+        return
+    by_fam: dict = {}
+    for tile, cnt in goals.items():
+        fam = _tile_family(tile)
+        by_fam.setdefault(fam, {"tiles": [], "total": 0})
+        by_fam[fam]["tiles"].append(tile)
+        by_fam[fam]["total"] += cnt
+    new_goals: dict = {}
+    for fam, info in by_fam.items():
+        if len(info["tiles"]) > 1:
+            new_goals[fam] = info["total"]            # 多變體 → 合併成家族目標
+        else:
+            new_goals[info["tiles"][0]] = info["total"]  # 單一 → 保留原 key
+    level["goals"] = new_goals
 
 _STATIC = pathlib.Path(__file__).resolve().parent / "static"
 _THEMES_JSON = _REPO / "godot_demo" / "web" / "live_sprites" / "themes.json"
@@ -177,6 +198,7 @@ def api_generate(req: GenReq):
             )
             continue
 
+        _merge_same_family_goals(level)  # Crt1+Crt2 → Crt:總和(目標欄乾淨只一格)
         validation = validate_level(level)
         if validation.valid:
             break

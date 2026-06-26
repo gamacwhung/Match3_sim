@@ -27,8 +27,8 @@ const NAMED_TEXTURES: Array[String] = ["board_bg"]
 
 # Web 端 live 貼圖最大邊長(避免大圖吃光 WASM/GPU 記憶體)。攤位畫面小，256 就很夠，
 # 換皮一次載 60+ 張，太大會 GPU OOM 整個瀏覽器當掉。
-const LIVE_MAX_DIM_ELEMENTS: int = 256
-const LIVE_MAX_DIM_NAMED: Dictionary = {"board_bg": 512}
+const LIVE_MAX_DIM_ELEMENTS: int = 512  # 原圖就是 512;之前降到 256 在全螢幕/大畫面會糊
+const LIVE_MAX_DIM_NAMED: Dictionary = {"board_bg": 1024}
 
 var theme_revision: int = 0
 # 目前套用的換皮主題:空字串 = 預設 candy(flat live_sprites/);否則 = live_sprites/themes/<name>/。
