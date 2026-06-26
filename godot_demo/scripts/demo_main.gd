@@ -41,6 +41,7 @@ var current_board: Node2D = null
 var _booth_mode: bool = false
 var _idle_ui: CanvasLayer = null
 var _hint_ui: CanvasLayer = null
+var _hb_frames: int = 0  # FREEZE-PROBE 心跳:每秒印一次,凍住時看心跳停不停 + is_processing
 # attract mode：待機一段時間沒人玩 → AI 自動試玩一關循環吸引人
 var _in_attract: bool = false
 var _attract_timer: Timer = null
@@ -183,6 +184,15 @@ func _check_url_autoplay() -> void:
 
 
 func _process(_delta: float) -> void:
+	# FREEZE-PROBE 心跳:每 ~60 幀(約 1 秒)印一次。凍住時:
+	#  心跳停 = 引擎同步 hang;心跳續+is_processing=true = 輸入鎖;續+false = 輸入沒送到糖。
+	_hb_frames += 1
+	if _hb_frames % 60 == 0:
+		var ip := "no-board"
+		if current_board and is_instance_valid(current_board) and "is_processing" in current_board:
+			ip = "is_processing=" + str(current_board.is_processing)
+		print("[HB] frame=%d %s" % [_hb_frames, ip])
+
 	if not OS.has_feature("web"):
 		return
 	# 動態載入關卡
