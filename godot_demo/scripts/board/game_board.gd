@@ -2332,6 +2332,8 @@ func _final_settle_barrels() -> void:
 func _post_turn_check() -> void:
 	GameManager.reset_combo()
 	_reset_hint_timer()
+	if filler:
+		filler.reset_turn_spawn()   # 下一回合重置 barrel rain 生成額度
 	await _final_settle_barrels()
 
 	if GameManager.current_state == GameManager.GameState.LEVEL_COMPLETE:
