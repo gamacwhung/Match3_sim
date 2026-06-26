@@ -146,18 +146,38 @@ def anim_clear(gridA, gridB, layout, rows, cols, n=5):
     return frames
 
 
+_ELEMENTS = {"Red", "Grn", "Blu", "Yel", "Pur"}
+
+
+def _falls_in_gravity(tid):
+    # 元素 + 可移動障礙(木桶/三角錐)會掉;其他(紙箱等固定障礙)不動。
+    if tid in (None, "__void__"):
+        return False
+    if tid in _ELEMENTS:
+        return True
+    return tid.startswith("Barrel") or tid.startswith("TrafficCone")
+
+
 def anim_gravity(gridA, gridB, layout, rows, cols, n=8):
-    # 每欄: A 的非空(上→下) 對應 B 的非空(上→下)
+    # 固定物件(紙箱等)重力中不動 → 直接用 B 的位置靜態畫,絕不亂飛。
+    static = [(gridB[r][c], r, c) for r in range(rows) for c in range(cols)
+              if gridB[r][c] not in (None, "__void__") and not _falls_in_gravity(gridB[r][c])]
+    # 只有「會掉的」逐欄配對滑動(上→下對上→下)
     moves = []  # (tid, from_r, to_r, c)
     for c in range(cols):
-        a = [(r, gridA[r][c]) for r in range(rows) if gridA[r][c] not in (None, "__void__")]
-        b = [r for r in range(rows) if gridB[r][c] not in (None, "__void__")]
-        for (ar, tid), br in zip(a, b):
-            moves.append((tid, ar, br, c))
+        a = [(r, gridA[r][c]) for r in range(rows) if _falls_in_gravity(gridA[r][c])]
+        b = [r for r in range(rows) if _falls_in_gravity(gridB[r][c])]
+        if len(a) == len(b):
+            for (ar, tid), br in zip(a, b):
+                moves.append((tid, ar, br, c))
+        else:
+            # 欄內會掉的數量不一致(斜落跨欄)→ 直接放最終位置,不硬滑(避免亂跳)
+            for br in b:
+                moves.append((gridB[br][c], br, br, c))
     frames = []
     for i in range(n):
         t = _ease((i + 1) / n)
-        pl = []
+        pl = [(tid, float(r), float(c), 1.0) for tid, r, c in static]
         for tid, fr, to, c in moves:
             pl.append((tid, fr + (to - fr) * t, float(c), 1.0))
         frames.append(render(layout, pl, rows, cols))

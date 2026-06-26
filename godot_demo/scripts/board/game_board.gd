@@ -348,9 +348,11 @@ func init_board(level_data: Resource = null) -> void:
 	filler.movable_obstacle_cells = movable_cells
 
 	_draw_board_background()
+	print("[PROBE] init_board -> fill_initial")
 	filler.fill_initial()
 	_connect_candy_signals()
 
+	print("[PROBE] init_board -> dedup retry loop")
 	var retry_count = 0
 	while MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, init_skip).size() > 0 and retry_count < 50:
 		_clear_board()
@@ -793,7 +795,7 @@ func _try_move_into_empty(candy: CandyScript, empty_pos: Vector2i) -> void:
 	filler.set_candy_at(empty_pos, candy)
 	var tw = candy.animate_to(world_to)
 	if tw:
-		await tw.finished
+		await _await_tweens_safe([tw])
 	var matches = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
 	if matches.is_empty():
 		filler.remove_candy_at(empty_pos)
@@ -801,7 +803,7 @@ func _try_move_into_empty(candy: CandyScript, empty_pos: Vector2i) -> void:
 		var back = filler.grid_to_world(from_pos)
 		var tw2 = candy.animate_to(back)
 		if tw2:
-			await tw2.finished
+			await _await_tweens_safe([tw2])
 		is_processing = false
 		return
 	await _process_matches(matches, [from_pos, empty_pos])
@@ -1629,9 +1631,17 @@ func _cascade_loop() -> void:
 		# 順序很重要：先讓元素落下 → 再讓木桶落進元素讓出的空格 → 最後才補新元素。
 		# (若先補格，fill 會把木桶下方剛空出的格填回新元素——因為 fill 把可移動障礙當「會讓路」
 		#  → 木桶永遠等不到空格、卡在上面不落。Level 39「清下面元素、上面木桶不落」就是這個。)
+		# FREEZE-PROBE:同步重操作前印 log。引擎若凍死,console 最後一行就是卡住的那個函式。
+		var _t0 := Time.get_ticks_msec()
+		print("[PROBE] cascade#%d -> apply_gravity" % safety)
 		var gravity_tweens = filler.apply_gravity()
+		print("[PROBE] cascade#%d -> obstacle_gravity" % safety)
 		var obs_tweens = _apply_movable_obstacle_gravity()
+		print("[PROBE] cascade#%d -> fill_empty_cells" % safety)
 		var fill_tweens = filler.fill_empty_cells()
+		var _dt := Time.get_ticks_msec() - _t0
+		if _dt > 50:
+			print("[PROBE] cascade#%d sync done in %dms (慢!)" % [safety, _dt])
 
 		# 新生成的 candy 接 input signals(舊的有 is_connected check,不會重複 connect)
 		if fill_tweens.size() > 0:
