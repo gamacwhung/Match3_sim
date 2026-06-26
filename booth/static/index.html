@@ -76,34 +76,34 @@
         </div>
       </div>
 
-      <div class="game-frame-wrap" id="game-wrap">
-        <iframe id="game" title="Match3 遊戲" allow="autoplay; fullscreen" allowfullscreen scrolling="no"></iframe>
-        <button id="fs-exit" class="fs-exit">✕ 退出全螢幕</button>
-      </div>
-
-      <!-- 數據條 -->
-      <div class="stats" id="stats">
-        <div class="stat"><div class="st-k">盤面</div><div class="st-v" id="st-board">—</div></div>
-        <div class="stat"><div class="st-k">步數</div><div class="st-v" id="st-steps">—</div></div>
-        <div class="stat"><div class="st-k">目標數</div><div class="st-v" id="st-goals">—</div></div>
-        <div class="stat clickable" id="st-winrate-card" title="點我讓 AI 試玩測勝率">
-          <div class="st-k">AI 勝率</div><div class="st-v" id="st-winrate">點我測</div>
+      <!-- 遊戲(大,撐滿高度) + 右側資訊欄 → 資訊不會把遊戲擠小 -->
+      <div class="game-body">
+        <div class="game-frame-wrap" id="game-wrap">
+          <iframe id="game" title="Match3 遊戲" allow="autoplay; fullscreen" allowfullscreen scrolling="no"></iframe>
+          <button id="fs-exit" class="fs-exit">✕ 退出全螢幕</button>
         </div>
+
+        <aside class="game-side">
+          <!-- 數據條(2×2) -->
+          <div class="stats" id="stats">
+            <div class="stat"><div class="st-k">盤面</div><div class="st-v" id="st-board">—</div></div>
+            <div class="stat"><div class="st-k">步數</div><div class="st-v" id="st-steps">—</div></div>
+            <div class="stat"><div class="st-k">目標數</div><div class="st-v" id="st-goals">—</div></div>
+            <div class="stat clickable" id="st-winrate-card" title="點我讓 AI 試玩測勝率">
+              <div class="st-k">AI 勝率</div><div class="st-v" id="st-winrate">點我測</div>
+            </div>
+          </div>
+
+          <div class="goals-line" id="goals-line" hidden>
+            <span class="goals-label">目標</span>
+            <span class="goals-chips" id="goals-chips"></span>
+          </div>
+
+          <div class="banner" id="banner" hidden></div>
+          <div class="sim-report" id="sim-report" hidden></div>
+          <p class="hint" id="game-hint">👈 在左邊描述你想要的關卡，按「生成」就會出現在遊戲區</p>
+        </aside>
       </div>
-
-      <!-- 目標 chips -->
-      <div class="goals-line" id="goals-line" hidden>
-        <span class="goals-label">目標</span>
-        <span class="goals-chips" id="goals-chips"></span>
-      </div>
-
-      <!-- 驗證 banner -->
-      <div class="banner" id="banner" hidden></div>
-
-      <!-- AI 試玩步數報表（點「AI 勝率」卡片才跑）-->
-      <div class="sim-report" id="sim-report" hidden></div>
-
-      <p class="hint" id="game-hint">👈 在左邊描述你想要的關卡，按「生成」就會出現在這裡</p>
     </section>
   </div>
 

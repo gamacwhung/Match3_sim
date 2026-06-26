@@ -138,11 +138,19 @@ textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 }
 .theme-pick select:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 
-/* 遊戲：吃掉剩餘高度，9:16 由高度推算寬度，水平置中 */
+/* 遊戲(撐滿高度,保持大) + 右側資訊欄(資訊放這,不會把遊戲擠小) */
+.game-body {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; gap: 16px; justify-content: center; align-items: stretch;
+}
 .game-frame-wrap {
   position: relative;
-  flex: 1 1 auto; min-height: 0;
+  flex: 0 1 auto; min-height: 0; height: 100%;
   display: flex; justify-content: center; align-items: center;
+}
+.game-side {
+  flex: 0 0 244px; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
 }
 #game {
   height: 100%; aspect-ratio: 720 / 1280; width: auto; max-width: 100%;
@@ -163,35 +171,36 @@ textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 
 /* 數據條 / 目標 / banner / 報表：固定不縮，永遠在視窗內 */
 .stats {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  margin: 10px auto 0; max-width: 560px; width: 100%;
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  width: 100%;
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
   flex-shrink: 0;
 }
-.stat { padding: 9px 8px; text-align: center; border-left: 1px solid var(--border); }
-.stat:first-child { border-left: none; }
+.stat { padding: 11px 8px; text-align: center; border-left: 1px solid var(--border); }
+.stat:nth-child(odd) { border-left: none; }
+.stat:nth-child(n+3) { border-top: 1px solid var(--border); }
 .stat .st-k { font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
-.stat .st-v { font-size: 21px; font-weight: 800; }
+.stat .st-v { font-size: 22px; font-weight: 800; }
 .stat.clickable { cursor: pointer; transition: background .15s; }
 .stat.clickable:hover { background: var(--panel-2); }
 #st-winrate { font-size: 16px; }
 
-.goals-line { display: flex; align-items: center; gap: 10px; margin: 8px auto 0; max-width: 560px; width: 100%; flex-wrap: wrap; flex-shrink: 0; }
-.goals-label { color: var(--muted); font-size: 13px; }
-.goals-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.goals-line { display: flex; align-items: flex-start; gap: 8px; width: 100%; flex-wrap: wrap; flex-shrink: 0; }
+.goals-label { color: var(--muted); font-size: 13px; padding-top: 4px; }
+.goals-chips { display: flex; gap: 7px; flex-wrap: wrap; }
 .goal-chip { background: var(--chip); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; font-size: 13px; }
 .goal-chip b { color: var(--g-yellow); }
 
-.banner { margin: 8px auto 0; max-width: 560px; width: 100%; padding: 9px 14px; border-radius: 10px; font-size: 13.5px; flex-shrink: 0; }
+.banner { width: 100%; padding: 9px 13px; border-radius: 10px; font-size: 13px; flex-shrink: 0; }
 .banner.ok { background: rgba(52,168,83,.13); border: 1px solid rgba(52,168,83,.4); color: #8ee0a4; }
 .banner.warn { background: rgba(249,171,0,.12); border: 1px solid rgba(249,171,0,.4); color: #f3c969; }
 
-.sim-report { margin: 8px auto 0; max-width: 560px; width: 100%; flex-shrink: 0; }
-.sim-report .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; font-size: 13.5px; }
-.sim-report .row { display: flex; justify-content: space-between; padding: 2px 0; }
+.sim-report { width: 100%; flex-shrink: 0; }
+.sim-report .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; font-size: 13px; }
+.sim-report .row { display: flex; justify-content: space-between; padding: 2px 0; gap: 8px; }
 .sim-report .row .k { color: var(--muted); }
 
-.hint { color: var(--muted); font-size: 12.5px; margin: 8px auto 0; max-width: 560px; text-align: center; flex-shrink: 0; }
+.hint { color: var(--muted); font-size: 12.5px; line-height: 1.5; flex-shrink: 0; }
 
 /* 窄螢幕（手機/平板直立）→ 單欄、允許捲動 */
 @media (max-width: 940px) {
