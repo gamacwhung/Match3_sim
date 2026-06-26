@@ -368,6 +368,7 @@ func init_board(level_data: Resource = null) -> void:
 	print("[PROBE] init_board -> dedup done (重洗 %d 次,應為 0)" % retry_count)
 
 	_sync_candy_layer_visibility()
+	print("[PROBE] init: 1.visibility synced")
 
 	# Puddle/預置道具格 fill_initial 完之後就解封 — 之後 gravity 允許糖落上去
 	# 重要:filler.blocked_cells 必須跟 game_board.blocked_cells 共用同一個 array reference,
@@ -380,11 +381,14 @@ func init_board(level_data: Resource = null) -> void:
 		filler.obstacle_map_ref = obstacle_map
 		if not filler.obstacle_spawned.is_connected(_on_obstacle_spawned):
 			filler.obstacle_spawned.connect(_on_obstacle_spawned)
+	print("[PROBE] init: 2.spawners set")
 
 	# 預置道具:在原本被跳過的格上 spawn 對應的 special candy
 	_spawn_pre_placed_specials(pre_placed)
+	print("[PROBE] init: 3.pre-placed done")
 
 	board_ready.emit()
+	print("[PROBE] init_board END (4.board_ready emitted)")
 
 
 func _spawn_pre_placed_specials(pre_placed: Array[Dictionary]) -> void:

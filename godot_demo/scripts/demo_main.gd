@@ -609,13 +609,17 @@ func _start_level_from_dict(data: Dictionary) -> void:
 		board.set_bottom_obstacle_map(bottom_map)
 
 	board.init_board(level_data)
+	print("[PROBE] start: 5.init_board returned")
 
 	hud = hud_scene.instantiate()
 	scene_container.add_child(hud)
 	hud.setup(level_data)
+	print("[PROBE] start: 6.hud setup done")
 
 	_show_mechanic_hint(level_data)
+	print("[PROBE] start: 7.mechanic hint done")
 	_show_menu_button()
+	print("[PROBE] start: 8.menu button done — LEVEL READY 可玩")
 
 	GameManager.level_completed.connect(_on_level_completed)
 	GameManager.level_failed.connect(_on_level_failed)
@@ -660,13 +664,17 @@ func _start_level(idx: int) -> void:
 		board.set_bottom_obstacle_map(bottom_map)
 
 	board.init_board(level_data)
+	print("[PROBE] start: 5.init_board returned")
 
 	hud = hud_scene.instantiate()
 	scene_container.add_child(hud)
 	hud.setup(level_data)
+	print("[PROBE] start: 6.hud setup done")
 
 	_show_mechanic_hint(level_data)
+	print("[PROBE] start: 7.mechanic hint done")
 	_show_menu_button()
+	print("[PROBE] start: 8.menu button done — LEVEL READY 可玩")
 
 	GameManager.level_completed.connect(_on_level_completed)
 	GameManager.level_failed.connect(_on_level_failed)
