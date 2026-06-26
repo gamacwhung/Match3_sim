@@ -41,7 +41,6 @@ var current_board: Node2D = null
 var _booth_mode: bool = false
 var _idle_ui: CanvasLayer = null
 var _hint_ui: CanvasLayer = null
-var _hb_frames: int = 0  # FREEZE-PROBE 心跳:每秒印一次,凍住時看心跳停不停 + is_processing
 # attract mode：待機一段時間沒人玩 → AI 自動試玩一關循環吸引人
 var _in_attract: bool = false
 var _attract_timer: Timer = null
@@ -184,23 +183,13 @@ func _check_url_autoplay() -> void:
 
 
 func _process(_delta: float) -> void:
-	# FREEZE-PROBE 心跳。待機(no-board)每 60 幀印一次;載入後改「每一幀」印進出,
-	# 凍住時最後印的標記就是 hang 的確切位置(demo._process? game_board._process? 還是 render?)。
-	_hb_frames += 1
-	var _has_board := current_board != null and is_instance_valid(current_board)
-	if _has_board:
-		print("[P1>] f=%d demo IN ip=%s" % [_hb_frames, str(current_board.is_processing) if "is_processing" in current_board else "?"])
-	elif _hb_frames % 60 == 0:
-		print("[HB] frame=%d no-board" % _hb_frames)
-
 	if not OS.has_feature("web"):
 		return
 	# 動態載入關卡
 	var pending = JavaScriptBridge.eval("window._godotLevelJson || ''")
 	if pending is String and pending.length() > 2:
 		JavaScriptBridge.eval("window._godotLevelJson = '';")
-		print("[PROBE] _process 收到關卡 JSON (frame=%d, len=%d)" % [_hb_frames, pending.length()])
-		# 去重：重載後 Streamlit 會重試推送同一關卡好幾次，只在「內容變了」時才重載
+		# 去重：重載後外部會重試推送同一關卡好幾次，只在「內容變了」時才重載
 		if pending != _last_level_json:
 			var json = JSON.new()
 			if json.parse(pending) == OK and json.data is Dictionary:
@@ -222,9 +211,6 @@ func _process(_delta: float) -> void:
 		JavaScriptBridge.eval("window._godotAiMode = '';")
 		if current_board and current_board.has_method("start_ai_mode"):
 			current_board.start_ai_mode(0.8)
-
-	if _has_board:
-		print("[P1<] f=%d demo OUT" % _hb_frames)
 
 
 func _show_idle_screen() -> void:
@@ -612,17 +598,13 @@ func _start_level_from_dict(data: Dictionary) -> void:
 		board.set_bottom_obstacle_map(bottom_map)
 
 	board.init_board(level_data)
-	print("[PROBE] start: 5.init_board returned")
 
 	hud = hud_scene.instantiate()
 	scene_container.add_child(hud)
 	hud.setup(level_data)
-	print("[PROBE] start: 6.hud setup done")
 
 	_show_mechanic_hint(level_data)
-	print("[PROBE] start: 7.mechanic hint done")
 	_show_menu_button()
-	print("[PROBE] start: 8.menu button done — LEVEL READY 可玩")
 
 	GameManager.level_completed.connect(_on_level_completed)
 	GameManager.level_failed.connect(_on_level_failed)
@@ -667,17 +649,13 @@ func _start_level(idx: int) -> void:
 		board.set_bottom_obstacle_map(bottom_map)
 
 	board.init_board(level_data)
-	print("[PROBE] start: 5.init_board returned")
 
 	hud = hud_scene.instantiate()
 	scene_container.add_child(hud)
 	hud.setup(level_data)
-	print("[PROBE] start: 6.hud setup done")
 
 	_show_mechanic_hint(level_data)
-	print("[PROBE] start: 7.mechanic hint done")
 	_show_menu_button()
-	print("[PROBE] start: 8.menu button done — LEVEL READY 可玩")
 
 	GameManager.level_completed.connect(_on_level_completed)
 	GameManager.level_failed.connect(_on_level_failed)

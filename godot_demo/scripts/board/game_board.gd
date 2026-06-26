@@ -210,9 +210,7 @@ func _on_viewport_resized() -> void:
 
 
 func _relayout_board_positions() -> void:
-	print("[R>] relayout IN w=%d h=%d cs=%.1f" % [grid_width, grid_height, cell_size])
 	_calculate_offset()
-	print("[R.] relayout 重定位糖中...")
 	if filler:
 		filler.board_offset = board_offset
 		for x in grid_width:
@@ -221,12 +219,9 @@ func _relayout_board_positions() -> void:
 				if candy:
 					candy.position = filler.grid_to_world(Vector2i(x, y))
 	board_bg.queue_redraw()
-	print("[R<] relayout OUT")
 
 
 func _process(delta: float) -> void:
-	if filler != null:
-		print("[P2>] f=%d gb IN ip=%s hint=%s" % [Engine.get_process_frames(), str(is_processing), str(_hint_shown)])
 	# 鎖死看門狗：special 道具(光球/紙飛機等)動畫跑完卻沒解鎖時，超時強制恢復可操作。
 	# 只在「真的閒置」(沒有待爆炸佇列、沒在跑 flush)時計時；正常動畫/連鎖遠在 5 秒內結束，
 	# 所以只有真的卡死才會觸發，不會誤判正常遊玩。
@@ -260,14 +255,10 @@ func _process(delta: float) -> void:
 		_stuck_watchdog = 0.0
 
 	if filler == null or is_processing or _hint_shown:
-		if filler != null:
-			print("[P2<] f=%d gb OUT(early)" % Engine.get_process_frames())
 		return
 	_hint_timer += delta
 	if _hint_timer >= _hint_delay:
-		print("[P2!] f=%d gb 觸發 _show_hint" % Engine.get_process_frames())
 		_show_hint()
-	print("[P2<] f=%d gb OUT(end)" % Engine.get_process_frames())
 
 func _reset_hint_timer() -> void:
 	_hint_timer = 0.0
@@ -357,14 +348,11 @@ func init_board(level_data: Resource = null) -> void:
 	filler.movable_obstacle_cells = movable_cells
 
 	_draw_board_background()
-	print("[PROBE] init_board -> fill_initial")
 	filler.fill_initial()
 	_connect_candy_signals()
 
 	# fill_initial 的 _pick_no_match_color 已在「填的當下」避開直線3 + 2x2 → 正常一次就零連線。
-	# 這個重洗只是極端受限盤面的 backstop(cap 砍到 6,正常跑 0 次);舊版 cap=50 + 整盤重建節點
-	# 是初始載入卡死的真兇(殘留 2x2 → 永遠 >0 → 重洗 50 次、上百節點同步 new/free)。
-	print("[PROBE] init_board -> dedup retry loop")
+	# 這個重洗只是極端受限盤面的 backstop(cap=6,正常跑 0 次)。
 	var retry_count = 0
 	while MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, init_skip).size() > 0 and retry_count < 6:
 		_clear_board()
@@ -374,10 +362,8 @@ func init_board(level_data: Resource = null) -> void:
 		filler.fill_initial()
 		_connect_candy_signals()
 		retry_count += 1
-	print("[PROBE] init_board -> dedup done (重洗 %d 次,應為 0)" % retry_count)
 
 	_sync_candy_layer_visibility()
-	print("[PROBE] init: 1.visibility synced")
 
 	# Puddle/預置道具格 fill_initial 完之後就解封 — 之後 gravity 允許糖落上去
 	# 重要:filler.blocked_cells 必須跟 game_board.blocked_cells 共用同一個 array reference,
@@ -390,14 +376,11 @@ func init_board(level_data: Resource = null) -> void:
 		filler.obstacle_map_ref = obstacle_map
 		if not filler.obstacle_spawned.is_connected(_on_obstacle_spawned):
 			filler.obstacle_spawned.connect(_on_obstacle_spawned)
-	print("[PROBE] init: 2.spawners set")
 
 	# 預置道具:在原本被跳過的格上 spawn 對應的 special candy
 	_spawn_pre_placed_specials(pre_placed)
-	print("[PROBE] init: 3.pre-placed done")
 
 	board_ready.emit()
-	print("[PROBE] init_board END (4.board_ready emitted)")
 
 
 func _spawn_pre_placed_specials(pre_placed: Array[Dictionary]) -> void:
@@ -1648,17 +1631,9 @@ func _cascade_loop() -> void:
 		# 順序很重要：先讓元素落下 → 再讓木桶落進元素讓出的空格 → 最後才補新元素。
 		# (若先補格，fill 會把木桶下方剛空出的格填回新元素——因為 fill 把可移動障礙當「會讓路」
 		#  → 木桶永遠等不到空格、卡在上面不落。Level 39「清下面元素、上面木桶不落」就是這個。)
-		# FREEZE-PROBE:同步重操作前印 log。引擎若凍死,console 最後一行就是卡住的那個函式。
-		var _t0 := Time.get_ticks_msec()
-		print("[PROBE] cascade#%d -> apply_gravity" % safety)
 		var gravity_tweens = filler.apply_gravity()
-		print("[PROBE] cascade#%d -> obstacle_gravity" % safety)
 		var obs_tweens = _apply_movable_obstacle_gravity()
-		print("[PROBE] cascade#%d -> fill_empty_cells" % safety)
 		var fill_tweens = filler.fill_empty_cells()
-		var _dt := Time.get_ticks_msec() - _t0
-		if _dt > 50:
-			print("[PROBE] cascade#%d sync done in %dms (慢!)" % [safety, _dt])
 
 		# 新生成的 candy 接 input signals(舊的有 is_connected check,不會重複 connect)
 		if fill_tweens.size() > 0:

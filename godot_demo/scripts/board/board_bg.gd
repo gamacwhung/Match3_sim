@@ -169,7 +169,6 @@ func _stamp_flash_progress(grid_pos: Vector2i) -> float:
 func _draw() -> void:
 	if board == null or not board.has_method("get_obstacle_map"):
 		return
-	print("[BG>] board_bg._draw IN")
 	var offset = board.board_offset
 	var w = board.grid_width
 	var h = board.grid_height
@@ -335,7 +334,6 @@ func _draw() -> void:
 		)
 		if OBSTACLE_TEXTURES.has("Mud"):
 			draw_texture_rect(OBSTACLE_TEXTURES["Mud"], rect_m, false)
-	print("[BG<] board_bg._draw OUT")
 
 
 # 官方風格郵戳 — bundle(明信片疊) + 01(抬起) / 02(蓋下) / victory(通關後倒下+已蓋章疊)

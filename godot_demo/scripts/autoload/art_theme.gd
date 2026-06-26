@@ -152,9 +152,6 @@ func _apply_live_overrides() -> void:
 	var total := names.size()
 	var done := 0
 	_js_progress(0, total)
-	# FREEZE-PROBE:序列下載 N 張 live 美術的耗時(攤位卡住的真兇:開場硬等 60+ 張載完)
-	var _art_t0 := Time.get_ticks_msec()
-	print("[ART] 開始序列載 %d 張 live 美術 theme='%s'" % [total, current_theme])
 	for nm in names:
 		var max_dim: int = int(LIVE_MAX_DIM_NAMED.get(nm, LIVE_MAX_DIM_ELEMENTS))
 		var url := "%s%s.png?v=%d" % [base_url, nm, theme_revision]
@@ -166,7 +163,6 @@ func _apply_live_overrides() -> void:
 		loaded_named[nm] = tex
 		if ELEMENT_INDEX.has(nm):
 			loaded_textures[ELEMENT_INDEX[nm]] = tex
-	print("[ART] live 美術載完 %d/%d 張,耗時 %dms" % [done, total, Time.get_ticks_msec() - _art_t0])
 	for key in loaded_named:
 		_named[key] = loaded_named[key]
 	for idx in loaded_textures:
