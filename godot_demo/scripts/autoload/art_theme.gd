@@ -167,7 +167,7 @@ func _apply_live_overrides() -> void:
 			var http := HTTPRequest.new()
 			add_child(http)
 			http.accept_gzip = false
-			var nm2 := nm
+			var nm2: String = str(nm)
 			http.request_completed.connect(
 				func(result, code, _headers, body):
 					results[nm2] = _texture_from_response([result, code, _headers, body], max_dim)

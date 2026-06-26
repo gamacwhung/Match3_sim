@@ -70,9 +70,12 @@ func _apply_font_overrides() -> void:
 		if lb:
 			if _font:
 				lb.add_theme_font_override("font", _font)
-			# 黑色描邊 → 黃字/白字在淺色遊戲背景上才看得清楚(關卡/剩餘步數)
-			lb.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-			lb.add_theme_constant_override("outline_size", 6)
+			# 細黑描邊 + 柔和陰影 → 黃字/白字在淺色遊戲背景上看得清楚又不笨重
+			lb.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.75))
+			lb.add_theme_constant_override("outline_size", 4)
+			lb.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
+			lb.add_theme_constant_override("shadow_offset_x", 1)
+			lb.add_theme_constant_override("shadow_offset_y", 2)
 
 
 func setup(level_data: Resource) -> void:

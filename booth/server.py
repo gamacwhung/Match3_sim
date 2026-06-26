@@ -44,7 +44,7 @@ BOOTH_MODEL = os.environ.get("BOOTH_MODEL", "gemini-3.5-flash")
 # 要改回 GitHub Pages 或本機別 port：設 BOOTH_GODOT_URL=https://...
 GAME_URL = os.environ.get("BOOTH_GODOT_URL", "/game/")
 _GODOT_WEB = _REPO / "godot_demo" / "web"
-MAX_ATTEMPTS = 2
+MAX_ATTEMPTS = 3  # 驗證失敗會帶著錯誤重生,多給幾次讓「目標數/頂部通道」這類問題自動修掉
 
 # ── 攤位關卡指示（從 streamlit_app.py 原樣搬過來，維持生成品質一致）──────────────
 BOOTH_LEVEL_HINT = (

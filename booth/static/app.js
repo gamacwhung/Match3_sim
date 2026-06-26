@@ -177,12 +177,10 @@ function renderStats(data) {
   });
   $("goals-line").hidden = goalKeys.length === 0;
 
+  // 驗證錯誤是「給 AI 重生用的」內部回饋,不丟給訪客看技術細節 → 只顯示乾淨訊息
   const b = $("banner");
   if (data.valid) { b.className = "banner ok"; b.textContent = "✓ 通過驗證，可以玩"; }
-  else {
-    b.className = "banner warn";
-    b.textContent = "⚠️ " + (data.errors && data.errors.length ? data.errors.slice(0, 2).join("；") : "格式有小瑕疵，仍可玩");
-  }
+  else { b.className = "banner warn"; b.textContent = "⚠️ 這關可能有點小瑕疵，建議再生成一次"; }
   b.hidden = false;
 }
 
