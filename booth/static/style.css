@@ -118,6 +118,23 @@ textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* AI 思考串流框 */
+.thinking {
+  margin-top: 11px; background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 12px;
+}
+.thinking-head { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--g-yellow); margin-bottom: 6px; }
+.thinking-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--g-yellow);
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: .3; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+.thinking pre {
+  margin: 0; max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+  font-size: 11.5px; line-height: 1.55; color: var(--muted);
+  font-family: "Noto Sans TC", monospace;
+}
+
 .panel-foot { margin-top: 14px; }
 .tag { font-size: 11px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; }
 

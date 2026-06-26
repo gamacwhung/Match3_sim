@@ -17,6 +17,9 @@ from __future__ import annotations
 import os
 import sys
 import json
+import asyncio
+import threading
+import queue as _queue
 import mimetypes
 import pathlib
 
@@ -27,7 +30,7 @@ _REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO))
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -226,6 +229,88 @@ def api_generate(req: GenReq):
         "goals": level.get("goals", {}),
         "full_prompt": full_prompt,
     }
+
+
+def _build_inputs(req: "GenReq"):
+    """從請求組出 (full_prompt, params)。給 /generate 與 /generate_stream 共用。"""
+    user_msg = (req.prompt or "").strip()
+    shape = (req.shape or "").strip()
+    big_board = shape in _BIG_BOARD_SHAPES
+    extra = ""
+    if shape in SHAPE_DIRECTIVES:
+        extra += SHAPE_DIRECTIVES[shape]
+    if (req.difficulty or "").strip() in DIFFICULTY_DIRECTIVES:
+        extra += DIFFICULTY_DIRECTIVES[req.difficulty.strip()]
+    rc = 12 if big_board else 8
+    params = {
+        "rows": rc, "cols": rc, "difficulty": "medium",
+        "num_colors": 4, "obstacle_types": [], "goal_types": [],
+    }
+    hint = BOOTH_LEVEL_HINT_SHAPE if big_board else BOOTH_LEVEL_HINT
+    return user_msg + extra + hint, params
+
+
+@app.post("/api/generate_stream")
+async def api_generate_stream(req: GenReq):
+    """串流版生成:邊生成邊把 AI 的『思考』+『JSON』推給前端(SSE),做即時打字效果。"""
+    if not (req.prompt or "").strip():
+        return JSONResponse({"ok": False, "error": "請先描述你想要的關卡"}, status_code=400)
+    full_prompt, params = _build_inputs(req)
+
+    q: _queue.Queue = _queue.Queue()
+
+    def worker():
+        feedback = ""
+        level = None
+        validation = None
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            q.put({"type": "phase", "data": "AI 生成關卡中…" if attempt == 1 else f"自動修正、重新生成（第 {attempt} 次）…"})
+
+            def cb(piece, is_thought=False):
+                q.put({"type": "thought" if is_thought else "text", "data": piece})
+
+            try:
+                _text, level = generate_level(
+                    user_message=full_prompt + feedback, chat_history=[],
+                    params=params, model=BOOTH_MODEL, stream_callback=cb,
+                    thinking="show",  # 串流要顯示 AI 思考 → 開啟 thinking
+                )
+            except Exception as e:
+                q.put({"type": "error", "error": f"生成失敗：{e}"})
+                return
+            if not level:
+                feedback = "\n\n【系統提醒】請「只」輸出一個完整的 ```json ... ``` 區塊。"
+                continue
+            validation = validate_level(level)
+            if validation.valid:
+                break
+            feedback = "\n\n【系統提醒】上次格式問題，請修正後重新輸出完整 JSON：\n- " + "\n- ".join(validation.errors[:8])
+
+        if not level:
+            q.put({"type": "error", "error": "連續沒生出有效關卡，請換句話再試一次"})
+            return
+        _merge_same_family_goals(level)
+        validation = validate_level(level)
+        q.put({
+            "type": "done", "level": level,
+            "valid": bool(validation and validation.valid),
+            "errors": list(validation.errors) if validation else [],
+            "rows": level.get("rows"), "cols": level.get("cols"),
+            "max_steps": level.get("max_steps"), "goals": level.get("goals", {}),
+            "full_prompt": full_prompt,
+        })
+
+    threading.Thread(target=worker, daemon=True).start()
+
+    async def event_gen():
+        loop = asyncio.get_event_loop()
+        while True:
+            item = await loop.run_in_executor(None, q.get)
+            yield "data: " + json.dumps(item, ensure_ascii=False) + "\n\n"
+            if item.get("type") in ("done", "error"):
+                break
+
+    return StreamingResponse(event_gen(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
 
 
 class SimReq(BaseModel):

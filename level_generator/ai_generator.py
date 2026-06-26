@@ -233,7 +233,7 @@ def extract_json_from_response(text: str) -> dict | None:
 # Google Gemini 呼叫
 # ---------------------------------------------------------------------------
 
-def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, image_media_type, stream_callback=None) -> str:
+def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, image_media_type, stream_callback=None, thinking_mode: str = 'off') -> str:
     from google import genai
     from google.genai import types
 
@@ -315,9 +315,10 @@ def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, im
             kw['thinking_config'] = types.ThinkingConfig(include_thoughts=True)
         return types.GenerateContentConfig(**kw)
 
-    # 先試「關閉思考」(最快)；舊 SDK/模型不支援 thinking_config 就退回模型預設。
+    # thinking_mode: 'off'=關閉思考最快(預設) / 'show'=回傳思考過程(攤位串流顯示用)。
+    # 舊 SDK/模型不支援 thinking_config 就退回模型預設。
     try:
-        config = _build_config('off')
+        config = _build_config(thinking_mode)
     except Exception:
         config = _build_config('none')
 
@@ -488,6 +489,7 @@ def generate_level(
     image_media_type: str = 'image/png',
     model: str = DEFAULT_MODEL,
     stream_callback=None,
+    thinking: str = 'off',
 ) -> tuple:
     """
     呼叫 AI API 生成關卡（自動根據 model 路由到 OpenAI 或 Anthropic）。
@@ -505,7 +507,7 @@ def generate_level(
     chat_history.append({'role': 'user', 'content': user_message})
 
     if provider == 'google':
-        assistant_text = _call_gemini(model, system_prompt, chat_history, image_bytes, image_media_type, stream_callback=stream_callback)
+        assistant_text = _call_gemini(model, system_prompt, chat_history, image_bytes, image_media_type, stream_callback=stream_callback, thinking_mode=thinking)
     elif provider == 'anthropic':
         assistant_text = _call_anthropic(model, system_prompt, chat_history, image_bytes, image_media_type)
     else:

@@ -123,37 +123,70 @@ clearBtn.addEventListener("click", () => {
 
 genBtn.addEventListener("click", generate);
 
-// ── 生成 ──────────────────────────────────────────────────────────
+// ── 生成（SSE 串流：邊生成邊顯示 AI 思考）─────────────────────────
 async function generate() {
   const prompt = promptEl.value.trim();
   if (!prompt) return;
 
   setLoading(true);
-  setStatus("work", '<span class="spinner"></span>AI 生成關卡中…（約 5~15 秒）');
+  setStatus("work", '<span class="spinner"></span>AI 生成關卡中…');
+  const tBox = $("thinking"), tText = $("thinking-text"), tLabel = $("thinking-label");
+  tText.textContent = "";
+  tLabel.textContent = "🧠 AI 思考中…";
+  tBox.hidden = false;
 
+  let acc = "";
+  const appendThink = (s) => {
+    acc += s;
+    if (acc.length > 1600) acc = acc.slice(-1600); // 只留末段,避免太長
+    tText.textContent = acc;
+    tText.scrollTop = tText.scrollHeight;
+  };
+
+  let finished = false;
   try {
-    const resp = await fetch("/api/generate", {
+    const resp = await fetch("/api/generate_stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, shape: selShape || null, difficulty: selDiff || null }),
     });
-    const data = await resp.json();
-    if (!data.ok) { setStatus("err", "❌ " + (data.error || "生成失敗，請再試一次")); return; }
-
-    currentLevel = data.level;
-    reloadGame(); // reload iframe → 帶新關卡網址（level_lz），遊戲開機直接載入
-    $("game-hint").style.display = "none";
-
-    $("full-prompt").textContent = data.full_prompt || prompt;
-    $("prompt-detail").hidden = false;
-
-    renderStats(data);
-    setStatus("ok", data.valid ? "✅ 關卡已生成，右邊開始玩吧！" : "⚠️ 生成完成（小瑕疵，仍可玩）");
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const parts = buf.split("\n\n");
+      buf = parts.pop();
+      for (const p of parts) {
+        const m = p.match(/^data: ([\s\S]*)$/);
+        if (!m) continue;
+        let evt;
+        try { evt = JSON.parse(m[1]); } catch (e) { continue; }
+        if (evt.type === "phase") { tLabel.textContent = "🧠 " + evt.data; }
+        else if (evt.type === "thought") { appendThink(evt.data); }
+        else if (evt.type === "text") { tLabel.textContent = "✍️ 正在產出關卡…"; appendThink(evt.data); }
+        else if (evt.type === "error") { setStatus("err", "❌ " + (evt.error || "生成失敗")); }
+        else if (evt.type === "done") { onGenerated(evt, prompt); finished = true; }
+      }
+    }
   } catch (e) {
     setStatus("err", "❌ 連線後端失敗：" + e.message);
   } finally {
     setLoading(false);
+    setTimeout(() => { tBox.hidden = true; }, finished ? 1200 : 0);
   }
+}
+
+function onGenerated(data, prompt) {
+  currentLevel = data.level;
+  reloadGame(); // reload iframe → 帶新關卡網址（level_lz）
+  $("game-hint").style.display = "none";
+  $("full-prompt").textContent = data.full_prompt || prompt;
+  $("prompt-detail").hidden = false;
+  renderStats(data);
+  setStatus("ok", data.valid ? "✅ 關卡已生成，右邊開始玩吧！" : "⚠️ 生成完成（小瑕疵，仍可玩）");
 }
 
 function setLoading(on) {
