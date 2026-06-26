@@ -198,8 +198,7 @@ def api_generate(req: GenReq):
             )
             continue
 
-        _merge_same_family_goals(level)  # Crt1+Crt2 → Crt:總和(目標欄乾淨只一格)
-        validation = validate_level(level)
+        validation = validate_level(level)  # 同家族多目標等會被驗證器擋下 → 觸發重生
         if validation.valid:
             break
         feedback = (
@@ -211,6 +210,10 @@ def api_generate(req: GenReq):
         return JSONResponse(
             {"ok": False, "error": "連續沒生出有效關卡，請換句話再試一次"}, status_code=502
         )
+
+    # 收尾保險:重生幾次後若同家族多目標還在,合併掉(訪客不該看到重複格子),再重驗拿最終 errors。
+    _merge_same_family_goals(level)
+    validation = validate_level(level)
 
     return {
         "ok": True,

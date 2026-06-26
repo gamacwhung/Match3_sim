@@ -1628,11 +1628,11 @@ func _cascade_loop() -> void:
 	while safety < (grid_width + grid_height) * 2:
 		safety += 1
 
-		# 順序很重要：先讓元素落下 → 再讓木桶落進元素讓出的空格 → 最後才補新元素。
-		# (若先補格，fill 會把木桶下方剛空出的格填回新元素——因為 fill 把可移動障礙當「會讓路」
-		#  → 木桶永遠等不到空格、卡在上面不落。Level 39「清下面元素、上面木桶不落」就是這個。)
-		var gravity_tweens = filler.apply_gravity()
+		# 順序：木桶先直落 → 再讓元素落下/斜落 → 最後補新元素。
+		# 木桶要在元素之前:否則元素的「斜落」會把木桶正下方剛空出的格搶先填掉 → 木桶卡住不落
+		# (使用者回報「清掉下面元素後木桶不會掉下來」)。木桶仍在 fill 之前,Level 39 也正確。
 		var obs_tweens = _apply_movable_obstacle_gravity()
+		var gravity_tweens = filler.apply_gravity()
 		var fill_tweens = filler.fill_empty_cells()
 
 		# 新生成的 candy 接 input signals(舊的有 is_connected check,不會重複 connect)
