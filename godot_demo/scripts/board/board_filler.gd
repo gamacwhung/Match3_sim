@@ -80,18 +80,7 @@ func _pick_no_match_color(x: int, y: int) -> int:
 			if grid[x][y - 1] != null and grid[x][y - 2] != null:
 				if grid[x][y - 1].candy_color == color and grid[x][y - 2].candy_color == color:
 					v_match = true
-		# 2x2 同色方塊也是 match_finder 會抓的連線,但舊版只防直線 3 連 → 不防 2x2,
-		# 導致初始盤面殘留 2x2、find_all_matches 永遠 >0、dedup loop 重洗整盤上百次卡死。
-		# (x,y) 當 2x2 右下角:左、左上、上 三格都已填,三格同色就會湊成方塊 → 避開。
-		var sq_match = false
-		if x >= 1 and y >= 1:
-			var left = grid[x - 1][y]
-			var upleft = grid[x - 1][y - 1]
-			var up = grid[x][y - 1]
-			if left != null and upleft != null and up != null:
-				if left.candy_color == color and upleft.candy_color == color and up.candy_color == color:
-					sq_match = true
-		if not h_match and not v_match and not sq_match:
+		if not h_match and not v_match:
 			return color
 		attempts += 1
 	return randi() % num_colors

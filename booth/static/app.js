@@ -280,10 +280,11 @@ function renderSimReport(r) {
   const keys = Object.keys(hist);
   if (keys.length) {
     const mx = Math.max(...keys.map((k) => hist[k]));
-    html += `<div class="hist-title">過關步數分布（勝場）</div><div class="hist">`;
+    html += `<div class="hist-title">過關步數分布（勝場，每 5 步一格）</div><div class="hist">`;
     keys.forEach((k) => {
       const w = Math.max(4, Math.round((hist[k] / mx) * 100));
-      html += `<div class="hist-row"><span class="hist-k">${k}</span>` +
+      const lo = parseInt(k, 10);
+      html += `<div class="hist-row"><span class="hist-k">${lo}–${lo + 4}</span>` +
               `<span class="hist-bar" style="width:${w}%"></span><span class="hist-n">${hist[k]}</span></div>`;
     });
     html += `</div>`;

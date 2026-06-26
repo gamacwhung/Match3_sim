@@ -149,10 +149,16 @@ def api_config():
     return {"game_url": GAME_URL, "model": BOOTH_MODEL}
 
 
+# 暫時隱藏的主題:pixar_cartoon 美術成品跟糖果風幾乎一樣(同事確認),先不給訪客選。
+# 不動 themes.json(同事美術資產),只在 API 層過濾。
+_HIDDEN_THEMES = {"pixar_cartoon"}
+
+
 @app.get("/api/themes")
 def api_themes():
     try:
-        return json.loads(_THEMES_JSON.read_text(encoding="utf-8"))
+        themes = json.loads(_THEMES_JSON.read_text(encoding="utf-8"))
+        return [t for t in themes if t.get("name") not in _HIDDEN_THEMES]
     except Exception:
         return []
 

@@ -219,7 +219,7 @@ textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 .sim-report .hist-title { color: var(--muted); font-size: 12px; margin: 8px 0 5px; }
 .sim-report .hist { display: flex; flex-direction: column; gap: 3px; }
 .hist-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
-.hist-k { color: var(--muted); width: 24px; text-align: right; }
+.hist-k { color: var(--muted); width: 42px; text-align: right; }
 .hist-bar { height: 9px; background: linear-gradient(90deg, var(--g-blue), #6f5bff); border-radius: 3px; min-width: 4px; }
 .hist-n { color: var(--muted); }
 

@@ -351,10 +351,14 @@ func init_board(level_data: Resource = null) -> void:
 	filler.fill_initial()
 	_connect_candy_signals()
 
-	# fill_initial 的 _pick_no_match_color 已在「填的當下」避開直線3 + 2x2 → 正常一次就零連線。
-	# 這個重洗只是極端受限盤面的 backstop(cap=6,正常跑 0 次)。
+	# 重洗到「①沒有預先連線 ②有可走的一步」為止 —— 只避開三消還不夠,
+	# 一開始若沒有任何能湊出消除的交換,玩家會卡在無解盤面不能玩。cap 50 次保底。
 	var retry_count = 0
-	while MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, init_skip).size() > 0 and retry_count < 6:
+	while retry_count < 50:
+		var has_match: bool = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, init_skip).size() > 0
+		var has_move: bool = MatchFinder.find_hint_move(filler.grid, grid_width, grid_height, init_skip).size() >= 2
+		if not has_match and has_move:
+			break
 		_clear_board()
 		filler.setup(grid_width, grid_height, cell_size, board_offset, candy_container, candy_scene, init_skip)
 		if level_data and level_data.num_colors > 0:
