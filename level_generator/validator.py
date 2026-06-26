@@ -6,6 +6,7 @@
 
 import sys
 import os
+import re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dataclasses import dataclass, field
@@ -96,6 +97,16 @@ def _parse_raw_id(raw_id: str):
     if '#' in raw_id:
         return raw_id.rsplit('#', 1)[0]
     return raw_id
+
+
+def _tile_family(raw_id) -> str:
+    """tile_id → 家族名：取第一個底線前的字再去尾端數字。
+    Crt1/Crt4→Crt、Puddle_lv1→Puddle、WaterChiller_closed/_lv5→WaterChiller、
+    BeverageChiller_bottle_red→BeverageChiller、SalmonCan_top1→SalmonCan、Barrel→Barrel"""
+    s = _parse_raw_id(str(raw_id))
+    s = s.split('_', 1)[0]      # 去複合後綴（_closed/_lv5/_body/_top1…）
+    s = re.sub(r'\d+$', '', s)  # Crt1 → Crt
+    return s
 
 
 def _check_tile_names(d: dict, result: ValidationResult):
@@ -229,40 +240,63 @@ def _count_tiles_on_board(d: dict) -> dict:
 
 
 def _check_goal_consistency(d: dict, result: ValidationResult):
-    """驗證每個 goal tile 在盤面上存在"""
+    """驗證每個 goal 目標數「可達成」(不可達成 → 報錯讓生成器重生):
+    - 元素(Red/Grn…)         : 遊戲每回合動態無限補充 → 一定達得到
+    - 有 spawner 持續生成該物件 : 引擎會生到滿足目標為止 → 一定達得到
+    - 其餘障礙物             : 只能消除盤面上既有的 → 目標數必須 <= 盤面物件數(×每個HP)
+                              (目標以「消除幾個物件」計，多格物件算 1 個)
+    """
     goals = d.get('goals', {})
     if not goals:
         return
 
-    tile_counts = _count_tiles_on_board(d)
-    element_ids = {'Red', 'Grn', 'Blu', 'Yel', 'Pur', 'Brn'}
+    # 按「家族」統計（容忍 goal 用家族名 Crt 或變體名 Crt1 都對得上）：
+    #  - fam_count：物件數（判斷盤面上到底有沒有）
+    #  - fam_cap  ：累計可消「點數」上限（目標以累計傷害/觸發計，多 HP 物件如冰箱要乘 HP）
+    fam_count = {}
+    fam_cap = {}
+    for tid, n in _count_tiles_on_board(d).items():
+        fam = _tile_family(tid)
+        defn = get_def(tid)
+        hp = defn.get('health', 1) if defn else 1
+        fam_count[fam] = fam_count.get(fam, 0) + n
+        if hp >= 9999:  # Stamp/Postmark 觸發型 → 可重複觸發，不受盤面數量限制
+            fam_cap[fam] = float('inf')
+        else:
+            fam_cap[fam] = fam_cap.get(fam, 0) + n * hp
+
+    # 有 spawner 持續生成的家族 → 視為可無限補充，目標一定達得到
+    spawner_fams = set()
+    for sp in (d.get('spawners') or []):
+        if not isinstance(sp, dict):
+            continue
+        for e in sp.get('elements', []):
+            if isinstance(e, dict):
+                spawner_fams.add(_tile_family(e.get('tile_id', '')))
 
     for goal_tile, goal_count in goals.items():
         if not isinstance(goal_count, (int, float)) or goal_count <= 0:
             result.errors.append(f'goal "{goal_tile}" 的數量必須是正整數')
             continue
-
-        # 元素顏色可以作為目標（由遊戲動態生成）
-        if goal_tile in element_ids:
+        if is_element(goal_tile):          # 元素：遊戲動態無限補充
+            continue
+        fam = _tile_family(goal_tile)
+        if fam in spawner_fams:            # 有 spawner 補充 → 一定達得到
             continue
 
-        # 非元素目標：盤面上必須存在對應 tile
-        if goal_tile not in tile_counts:
-            result.warnings.append(
-                f'goal "{goal_tile}" 在盤面上找不到對應物件（若盤面為隨機生成則忽略此警告）'
+        if fam_count.get(fam, 0) == 0:
+            result.errors.append(
+                f'目標 "{goal_tile}"×{int(goal_count)} 無法達成：盤面上沒有任何 "{goal_tile}"，'
+                f'也沒有 spawner 會生成它。請在盤面放足夠的 "{goal_tile}"，或加一個生成它的 spawner。'
             )
-        else:
-            defn = get_def(goal_tile)
-            health = defn.get('health', 1) if defn else 1
-            # Stamp 特殊：health=9999，目標是觸發次數
-            if health >= 9999:
-                continue
-            max_achievable = tile_counts[goal_tile] * health
-            if goal_count > max_achievable * 1.2:  # 允許 20% 誤差
-                result.warnings.append(
-                    f'goal "{goal_tile}" 目標 {goal_count} 可能過高'
-                    f'（盤面最多 {max_achievable} 點）'
-                )
+            continue
+        cap = fam_cap.get(fam, 0)
+        if goal_count > cap:
+            result.errors.append(
+                f'目標 "{goal_tile}"×{int(goal_count)} 無法達成：盤面最多只能消 {int(cap)} 點'
+                f'（共 {fam_count[fam]} 個物件），且無 spawner 補充。'
+                f'請把目標降到 {int(cap)} 以下，或在盤面增加數量／加一個生成它的 spawner。'
+            )
 
 
 def _check_warnings(d: dict, result: ValidationResult):

@@ -36,7 +36,7 @@
 
       <div class="gen-row">
         <button id="gen-btn" class="gen-btn" disabled>✨ 用 AI 生成關卡</button>
-        <button id="regen-btn" class="icon-btn" title="用同一句重新生成" disabled>↺</button>
+        <button id="clear-btn" class="icon-btn" title="清除輸入與選項" disabled>🗑</button>
       </div>
 
       <div id="status" class="status"></div>
@@ -67,14 +67,18 @@
     <section class="game-col">
       <div class="game-head">
         <div class="sec-title"><span class="bar"></span>🕹️ 遊戲區</div>
-        <div class="theme-pick">
-          <label for="theme">🎨 風格</label>
-          <select id="theme"><option value="">糖果 Candy</option></select>
+        <div class="game-tools">
+          <button id="fs-btn" class="tool-btn" title="全螢幕遊玩">⛶ 全螢幕</button>
+          <div class="theme-pick">
+            <label for="theme">🎨</label>
+            <select id="theme"><option value="">糖果 Candy</option></select>
+          </div>
         </div>
       </div>
 
-      <div class="game-frame-wrap">
-        <iframe id="game" title="Match3 遊戲" allow="autoplay" scrolling="no"></iframe>
+      <div class="game-frame-wrap" id="game-wrap">
+        <iframe id="game" title="Match3 遊戲" allow="autoplay; fullscreen" allowfullscreen scrolling="no"></iframe>
+        <button id="fs-exit" class="fs-exit">✕ 退出全螢幕</button>
       </div>
 
       <!-- 數據條 -->
@@ -95,6 +99,9 @@
 
       <!-- 驗證 banner -->
       <div class="banner" id="banner" hidden></div>
+
+      <!-- AI 試玩步數報表（點「AI 勝率」卡片才跑）-->
+      <div class="sim-report" id="sim-report" hidden></div>
 
       <p class="hint" id="game-hint">👈 在左邊描述你想要的關卡，按「生成」就會出現在這裡</p>
     </section>

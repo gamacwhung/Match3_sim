@@ -17,7 +17,11 @@ from __future__ import annotations
 import os
 import sys
 import json
+import mimetypes
 import pathlib
+
+# .wasm 要正確 MIME 才能讓 Godot 的 WebAssembly.instantiateStreaming 吃（否則退回慢路徑）
+mimetypes.add_type("application/wasm", ".wasm")
 
 _REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO))
@@ -36,8 +40,10 @@ _THEMES_JSON = _REPO / "godot_demo" / "web" / "live_sprites" / "themes.json"
 
 # 攤位用 Flash 求速度；要更高品質改環境變數 BOOTH_MODEL=gemini-2.5-pro
 BOOTH_MODEL = os.environ.get("BOOTH_MODEL", "gemini-3.5-flash")
-# 遊戲網址：預設 GitHub Pages；本機測試可設 BOOTH_GODOT_URL=http://localhost:8765/
-GAME_URL = os.environ.get("BOOTH_GODOT_URL", "https://gamacwhung.github.io/Match3_sim/")
+# 遊戲網址：預設「同源 /game/」—— 後端自己 serve 遊戲，iframe 就同源、不會被瀏覽器跨域節流凍住。
+# 要改回 GitHub Pages 或本機別 port：設 BOOTH_GODOT_URL=https://...
+GAME_URL = os.environ.get("BOOTH_GODOT_URL", "/game/")
+_GODOT_WEB = _REPO / "godot_demo" / "web"
 MAX_ATTEMPTS = 2
 
 # ── 攤位關卡指示（從 streamlit_app.py 原樣搬過來，維持生成品質一致）──────────────
@@ -204,8 +210,17 @@ def api_simulate(req: SimReq):
         badge, color, emoji = "有挑戰", "#F9AB00", "😤"
     else:
         badge, color, emoji = "極難", "#EA4335", "🔥"
-    return {"ok": True, "win_rate": wr, "badge": badge, "color": color, "emoji": emoji}
+    return {
+        "ok": True, "win_rate": wr, "badge": badge, "color": color, "emoji": emoji,
+        "n_games": res.n_games, "wins": res.wins,
+        "avg_steps": round(res.avg_steps_won or res.avg_steps, 1),
+        "min_steps": res.min_steps,
+    }
 
+
+# Godot 遊戲：同源 serve（/game/）→ iframe 同源、不被跨域節流凍住（這就是脫離 iframe 卡頓的關鍵）
+if _GODOT_WEB.exists():
+    app.mount("/game", StaticFiles(directory=str(_GODOT_WEB), html=True), name="game")
 
 # 靜態前端掛在最後（API route 先比對，剩下的才交給靜態檔；html=True → / 回 index.html）
 app.mount("/", StaticFiles(directory=str(_STATIC), html=True), name="static")

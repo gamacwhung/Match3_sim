@@ -1,15 +1,15 @@
-// 攤位生成器前端 — 純靜態，無框架、無 rerun。
-// 生成 = 一次非同步 fetch（Gemini 在後端跑）→ postMessage 推進遊戲 iframe。
-// 遊戲是獨立 cross-origin iframe，這頁怎麼忙都不會拖累它的主迴圈（這就是脫離 Streamlit 的重點）。
+// 攤位生成器前端 — 純靜態，單頁觸控友善。
+// 遊戲嵌在頁面 iframe，但關卡用「網址 level_lz」帶進去（不是 postMessage）—— 經測試
+// postMessage 推關會卡，網址帶關不會卡。所以每次生成 = reload iframe 到帶新關卡的網址。
 
 const $ = (id) => document.getElementById(id);
 const gameFrame = $("game");
 const promptEl = $("prompt");
 const genBtn = $("gen-btn");
-const regenBtn = $("regen-btn");
+const clearBtn = $("clear-btn");
 const statusEl = $("status");
 
-let GAME_URL = "https://gamacwhung.github.io/Match3_sim/";
+let GAME_URL = "/game/";
 let currentTheme = "";
 let currentLevel = null;
 let selShape = "";
@@ -23,7 +23,7 @@ async function boot() {
     if (cfg.model) $("model-tag").textContent = "模型：" + cfg.model;
   } catch (e) {}
   await loadThemes();
-  reloadGame();
+  reloadGame(); // 一進頁面就載遊戲（待機畫面）
 }
 
 async function loadThemes() {
@@ -42,25 +42,32 @@ async function loadThemes() {
   } catch (e) {}
 }
 
-// ── 遊戲 iframe ───────────────────────────────────────────────────
-function gameSrc() {
-  const qs = ["booth=1"];
+// ── 遊戲 iframe（關卡編進網址 level_lz，開機直接載）──────────────────
+function gameSrc(level) {
+  const qs = ["booth=1", "v=" + Date.now()];
   if (currentTheme) qs.push("theme=" + encodeURIComponent(currentTheme));
-  qs.push("v=" + Date.now()); // 繞過 index.html 快取，每次拿最新 build
+  if (level) qs.push("level_lz=" + btoa(encodeURIComponent(JSON.stringify(level))));
   return GAME_URL + "?" + qs.join("&");
 }
 function reloadGame() {
-  gameFrame.src = gameSrc();
-  if (currentLevel) pushLevel(currentLevel);
-}
-function pushLevel(level) {
-  const payload = { type: "load_level", level_json: JSON.stringify(level) };
-  const send = () => { try { gameFrame.contentWindow.postMessage(payload, "*"); } catch (e) {} };
-  // 遊戲端對「同一關卡」去重，不會重啟 → 多推幾次無害，確保載入慢時也收得到。
-  [0, 600, 1200, 2000, 3000, 4200, 6000].forEach((t) => setTimeout(send, t));
+  gameFrame.src = gameSrc(currentLevel);
 }
 
-$("theme").addEventListener("change", (e) => { currentTheme = e.target.value || ""; reloadGame(); });
+$("theme").addEventListener("change", (e) => {
+  currentTheme = e.target.value || "";
+  reloadGame();
+});
+
+// 全螢幕遊玩（怕觀眾覺得畫面太小）— 整個遊戲框進全螢幕，退出鈕才疊得上去
+$("fs-btn").addEventListener("click", () => {
+  const el = $("game-wrap");
+  if (el.requestFullscreen) el.requestFullscreen();
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+});
+$("fs-exit").addEventListener("click", () => {
+  if (document.exitFullscreen) document.exitFullscreen();
+  else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+});
 
 // ── 範本 pill：填進輸入框 ─────────────────────────────────────────
 $("presets").addEventListener("click", (e) => {
@@ -71,7 +78,7 @@ $("presets").addEventListener("click", (e) => {
   promptEl.focus();
 });
 
-// ── 形狀 / 難度 pill：單選；已有關卡 → 立刻用同句重生 ─────────────
+// ── 形狀 / 難度 pill：只「選取」，不自動重生（按生成才套用）─────────
 function wirePills(containerId, setter) {
   $(containerId).addEventListener("click", (e) => {
     const p = e.target.closest(".pill");
@@ -79,24 +86,38 @@ function wirePills(containerId, setter) {
     [...$(containerId).children].forEach((c) => c.classList.remove("active"));
     p.classList.add("active");
     setter(p);
-    if (currentLevel && promptEl.value.trim()) generate(); // 在這關基礎上重生
   });
 }
 wirePills("shapes", (p) => (selShape = p.dataset.shape || ""));
 wirePills("diffs", (p) => (selDiff = p.dataset.diff || ""));
 
-// ── 生成 ──────────────────────────────────────────────────────────
-promptEl.addEventListener("input", () => {
+// ── 輸入 / 清除 ────────────────────────────────────────────────────
+function refreshButtons() {
   const empty = promptEl.value.trim().length === 0;
   genBtn.disabled = empty;
-  regenBtn.disabled = empty;
-});
+  clearBtn.disabled = empty && !selShape && !selDiff;
+}
+promptEl.addEventListener("input", refreshButtons);
 promptEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !genBtn.disabled) generate();
 });
-genBtn.addEventListener("click", generate);
-regenBtn.addEventListener("click", () => { if (!regenBtn.disabled) generate(); });
 
+clearBtn.addEventListener("click", () => {
+  promptEl.value = "";
+  selShape = "";
+  selDiff = "";
+  // pill 回到「不指定」
+  ["shapes", "diffs"].forEach((id) => {
+    [...$(id).children].forEach((c, i) => c.classList.toggle("active", i === 0));
+  });
+  $("last-sent").hidden = true;
+  refreshButtons();
+  promptEl.focus();
+});
+
+genBtn.addEventListener("click", generate);
+
+// ── 生成 ──────────────────────────────────────────────────────────
 async function generate() {
   const prompt = promptEl.value.trim();
   if (!prompt) return;
@@ -114,10 +135,9 @@ async function generate() {
     if (!data.ok) { setStatus("err", "❌ " + (data.error || "生成失敗，請再試一次")); return; }
 
     currentLevel = data.level;
-    pushLevel(data.level);
+    reloadGame(); // reload iframe → 帶新關卡網址（level_lz），遊戲開機直接載入
     $("game-hint").style.display = "none";
 
-    // 上次送出 + 完整 prompt
     const ls = $("last-sent");
     ls.textContent = "上次送出：" + prompt;
     ls.hidden = false;
@@ -134,9 +154,7 @@ async function generate() {
 }
 
 function setLoading(on) {
-  const empty = promptEl.value.trim().length === 0;
-  genBtn.disabled = on || empty;
-  regenBtn.disabled = on || empty;
+  genBtn.disabled = on || promptEl.value.trim().length === 0;
   genBtn.classList.toggle("loading", on);
   genBtn.textContent = on ? "⏳ 生成中…" : "✨ 用 AI 生成關卡";
 }
@@ -151,6 +169,7 @@ function renderStats(data) {
   $("st-goals").textContent = goalKeys.length || "—";
   $("st-winrate").textContent = "點我測";
   $("st-winrate").style.color = "";
+  $("sim-report").hidden = true; // 新關卡 → 清掉舊的試玩報表
 
   const chips = $("goals-chips");
   chips.innerHTML = "";
@@ -163,16 +182,15 @@ function renderStats(data) {
   $("goals-line").hidden = goalKeys.length === 0;
 
   const b = $("banner");
-  if (data.valid) {
-    b.className = "banner ok"; b.textContent = "✓ 通過驗證，可以玩";
-  } else {
+  if (data.valid) { b.className = "banner ok"; b.textContent = "✓ 通過驗證，可以玩"; }
+  else {
     b.className = "banner warn";
     b.textContent = "⚠️ " + (data.errors && data.errors.length ? data.errors.slice(0, 2).join("；") : "格式有小瑕疵，仍可玩");
   }
   b.hidden = false;
 }
 
-// ── AI 勝率：點卡片才跑模擬 ──────────────────────────────────────
+// ── AI 勝率 + 步數報表：點卡片才跑模擬 ───────────────────────────
 $("st-winrate-card").addEventListener("click", async () => {
   if (!currentLevel) return;
   const cell = $("st-winrate");
@@ -186,10 +204,20 @@ $("st-winrate-card").addEventListener("click", async () => {
       cell.textContent = Math.round(r.win_rate * 100) + "%";
       cell.style.color = r.color;
       cell.title = `${r.emoji} ${r.badge}`;
-    } else {
-      cell.textContent = "失敗";
-    }
+      renderSimReport(r);
+    } else cell.textContent = "失敗";
   } catch (e) { cell.textContent = "失敗"; }
 });
+
+function renderSimReport(r) {
+  const box = $("sim-report");
+  if (!box) return;
+  box.innerHTML =
+    `<div class="card"><div class="row"><span class="k">AI 試玩 ${r.n_games || 60} 場勝率</span>` +
+    `<span style="color:${r.color}">${Math.round(r.win_rate * 100)}% ${r.emoji} ${r.badge}</span></div>` +
+    (r.avg_steps ? `<div class="row"><span class="k">平均過關步數</span><span>${r.avg_steps}</span></div>` : "") +
+    `</div>`;
+  box.hidden = false;
+}
 
 boot();
