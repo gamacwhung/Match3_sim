@@ -352,9 +352,12 @@ func init_board(level_data: Resource = null) -> void:
 	filler.fill_initial()
 	_connect_candy_signals()
 
+	# fill_initial 的 _pick_no_match_color 已在「填的當下」避開直線3 + 2x2 → 正常一次就零連線。
+	# 這個重洗只是極端受限盤面的 backstop(cap 砍到 6,正常跑 0 次);舊版 cap=50 + 整盤重建節點
+	# 是初始載入卡死的真兇(殘留 2x2 → 永遠 >0 → 重洗 50 次、上百節點同步 new/free)。
 	print("[PROBE] init_board -> dedup retry loop")
 	var retry_count = 0
-	while MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, init_skip).size() > 0 and retry_count < 50:
+	while MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, init_skip).size() > 0 and retry_count < 6:
 		_clear_board()
 		filler.setup(grid_width, grid_height, cell_size, board_offset, candy_container, candy_scene, init_skip)
 		if level_data and level_data.num_colors > 0:
@@ -362,6 +365,7 @@ func init_board(level_data: Resource = null) -> void:
 		filler.fill_initial()
 		_connect_candy_signals()
 		retry_count += 1
+	print("[PROBE] init_board -> dedup done (重洗 %d 次,應為 0)" % retry_count)
 
 	_sync_candy_layer_visibility()
 
