@@ -29,7 +29,10 @@
 
       <details class="prompt-detail" id="prompt-detail" hidden>
         <summary>🔍 查看實際送給 AI 的完整 prompt</summary>
+        <div class="pp-label">① 你的需求 ＋ 攤位指示（這次的訊息）</div>
         <pre id="full-prompt"></pre>
+        <div class="pp-label">② 系統提示（設計規範，每次都附帶）</div>
+        <pre id="system-prompt"></pre>
       </details>
 
       <div class="gen-row">
@@ -72,6 +75,7 @@
       <div class="game-head">
         <div class="sec-title"><span class="bar"></span>🕹️ 遊戲區</div>
         <div class="game-tools">
+          <button id="idle-btn" class="tool-btn" title="回到待機畫面（換下一位訪客）">↺ 待機</button>
           <button id="fs-btn" class="tool-btn" title="全螢幕遊玩">⛶ 全螢幕</button>
           <div class="theme-pick">
             <label for="theme">🎨</label>

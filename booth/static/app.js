@@ -58,6 +58,23 @@ $("theme").addEventListener("change", (e) => {
   reloadGame();
 });
 
+// 回待機畫面（換下一位訪客）：清掉關卡、遊戲回 ?booth=1 待機、面板重置
+$("idle-btn").addEventListener("click", () => {
+  currentLevel = null;
+  reloadGame(); // gameSrc(null) → 無 level_lz → 待機畫面
+  $("game-hint").style.display = "";
+  $("st-board").textContent = "—";
+  $("st-steps").textContent = "—";
+  $("st-goals").textContent = "—";
+  $("st-winrate").textContent = "點我測";
+  $("st-winrate").style.color = "";
+  $("goals-line").hidden = true;
+  $("banner").hidden = true;
+  $("sim-report").hidden = true;
+  $("prompt-detail").hidden = true;
+  statusEl.innerHTML = "";
+});
+
 // 全螢幕遊玩（怕觀眾覺得畫面太小）— 整個遊戲框進全螢幕，退出鈕才疊得上去
 $("fs-btn").addEventListener("click", () => {
   const el = $("game-wrap");
@@ -184,6 +201,7 @@ function onGenerated(data, prompt) {
   reloadGame(); // reload iframe → 帶新關卡網址（level_lz）
   $("game-hint").style.display = "none";
   $("full-prompt").textContent = data.full_prompt || prompt;
+  $("system-prompt").textContent = data.system_prompt || "（無）";
   $("prompt-detail").hidden = false;
   renderStats(data);
   setStatus("ok", data.valid ? "✅ 關卡已生成，右邊開始玩吧！" : "⚠️ 生成完成（小瑕疵，仍可玩）");
@@ -250,11 +268,28 @@ $("st-winrate-card").addEventListener("click", async () => {
 function renderSimReport(r) {
   const box = $("sim-report");
   if (!box) return;
-  box.innerHTML =
-    `<div class="card"><div class="row"><span class="k">AI 試玩 ${r.n_games || 60} 場勝率</span>` +
-    `<span style="color:${r.color}">${Math.round(r.win_rate * 100)}% ${r.emoji} ${r.badge}</span></div>` +
-    (r.avg_steps ? `<div class="row"><span class="k">平均過關步數</span><span>${r.avg_steps}</span></div>` : "") +
-    `</div>`;
+  let html = `<div class="card">`;
+  html += `<div class="row"><span class="k">AI 試玩 ${r.n_games || 60} 場</span>` +
+          `<span style="color:${r.color}">勝率 ${Math.round(r.win_rate * 100)}% ${r.emoji} ${r.badge}</span></div>`;
+  if (r.wins != null) html += `<div class="row"><span class="k">勝 / 敗</span><span>${r.wins} / ${r.losses}</span></div>`;
+  if (r.avg_steps) html += `<div class="row"><span class="k">平均過關步數</span><span>${r.avg_steps}</span></div>`;
+  if (r.min_steps != null && r.max_steps_seen != null)
+    html += `<div class="row"><span class="k">最快 / 最慢</span><span>${r.min_steps} / ${r.max_steps_seen} 步</span></div>`;
+
+  const hist = r.step_histogram || {};
+  const keys = Object.keys(hist);
+  if (keys.length) {
+    const mx = Math.max(...keys.map((k) => hist[k]));
+    html += `<div class="hist-title">過關步數分布（勝場）</div><div class="hist">`;
+    keys.forEach((k) => {
+      const w = Math.max(4, Math.round((hist[k] / mx) * 100));
+      html += `<div class="hist-row"><span class="hist-k">${k}</span>` +
+              `<span class="hist-bar" style="width:${w}%"></span><span class="hist-n">${hist[k]}</span></div>`;
+    });
+    html += `</div>`;
+  }
+  html += `</div>`;
+  box.innerHTML = html;
   box.hidden = false;
 }
 

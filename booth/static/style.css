@@ -216,6 +216,14 @@ textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 .sim-report .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; font-size: 13px; }
 .sim-report .row { display: flex; justify-content: space-between; padding: 2px 0; gap: 8px; }
 .sim-report .row .k { color: var(--muted); }
+.sim-report .hist-title { color: var(--muted); font-size: 12px; margin: 8px 0 5px; }
+.sim-report .hist { display: flex; flex-direction: column; gap: 3px; }
+.hist-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.hist-k { color: var(--muted); width: 24px; text-align: right; }
+.hist-bar { height: 9px; background: linear-gradient(90deg, var(--g-blue), #6f5bff); border-radius: 3px; min-width: 4px; }
+.hist-n { color: var(--muted); }
+
+.pp-label { color: var(--g-yellow); font-size: 11.5px; margin: 8px 0 3px; }
 
 .hint { color: var(--muted); font-size: 12.5px; line-height: 1.5; flex-shrink: 0; }
 

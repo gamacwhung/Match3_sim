@@ -34,7 +34,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from level_generator.ai_generator import generate_level
+from level_generator.ai_generator import generate_level, build_system_prompt
 from level_generator.validator import validate_level, _tile_family
 from level_generator.sim_runner import run_simulation_batch
 
@@ -228,6 +228,7 @@ def api_generate(req: GenReq):
         "max_steps": level.get("max_steps"),
         "goals": level.get("goals", {}),
         "full_prompt": full_prompt,
+        "system_prompt": build_system_prompt(params),
     }
 
 
@@ -297,7 +298,7 @@ async def api_generate_stream(req: GenReq):
             "errors": list(validation.errors) if validation else [],
             "rows": level.get("rows"), "cols": level.get("cols"),
             "max_steps": level.get("max_steps"), "goals": level.get("goals", {}),
-            "full_prompt": full_prompt,
+            "full_prompt": full_prompt, "system_prompt": build_system_prompt(params),
         })
 
     threading.Thread(target=worker, daemon=True).start()
@@ -336,9 +337,11 @@ def api_simulate(req: SimReq):
         badge, color, emoji = "極難", "#EA4335", "🔥"
     return {
         "ok": True, "win_rate": wr, "badge": badge, "color": color, "emoji": emoji,
-        "n_games": res.n_games, "wins": res.wins,
+        "n_games": res.n_games, "wins": res.wins, "losses": res.losses,
         "avg_steps": round(res.avg_steps_won or res.avg_steps, 1),
-        "min_steps": res.min_steps,
+        "min_steps": res.min_steps, "max_steps_seen": res.max_steps_seen,
+        # 步數分布(只算勝場):{步數: 場數} → 前端畫長條圖
+        "step_histogram": {str(k): v for k, v in sorted(res.step_histogram.items())},
     }
 
 
