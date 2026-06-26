@@ -62,7 +62,6 @@ $("theme").addEventListener("change", (e) => {
 $("idle-btn").addEventListener("click", () => {
   currentLevel = null;
   reloadGame(); // gameSrc(null) → 無 level_lz → 待機畫面
-  $("game-hint").style.display = "";
   $("st-board").textContent = "—";
   $("st-steps").textContent = "—";
   $("st-goals").textContent = "—";
@@ -199,7 +198,6 @@ async function generate() {
 function onGenerated(data, prompt) {
   currentLevel = data.level;
   reloadGame(); // reload iframe → 帶新關卡網址（level_lz）
-  $("game-hint").style.display = "none";
   $("full-prompt").textContent = data.full_prompt || prompt;
   $("system-prompt").textContent = data.system_prompt || "（無）";
   $("prompt-detail").hidden = false;
