@@ -222,6 +222,8 @@ def _init_state() -> None:
         'art_generation_mode': 'restyle',
         'art_theme_text': '',
         'art_expand_theme': True,
+        'art_refine_style': True,
+        'art_style_plan': None,
         'art_theme_plan': None,
         'art_family_style_plan': None,
         'art_reference_run': '',
@@ -323,6 +325,31 @@ def _render_style_studio() -> str:
         st.session_state.art_style = style
     else:
         st.caption(st.session_state.art_style)
+
+    st.checkbox(
+        'LLM 精煉畫風描述',
+        key='art_refine_style',
+        help='把簡短風格詞展開成鎖定的美術規格，提升整批一致性（預設開啟）',
+    )
+    if st.session_state.art_refine_style and st.session_state.art_style.strip():
+        if st.button('預覽畫風精煉', key='art_preview_style', use_container_width=True):
+            try:
+                plan = api.preview_style_plan(
+                    st.session_state.art_style.strip(),
+                    mode=st.session_state.get('art_generation_mode', 'restyle'),
+                    theme_text=(st.session_state.get('art_theme_text') or '').strip() or None,
+                )
+                st.session_state.art_style_plan = plan
+                st.toast('畫風已精煉', icon='🎨')
+            except Exception as exc:
+                st.error(f'精煉失敗: {exc}')
+    plan = st.session_state.get('art_style_plan')
+    if plan and plan.get('input') == st.session_state.art_style.strip():
+        if plan.get('summary'):
+            st.caption(f'精煉摘要：{plan["summary"]}')
+        brief = (plan.get('style_brief') or '')[:200]
+        if brief:
+            st.caption(f'→ {brief}{"…" if len(plan.get("style_brief", "")) > 200 else ""}')
 
     style_upload = None
     with st.expander('＋ 參考圖風格（選填）', expanded=False):
@@ -621,7 +648,7 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
         tmp.write_bytes(style_upload.getvalue())
         style_path = tmp
 
-    from art_pipeline.pipeline import resolve_expand_theme
+    from art_pipeline.pipeline import resolve_expand_theme, resolve_refine_style
 
     st.session_state.art_generating = True
     mode = st.session_state.art_generation_mode
@@ -629,6 +656,9 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
     expand_theme = resolve_expand_theme(
         mode, theme_text,
         no_expand_theme=not st.session_state.art_expand_theme,
+    )
+    refine_style = resolve_refine_style(
+        no_refine_style=not st.session_state.art_refine_style,
     )
     mode_label = '主題換物件' if mode == 'theme_swap' else '換皮'
     ref_run = (st.session_state.get('art_reference_run') or None) if mode == 'restyle' else None
@@ -657,6 +687,7 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
             asset_names=elements, style_image_path=style_path,
             reference_image=st.session_state.art_use_reference_image,
             mode=mode, theme_text=theme_text, expand_theme=expand_theme,
+            refine_style=refine_style,
             reference_run=ref_run,
             image_model=image_model,
             critic_model=critic_model,
@@ -670,6 +701,8 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
             st.session_state.art_theme_plan = summary.theme_plan
         if summary.family_style_plan:
             st.session_state.art_family_style_plan = summary.family_style_plan
+        if summary.style_plan:
+            st.session_state.art_style_plan = summary.style_plan
         progress.progress(100, text='完成')
         st.toast(
             f'生成完成：通過 {summary.passed} · 待審 {summary.needs_review} · 失敗 {summary.failed}',
@@ -862,12 +895,15 @@ def _load_run(run_name: str) -> None:
         theme_plan=report.get('theme_plan'),
         theme_expanded=report.get('theme_expanded'),
         family_style_plan=report.get('family_style_plan'),
+        style_plan=report.get('style_plan'),
+        style_resolved=report.get('style_resolved'),
         reference_run=report.get('reference_run'),
     )
     st.session_state.art_generation_mode = report.get('generation_mode', 'restyle')
     st.session_state.art_theme_text = report.get('theme', '') or ''
     st.session_state.art_theme_plan = report.get('theme_plan')
     st.session_state.art_family_style_plan = report.get('family_style_plan')
+    st.session_state.art_style_plan = report.get('style_plan')
     st.session_state.art_reference_run = report.get('reference_run') or ''
     st.session_state.art_run_name = run_name
     st.session_state.art_loaded_run = run_name

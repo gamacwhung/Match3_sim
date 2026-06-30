@@ -31,6 +31,7 @@ from .family_style_planner import (
     family_plan_entry_for_asset,
     should_plan_family_styles,
 )
+from .style_planner import refine_style_prompt, resolved_style_text
 from .visual_guidance import (
     FAMILY_ANCHOR_REF_LABEL,
     format_family_visual_block,
@@ -39,6 +40,7 @@ from .visual_guidance import (
 )
 from . import gemini_api, postprocess
 from .sprite_sheet import write_sprite_contact_sheet
+from .run_config import build_run_config
 from .run_log import RunLog
 
 GENERATED_ROOT = PROJECT_ROOT / 'generated_art'
@@ -72,6 +74,11 @@ def resolve_expand_theme(
     """與 CLI / Web 共用的主題展開邏輯。"""
     auto_expand = bool(mode == 'theme_swap' and theme_text and '=' not in theme_text)
     return (not no_expand_theme) and (expand_theme_flag or auto_expand)
+
+
+def resolve_refine_style(*, no_refine_style: bool = False) -> bool:
+    """預設精煉 --style；--no-refine-style 關閉。"""
+    return not no_refine_style
 
 
 def resolve_style_image(
@@ -469,6 +476,45 @@ def prepare_theme_for_targets(
     return resolved_theme, theme_plan
 
 
+def prepare_style_for_run(
+    style_text: str,
+    refine_style: bool,
+    mode: GenerationMode,
+    theme_text: str | None,
+    targets: list[dict],
+    critic_model: str,
+    report: dict,
+    report_path: pathlib.Path,
+    *,
+    client=None,
+) -> tuple[str, dict | None]:
+    """Refine vague --style into a locked brief; caches in report."""
+    if not refine_style:
+        return style_text, report.get('style_plan')
+
+    cached = report.get('style_plan')
+    if cached and cached.get('input') == style_text:
+        return resolved_style_text(cached, style_text), cached
+
+    if client is None:
+        client = gemini_api.get_client()
+    families = sorted({a.get('family') or 'misc' for a in targets})
+    plan = refine_style_prompt(
+        style_text,
+        mode=mode,
+        theme_text=theme_text,
+        target_families=families,
+        client=client,
+        model=critic_model,
+    )
+    resolved = resolved_style_text(plan, style_text)
+    report['style'] = style_text
+    report['style_resolved'] = resolved
+    report['style_plan'] = plan
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+    return resolved, plan
+
+
 def prepare_family_style_for_targets(
     theme_text: str | None,
     targets: list[dict],
@@ -534,6 +580,9 @@ def run(style_text: str, run_name: str,
         reference_image: bool = True,
         expand_theme: bool = False,
         reference_run: str | None = None,
+        refine_style: bool = True,
+        source: str = 'cli',
+        cli_extra: dict | None = None,
         on_progress: GenerationProgressCallback | None = None) -> pathlib.Path:
     """跑整批生成。回傳 run 目錄。
 
@@ -544,6 +593,8 @@ def run(style_text: str, run_name: str,
       False       — 不使用任何參考圖(含 game_art_reference.png 與 style_image_path)
     expand_theme:
       True        — 用 LLM 把 theme_text(主題概念)展開成每個 element 的物件指派
+    refine_style:
+      True        — 用 LLM 把 --style 精煉成鎖定的畫風規格(預設開啟)
     reference_run:
       先前生成 run 名稱(如 pixar_cartoon); restyle 時用其 sprites/ 當 Reference A,
       不含的 asset 跳過,不 fallback 官方圖。
@@ -593,6 +644,42 @@ def run(style_text: str, run_name: str,
         report['reference_run'] = reference_run
 
     report['target_assets'] = [a['name'] for a in targets]
+    report['cli'] = build_run_config(
+        source=source,
+        run_name=run_name,
+        style_text=style_text,
+        mode=mode,
+        theme_text=theme_text,
+        family=family,
+        asset_names=asset_names,
+        style_image_path=str(style_image_path) if style_image_path else None,
+        reference_run=reference_run,
+        image_model=image_model,
+        critic_model=critic_model,
+        max_iters=max_iters,
+        dry_run=dry_run,
+        force=force,
+        reference_image=reference_image,
+        expand_theme=expand_theme,
+        refine_style=refine_style,
+        extra=cli_extra,
+    )
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+
+    client = gemini_api.get_client()
+    cached_style = report.get('style_plan')
+    had_style_cache = bool(cached_style and cached_style.get('input') == style_text)
+    if refine_style:
+        if had_style_cache:
+            print(f'[style] 使用已快取的精煉結果: {cached_style.get("summary", "")}')
+        else:
+            print(f'[style] 精煉畫風: {style_text!r}')
+    resolved_style, style_plan = prepare_style_for_run(
+        style_text, refine_style, mode, theme_text, targets, critic_model,
+        report, report_path, client=client,
+    )
+    if refine_style and style_plan and not had_style_cache:
+        print(f'[style] → {style_plan.get("summary", resolved_style[:80])}')
 
     cached_plan = report.get('theme_plan')
     had_matching_cache = bool(
@@ -604,8 +691,8 @@ def run(style_text: str, run_name: str,
         else:
             print(f'[theme] 展開主題概念: {theme_text!r}')
     resolved_theme, theme_plan = prepare_theme_for_targets(
-        mode, theme_text, expand_theme, targets, style_text, critic_model,
-        report, report_path, client=gemini_api.get_client(),
+        mode, theme_text, expand_theme, targets, resolved_style, critic_model,
+        report, report_path, client=client,
     )
     if mode == 'theme_swap' and expand_theme and theme_text and theme_plan and not had_matching_cache:
         print(f'[theme] → {resolved_theme}')
@@ -613,7 +700,6 @@ def run(style_text: str, run_name: str,
     targets = order_targets_for_family_anchors(targets)
     multi_category_run = len({a.get('category') for a in targets}) > 1
 
-    client = gemini_api.get_client()
     cached_fsp = report.get('family_style_plan')
     had_fsp_cache = bool(
         cached_fsp and cached_fsp.get('concept') == theme_text
@@ -624,7 +710,7 @@ def run(style_text: str, run_name: str,
         else:
             print('[family-style] 展開 per-family 視覺語言…')
     family_style_plan = prepare_family_style_for_targets(
-        theme_text, targets, style_text, critic_model,
+        theme_text, targets, resolved_style, critic_model,
         report, report_path, client=client,
     )
     if theme_text and family_style_plan and not had_fsp_cache:
@@ -640,7 +726,7 @@ def run(style_text: str, run_name: str,
 
     log.run_header(
         run_name=run_name,
-        style=style_text,
+        style=resolved_style if refine_style and style_plan else style_text,
         image_model=image_model,
         critic_model=critic_model,
         max_iters=max_iters,
@@ -656,12 +742,13 @@ def run(style_text: str, run_name: str,
         anchor_name = get_family_anchor_asset(targets[0].get('family'))
         dry_anchor = anchor_name and targets[0]['name'] != anchor_name
         log.dry_run_prompt(build_generation_prompt(
-            targets[0], style_text,
+            targets[0], resolved_style,
             by_family.get(targets[0].get('family') or 'misc', []), None,
             has_style_image=style_image is not None,
             mode=mode, theme_text=resolved_theme, theme_plan=theme_plan,
             family_style_plan=family_style_plan,
             has_family_anchor=dry_anchor))
+        report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
         return run_dir
 
     family_anchors = _seed_family_anchors_from_disk(targets, sprites_out, report, force)
@@ -693,7 +780,7 @@ def run(style_text: str, run_name: str,
             anchor = None
 
         log.asset_start(idx, asset['name'], asset.get('family'))
-        result = generate_one(client, asset, style_text, style_image,
+        result = generate_one(client, asset, resolved_style, style_image,
                               by_family.get(fam, []),
                               image_model, critic_model, max_iters,
                               history_dir=history_dir, log=log,

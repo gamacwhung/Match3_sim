@@ -222,11 +222,14 @@ python scripts/ai_art_gen.py restore
 | `--style-image PATH` | 自訂參考圖(需未加 `--no-reference-image`) |
 | `--expand-theme` | 強制用 LLM 展開 `--theme` |
 | `--no-expand-theme` | 不展開,`--theme` 原樣使用 |
+| `--no-refine-style` | 不精煉 `--style`（預設會 LLM 展開成鎖定畫風規格） |
 | `--dry-run` | 只印 prompt,不呼叫生圖 API |
 | `--force` | 重生已 pass 的 asset |
 
 **主題展開規則**: `--theme` 若為概念型文字(如「糖果屋」,不含 `Red=`),
 會自動呼叫 LLM 展開成 `Red=..., Grn=..., ...`,寫入 `report.json` 的 `theme_plan`。
+
+**畫風精煉規則**: `--style` 預設會經 LLM 精煉成鎖定的 `style_brief`（寫入 `report.json` 的 `style_plan` / `style_resolved`），整批 asset 共用；`--no-refine-style` 可關閉。
 
 詳細 prompt 組裝與四層控制邏輯見 [docs/design/theme_swap_prompt.md](docs/design/theme_swap_prompt.md)。
 

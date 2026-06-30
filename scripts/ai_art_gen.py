@@ -83,6 +83,8 @@ def main():
                    help='用 LLM 展開 --theme 成每個 element 物件(概念型主題預設自動開啟)')
     g.add_argument('--no-expand-theme', action='store_true',
                    help='不要 LLM 展開 --theme')
+    g.add_argument('--no-refine-style', action='store_true',
+                   help='不要 LLM 精煉 --style（預設會精煉成鎖定畫風規格）')
     g.add_argument('--style-image',
                    help='元素參考圖路徑(圖騰/logo/特殊形狀/風格;可選;預設用 game_art_reference.png 若存在)')
     g.add_argument('--no-reference-image', action='store_true',
@@ -154,6 +156,9 @@ def main():
             expand_theme_flag=args.expand_theme,
             no_expand_theme=args.no_expand_theme,
         )
+        refine_style = pipeline.resolve_refine_style(
+            no_refine_style=args.no_refine_style,
+        )
         try:
             pipeline.run(
                 style_text=args.style,
@@ -170,6 +175,7 @@ def main():
                 theme_text=args.theme,
                 reference_image=not args.no_reference_image,
                 expand_theme=expand_theme,
+                refine_style=refine_style,
                 reference_run=args.reference_run,
             )
         except (ValueError, FileNotFoundError) as e:

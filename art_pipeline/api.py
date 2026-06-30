@@ -28,7 +28,8 @@ from .apply import (
 )
 from .family_style_planner import expand_family_styles, should_plan_family_styles
 from .manifest import PROJECT_ROOT, build_manifest, families
-from .pipeline import GENERATED_ROOT, resolve_expand_theme
+from .pipeline import GENERATED_ROOT, resolve_expand_theme, resolve_refine_style
+from .style_planner import refine_style_prompt
 from .theme_planner import expand_theme_for_elements
 
 BASIC_ELEMENTS: tuple[str, ...] = ('Red', 'Grn', 'Blu', 'Yel', 'Pur')
@@ -71,6 +72,8 @@ class GenerationSummary:
     theme_text: str | None = None
     theme_plan: dict | None = None
     theme_expanded: str | None = None
+    style_plan: dict | None = None
+    style_resolved: str | None = None
     family_style_plan: dict | None = None
     reference_run: str | None = None
 
@@ -281,6 +284,8 @@ def _load_generation_summary(
         theme_text=theme_text,
         theme_plan=report.get('theme_plan'),
         theme_expanded=report.get('theme_expanded'),
+        style_plan=report.get('style_plan'),
+        style_resolved=report.get('style_resolved'),
         family_style_plan=report.get('family_style_plan'),
         reference_run=reference_run,
     )
@@ -298,6 +303,7 @@ def generate(
     theme_text: str | None = None,
     expand_theme: bool = False,
     reference_run: str | None = None,
+    refine_style: bool | None = None,
     image_model: str | None = None,
     critic_model: str | None = None,
     max_iters: int = 3,
@@ -333,8 +339,11 @@ def generate(
         mode=mode,
         theme_text=theme_text,
         reference_image=reference_image,
-        expand_theme=expand_theme,
+        expand_theme=expand_theme if expand_theme is not None else resolve_expand_theme(
+            mode, theme_text),
+        refine_style=refine_style if refine_style is not None else resolve_refine_style(),
         reference_run=reference_run,
+        source='web',
         on_progress=progress_adapter,
     )
     return _load_generation_summary(
@@ -360,6 +369,34 @@ def preview_theme_plan(
     return expand_theme_for_elements(
         theme_concept, style_text, names,
         client=client, model=critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
+    )
+
+
+def preview_style_plan(
+    raw_style: str,
+    *,
+    mode: str = 'restyle',
+    theme_text: str | None = None,
+    asset_names: list[str] | None = None,
+    critic_model: str | None = None,
+) -> dict:
+    """LLM-refine --style into a locked art-direction brief (no image generation)."""
+    manifest = build_manifest()
+    if asset_names:
+        wanted = set(asset_names)
+        targets = [a for a in manifest if a['name'] in wanted]
+    else:
+        targets = manifest
+    families = sorted({a.get('family') or 'misc' for a in targets})
+    client = gemini_api.get_client()
+    gen_mode = 'theme_swap' if mode == 'theme_swap' else 'restyle'
+    return refine_style_prompt(
+        raw_style,
+        mode=gen_mode,
+        theme_text=theme_text,
+        target_families=families,
+        client=client,
+        model=critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
     )
 
 
