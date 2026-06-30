@@ -38,6 +38,7 @@ from .visual_guidance import (
     order_targets_for_family_anchors,
 )
 from . import gemini_api, postprocess
+from .sprite_sheet import write_sprite_contact_sheet
 from .run_log import RunLog
 
 GENERATED_ROOT = PROJECT_ROOT / 'generated_art'
@@ -720,4 +721,8 @@ def run(style_text: str, run_name: str,
         run_dir=run_dir, sprites_out=sprites_out, history_dir=history_dir,
         report_path=report_path, run_name=run_name,
     )
+    if not dry_run:
+        sheet = write_sprite_contact_sheet(sprites_out, run_dir / 'generated_sprites.png')
+        if sheet:
+            print(f'[contact-sheet] {sheet}')
     return run_dir

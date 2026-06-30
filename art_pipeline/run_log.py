@@ -169,6 +169,7 @@ class RunLog:
             f'sprites  {sprites_out}',
             f'history  {history_dir}/<asset>/',
             f'report   {report_path}',
+            f'contact  {run_dir / "generated_sprites.png"}',
             '',
             f'apply    python scripts/ai_art_gen.py apply --run {run_name}',
         ]
