@@ -11,6 +11,8 @@
 | 三層視覺、罐頭、空格 | [mechanics/layers.md](mechanics/layers.md) |
 | 物件 ID、層、可否相鄰消 | [mechanics/objects_index.md](mechanics/objects_index.md) |
 | 關卡 JSON 格式、生成指引 | [level_design_guide.md](level_design_guide.md) |
+| AI 美術 theme-swap prompt 控制邏輯 | [design/theme_swap_prompt.md](design/theme_swap_prompt.md) |
+| AI Art Lab 功能進度與架構 | [design/AI_Art_Lab_進度報告.md](design/AI_Art_Lab_進度報告.md) |
 | 官方 Excel 設計稿（本機） | `docs/design/盤面物件設計文件*.xlsx`（gitignore，需自行放置） |
 
 ## 程式與資料夾地圖

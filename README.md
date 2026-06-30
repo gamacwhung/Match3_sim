@@ -228,6 +228,10 @@ python scripts/ai_art_gen.py restore
 **主題展開規則**: `--theme` 若為概念型文字(如「糖果屋」,不含 `Red=`),
 會自動呼叫 LLM 展開成 `Red=..., Grn=..., ...`,寫入 `report.json` 的 `theme_plan`。
 
+詳細 prompt 組裝與四層控制邏輯見 [docs/design/theme_swap_prompt.md](docs/design/theme_swap_prompt.md)。
+
+**Family 視覺分層**：同 family 內以 anchor 圖鏈式對齊風格；跨 family 以 `visual_categories` 規則與 critic `cohesion`/`distinction` 分數把關（預設開啟，見 `art_pipeline/visual_guidance.py`）。
+
 #### `test_theme_elements.py` — 批次測 5 色元素
 
 只生成 `Red, Grn, Blu, Yel, Pur`,固定走 **theme-swap**,**預設不用參考圖**。

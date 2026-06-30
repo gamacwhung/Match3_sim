@@ -50,6 +50,13 @@ def get_family_meta(family_id: str | None, config: dict | None = None) -> dict:
     return cfg.get('families', {}).get(family_id, {})
 
 
+def get_category_visual(category_id: str | None, config: dict | None = None) -> dict:
+    if not category_id:
+        return {}
+    cfg = config or load_config()
+    return cfg.get('meta', {}).get('visual_categories', {}).get(category_id, {})
+
+
 def _format_template(text: str, params: dict, meta: dict) -> str:
     merged = {**meta, **params}
     merged.setdefault('cell_display_px', meta.get('cell_display_px', 70))

@@ -1,0 +1,7 @@
+python scripts/ai_art_gen.py generate \
+  --mode theme-swap \
+  --style "3D Disney cartoon style, 線條簡單, 富有光澤" \
+  --theme "糖果屋" \
+  --run candy_house_3d \
+  --family elements \
+  --no-reference-image

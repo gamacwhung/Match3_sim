@@ -24,8 +24,19 @@ import time
 from typing import Callable
 
 from .manifest import PROJECT_ROOT, SPRITES_DIR, build_manifest
-from .roles import GenerationMode, get_family_meta, role_mode_brief
+from .roles import GenerationMode, role_mode_brief
 from .theme_planner import expand_theme_for_elements, theme_note_for_asset
+from .family_style_planner import (
+    expand_family_styles,
+    family_plan_entry_for_asset,
+    should_plan_family_styles,
+)
+from .visual_guidance import (
+    FAMILY_ANCHOR_REF_LABEL,
+    format_family_visual_block,
+    get_family_anchor_asset,
+    order_targets_for_family_anchors,
+)
 from . import gemini_api, postprocess
 from .run_log import RunLog
 
@@ -37,6 +48,8 @@ DEFAULT_STYLE_IMAGE = PROJECT_ROOT / 'game_art_reference.png'
 PASS_STYLE = 7
 PASS_FUNCTION = 7
 PASS_ELEMENT = 7
+PASS_COHESION = 7
+PASS_DISTINCTION = 6
 
 # 全域規則:遊戲素材不要有臉部五官(眼睛/嘴巴/表情等擬人化特徵),除非物件本身就是角色。
 NO_FACE_RULE = (
@@ -130,14 +143,16 @@ def build_generation_prompt(asset: dict, style_text: str, family_names: list[str
                             feedback: str | None, has_style_image: bool = False,
                             *, mode: GenerationMode = 'restyle',
                             theme_text: str | None = None,
-                            theme_plan: dict | None = None) -> str:
+                            theme_plan: dict | None = None,
+                            family_style_plan: dict | None = None,
+                            has_family_anchor: bool = False) -> str:
     constraints = '\n'.join(f'- {c}' for c in asset.get('constraints', []))
-    family_note = ''
-    if len(family_names) > 1:
-        family_note = (f'\n[Series consistency] This asset belongs to the "{asset["family"]}" '
-                       f'series (members: {", ".join(family_names)}). Every member will be '
-                       f'redrawn separately, so keep a consistent design language that lets '
-                       f'them sit next to each other.')
+    plan_entry = family_plan_entry_for_asset(asset, family_style_plan)
+    family_note = format_family_visual_block(
+        asset, family_names,
+        family_plan_entry=plan_entry,
+        has_family_anchor=has_family_anchor,
+    )
     feedback_note = (f'\n[Fix instructions from the previous attempt — MUST follow] {feedback}'
                      if feedback else '')
     if asset.get('transparent', True):
@@ -147,7 +162,8 @@ def build_generation_prompt(asset: dict, style_text: str, family_names: list[str
 
     if mode == 'theme_swap':
         return _build_theme_swap_prompt(
-            asset, style_text, family_names, feedback, has_style_image, theme_text, theme_plan)
+            asset, style_text, family_names, feedback, has_style_image, theme_text, theme_plan,
+            family_style_plan=family_style_plan, has_family_anchor=has_family_anchor)
 
     if has_style_image:
         intro = (
@@ -173,31 +189,33 @@ def build_generation_prompt(asset: dict, style_text: str, family_names: list[str
 
 [Visual constraints]
 {constraints}
+{family_note}
 
 [Output requirements]
 {bg_rule}
 {NO_FACE_RULE}
 - Preserve the original composition, silhouette proportions and meaning; change ONLY the art style
-- Square canvas, a single image — no collage, no multiple views{family_note}{feedback_note}"""
+- Square canvas, a single image — no collage, no multiple views{feedback_note}"""
 
 
 def _build_theme_swap_prompt(asset: dict, style_text: str, family_names: list[str],
                              feedback: str | None, has_style_image: bool,
                              theme_text: str | None,
-                             theme_plan: dict | None = None) -> str:
+                             theme_plan: dict | None = None,
+                             *,
+                             family_style_plan: dict | None = None,
+                             has_family_anchor: bool = False) -> str:
     """Theme-swap mode: invent a NEW object from abstract gameplay role (no original sprite ref)."""
     constraints = '\n'.join(f'- {c}' for c in asset.get('constraints', []))
     brief = role_mode_brief(asset, 'theme_swap')
     preserve = '\n'.join(f'- {p}' for p in brief.get('preserve', []))
     avoid = brief.get('avoid', '')
-    family_meta = get_family_meta(asset.get('family'))
-    family_note = ''
-    if family_meta.get('series_note'):
-        family_note = f'\n[Series consistency] {family_meta["series_note"]}'
-    elif len(family_names) > 1:
-        family_note = (f'\n[Series consistency] This asset belongs to the "{asset["family"]}" '
-                       f'series (members: {", ".join(family_names)}). Keep a consistent design '
-                       f'language across the series.')
+    plan_entry = family_plan_entry_for_asset(asset, family_style_plan)
+    family_note = format_family_visual_block(
+        asset, family_names,
+        family_plan_entry=plan_entry,
+        has_family_anchor=has_family_anchor,
+    )
     feedback_note = (f'\n[Fix instructions from the previous attempt — MUST follow] {feedback}'
                      if feedback else '')
     theme_note = theme_note_for_asset(asset['name'], theme_text, theme_plan)
@@ -229,6 +247,7 @@ def _build_theme_swap_prompt(asset: dict, style_text: str, family_names: list[st
 
 [Visual constraints]
 {constraints}
+{family_note}
 
 [Target art style] {style_text}{theme_note}
 
@@ -236,7 +255,7 @@ def _build_theme_swap_prompt(asset: dict, style_text: str, family_names: list[st
 {bg_rule}
 {NO_FACE_RULE}
 - Invent a completely NEW subject — do NOT replicate any original game sprite
-- Square canvas, a single image — no collage, no multiple views{family_note}{feedback_note}"""
+- Square canvas, a single image — no collage, no multiple views{feedback_note}"""
 
 
 def _save_iteration(history_dir: pathlib.Path, asset: dict, i: int,
@@ -264,6 +283,40 @@ def _save_iteration(history_dir: pathlib.Path, asset: dict, i: int,
     return saved
 
 
+def _passes_critique(verdict: dict, *, style_image: bool | None,
+                     require_cohesion: bool, require_distinction: bool) -> bool:
+    if verdict['verdict'] != 'pass':
+        return False
+    if verdict['style_score'] < PASS_STYLE:
+        return False
+    if verdict['function_score'] < PASS_FUNCTION:
+        return False
+    if not verdict['background_ok']:
+        return False
+    if style_image and verdict.get('reference_element_score', 0) < PASS_ELEMENT:
+        return False
+    if require_cohesion and verdict.get('cohesion_score', 0) < PASS_COHESION:
+        return False
+    if require_distinction and verdict.get('distinction_score', 0) < PASS_DISTINCTION:
+        return False
+    return True
+
+
+def _register_family_anchor(
+    family_anchors: dict[str, bytes],
+    asset: dict,
+    image: bytes | None,
+    status: str,
+) -> None:
+    """Set family anchor from first completed image in the family."""
+    fam = asset.get('family')
+    if not fam or fam in family_anchors or not image:
+        return
+    if status not in ('pass', 'needs_review'):
+        return
+    family_anchors[fam] = image
+
+
 def generate_one(client, asset: dict, style_text: str, style_image: bytes | None,
                  family_names: list[str], image_model: str, critic_model: str,
                  max_iters: int, history_dir: pathlib.Path | None = None,
@@ -271,6 +324,9 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
                  *, mode: GenerationMode = 'restyle',
                  theme_text: str | None = None,
                  theme_plan: dict | None = None,
+                 family_style_plan: dict | None = None,
+                 family_anchor: bytes | None = None,
+                 multi_category_run: bool = False,
                  reference_run: str | None = None) -> dict:
     """對單一 asset 跑迭代循環。回傳結果 dict(含 attempts log 與最佳圖 bytes)。
 
@@ -289,6 +345,8 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
             ref_label = (
                 'Reference A — the original asset; preserve its subject, shape and composition')
         refs.append((original, ref_label))
+    if family_anchor is not None:
+        refs.append((family_anchor, FAMILY_ANCHOR_REF_LABEL))
     if style_image:
         label = ('Reference — theme visual reference; motifs, palette and style'
                  if mode == 'theme_swap' else
@@ -300,13 +358,18 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
     best = None  # (score, png_bytes, verdict, iter)
     feedback = None
 
+    require_cohesion = family_anchor is not None
+    require_distinction = multi_category_run
+
     for i in range(1, max_iters + 1):
         if log:
             log.iter_start(i, max_iters)
         prompt = build_generation_prompt(asset, style_text, family_names, feedback,
                                          has_style_image=style_image is not None,
                                          mode=mode, theme_text=theme_text,
-                                         theme_plan=theme_plan)
+                                         theme_plan=theme_plan,
+                                         family_style_plan=family_style_plan,
+                                         has_family_anchor=family_anchor is not None)
         t0 = time.time()
         try:
             raw = gemini_api.generate_image(client, image_model, prompt, refs)
@@ -331,10 +394,15 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
 
         verdict = gemini_api.critique_image(
             client, critic_model, original, processed, style_text, asset, style_image,
-            mode=mode)
+            mode=mode, family_anchor=family_anchor, family_style_plan=family_style_plan,
+            multi_category_run=multi_category_run)
         score = verdict['style_score'] + verdict['function_score'] + (2 if verdict['background_ok'] else 0)
         if style_image is not None:
             score += verdict.get('reference_element_score', 0)
+        if require_cohesion:
+            score += verdict.get('cohesion_score', 0)
+        if require_distinction:
+            score += verdict.get('distinction_score', 0)
         entry = {
             'iter': i, 'stage': 'critique', 'ok': True,
             'elapsed_sec': round(time.time() - t0, 1),
@@ -346,12 +414,9 @@ def generate_one(client, asset: dict, style_text: str, style_image: bytes | None
         if best is None or score > best[0]:
             best = (score, processed, verdict, i)
 
-        passed = (verdict['verdict'] == 'pass'
-                  and verdict['style_score'] >= PASS_STYLE
-                  and verdict['function_score'] >= PASS_FUNCTION
-                  and verdict['background_ok']
-                  and (style_image is None
-                       or verdict.get('reference_element_score', 0) >= PASS_ELEMENT))
+        passed = _passes_critique(
+            verdict, style_image=style_image is not None,
+            require_cohesion=require_cohesion, require_distinction=require_distinction)
         if log:
             log.iter_critique(i, time.time() - t0, verdict, score, passed,
                               style_image is not None)
@@ -401,6 +466,57 @@ def prepare_theme_for_targets(
     report['theme_expanded'] = resolved_theme
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     return resolved_theme, theme_plan
+
+
+def prepare_family_style_for_targets(
+    theme_text: str | None,
+    targets: list[dict],
+    style_text: str,
+    critic_model: str,
+    report: dict,
+    report_path: pathlib.Path,
+    *,
+    client=None,
+) -> dict | None:
+    """Expand per-family visual language when theme + multi-asset batch; caches in report."""
+    if not should_plan_family_styles(theme_text, targets):
+        return report.get('family_style_plan')
+
+    family_ids = sorted({a.get('family') or 'misc' for a in targets})
+    cached = report.get('family_style_plan')
+    if (cached and cached.get('concept') == theme_text
+            and sorted(cached.get('families', {}).keys()) == family_ids):
+        return cached
+
+    if client is None:
+        client = gemini_api.get_client()
+    plan = expand_family_styles(
+        theme_text, style_text, family_ids,
+        client=client, model=critic_model,
+    )
+    report['family_style_plan'] = plan
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+    return plan
+
+
+def _seed_family_anchors_from_disk(
+    targets: list[dict],
+    sprites_out: pathlib.Path,
+    report: dict,
+    force: bool,
+) -> dict[str, bytes]:
+    """Load existing sprites as anchors for skipped (already-pass) assets."""
+    anchors: dict[str, bytes] = {}
+    for asset in targets:
+        fam = asset.get('family')
+        if not fam or fam in anchors:
+            continue
+        prev = report.get('results', {}).get(asset['name'])
+        if prev and prev.get('status') == 'pass' and not force:
+            path = sprites_out / asset['file']
+            if path.is_file():
+                anchors[fam] = path.read_bytes()
+    return anchors
 
 
 def run(style_text: str, run_name: str,
@@ -493,6 +609,27 @@ def run(style_text: str, run_name: str,
     if mode == 'theme_swap' and expand_theme and theme_text and theme_plan and not had_matching_cache:
         print(f'[theme] → {resolved_theme}')
 
+    targets = order_targets_for_family_anchors(targets)
+    multi_category_run = len({a.get('category') for a in targets}) > 1
+
+    client = gemini_api.get_client()
+    cached_fsp = report.get('family_style_plan')
+    had_fsp_cache = bool(
+        cached_fsp and cached_fsp.get('concept') == theme_text
+    ) if theme_text and should_plan_family_styles(theme_text, targets) else False
+    if theme_text and should_plan_family_styles(theme_text, targets):
+        if had_fsp_cache:
+            print('[family-style] 使用已快取的 family 視覺規劃')
+        else:
+            print('[family-style] 展開 per-family 視覺語言…')
+    family_style_plan = prepare_family_style_for_targets(
+        theme_text, targets, style_text, critic_model,
+        report, report_path, client=client,
+    )
+    if theme_text and family_style_plan and not had_fsp_cache:
+        fams = ', '.join(sorted(family_style_plan.get('families', {})))
+        print(f'[family-style] → {fams}')
+
     # 元素參考圖:reference_image=False 時不使用;否則優先 --style-image,再 fallback game_art_reference.png
     try:
         resolved_style_path, style_image = resolve_style_image(
@@ -515,14 +652,18 @@ def run(style_text: str, run_name: str,
 
     if dry_run:
         log.dry_run_targets(targets)
+        anchor_name = get_family_anchor_asset(targets[0].get('family'))
+        dry_anchor = anchor_name and targets[0]['name'] != anchor_name
         log.dry_run_prompt(build_generation_prompt(
             targets[0], style_text,
             by_family.get(targets[0].get('family') or 'misc', []), None,
             has_style_image=style_image is not None,
-            mode=mode, theme_text=resolved_theme, theme_plan=theme_plan))
+            mode=mode, theme_text=resolved_theme, theme_plan=theme_plan,
+            family_style_plan=family_style_plan,
+            has_family_anchor=dry_anchor))
         return run_dir
 
-    client = gemini_api.get_client()
+    family_anchors = _seed_family_anchors_from_disk(targets, sprites_out, report, force)
     n_pass = n_review = n_fail = n_skip = 0
     total = len(targets)
 
@@ -534,23 +675,36 @@ def run(style_text: str, run_name: str,
         if prev and prev.get('status') == 'pass' and not force:
             n_skip += 1
             log.asset_skip(idx, asset['name'])
+            skip_image = None
+            if (sprites_out / asset['file']).is_file():
+                skip_image = (sprites_out / asset['file']).read_bytes()
+                _register_family_anchor(family_anchors, asset, skip_image, 'pass')
             if on_progress:
-                skip_image = (sprites_out / asset['file']).read_bytes() if (sprites_out / asset['file']).is_file() else None
                 on_progress(idx, total, asset['name'], {
                     'name': asset['name'], **prev, 'image': skip_image,
                 })
             continue
 
+        fam = asset.get('family') or 'misc'
+        anchor = family_anchors.get(fam)
+        if force and anchor is not None and asset['name'] == get_family_anchor_asset(fam):
+            family_anchors.pop(fam, None)
+            anchor = None
+
         log.asset_start(idx, asset['name'], asset.get('family'))
         result = generate_one(client, asset, style_text, style_image,
-                              by_family.get(asset.get('family') or 'misc', []),
+                              by_family.get(fam, []),
                               image_model, critic_model, max_iters,
                               history_dir=history_dir, log=log,
                               mode=mode, theme_text=resolved_theme, theme_plan=theme_plan,
+                              family_style_plan=family_style_plan,
+                              family_anchor=anchor,
+                              multi_category_run=multi_category_run,
                               reference_run=reference_run)
         image = result.pop('image')
         if image:
             (sprites_out / asset['file']).write_bytes(image)
+            _register_family_anchor(family_anchors, asset, image, result['status'])
         report['results'][asset['name']] = result
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
 

@@ -223,6 +223,7 @@ def _init_state() -> None:
         'art_theme_text': '',
         'art_expand_theme': True,
         'art_theme_plan': None,
+        'art_family_style_plan': None,
         'art_reference_run': '',
         'art_max_iters': 3,
         'art_force': False,
@@ -419,15 +420,27 @@ def _render_generation_mode_panel(selected_assets: list[str]) -> None:
 
         preview_assets = selected_assets or list(api.BASIC_ELEMENTS)
         if theme_stripped and expand:
-            if st.button('預覽主題展開', key='art_preview_theme', use_container_width=True):
-                try:
-                    plan = api.preview_theme_plan(
-                        theme_stripped, st.session_state.art_style, preview_assets,
-                    )
-                    st.session_state.art_theme_plan = plan
-                    st.toast('主題已展開', icon='🎯')
-                except Exception as exc:
-                    st.error(f'展開失敗: {exc}')
+            col_t, col_f = st.columns(2)
+            with col_t:
+                if st.button('預覽主題展開', key='art_preview_theme', use_container_width=True):
+                    try:
+                        plan = api.preview_theme_plan(
+                            theme_stripped, st.session_state.art_style, preview_assets,
+                        )
+                        st.session_state.art_theme_plan = plan
+                        st.toast('主題已展開', icon='🎯')
+                    except Exception as exc:
+                        st.error(f'展開失敗: {exc}')
+            with col_f:
+                if st.button('預覽 family 視覺', key='art_preview_family_style', use_container_width=True):
+                    try:
+                        fplan = api.preview_family_style_plan(
+                            theme_stripped, st.session_state.art_style, preview_assets,
+                        )
+                        st.session_state.art_family_style_plan = fplan
+                        st.toast('Family 視覺已規劃', icon='🎨')
+                    except Exception as exc:
+                        st.error(f'規劃失敗: {exc}')
 
     plan = st.session_state.art_theme_plan
     if plan and plan.get('concept') == theme_stripped:
@@ -438,6 +451,15 @@ def _render_generation_mode_panel(selected_assets: list[str]) -> None:
         if assignments:
             lines = [f'**{name}** → {obj}' for name, obj in sorted(assignments.items())]
             st.markdown(' · '.join(lines))
+
+    fplan = st.session_state.get('art_family_style_plan')
+    if fplan and fplan.get('concept') == theme_stripped:
+        fam_styles = fplan.get('families') or {}
+        if fam_styles:
+            st.caption('Family 視覺語言：')
+            for fid, tokens in sorted(fam_styles.items()):
+                bits = ', '.join(f'{k}={v}' for k, v in tokens.items() if v)
+                st.markdown(f'- **{fid}**: {bits}')
 
 
 def _reference_run_for_thumbnails() -> str:
@@ -646,6 +668,8 @@ def _run_generation(style, run_name, elements, style_upload) -> None:
         st.session_state.art_results = summary.results
         if summary.theme_plan:
             st.session_state.art_theme_plan = summary.theme_plan
+        if summary.family_style_plan:
+            st.session_state.art_family_style_plan = summary.family_style_plan
         progress.progress(100, text='完成')
         st.toast(
             f'生成完成：通過 {summary.passed} · 待審 {summary.needs_review} · 失敗 {summary.failed}',
@@ -837,11 +861,13 @@ def _load_run(run_name: str) -> None:
         theme_text=report.get('theme'),
         theme_plan=report.get('theme_plan'),
         theme_expanded=report.get('theme_expanded'),
+        family_style_plan=report.get('family_style_plan'),
         reference_run=report.get('reference_run'),
     )
     st.session_state.art_generation_mode = report.get('generation_mode', 'restyle')
     st.session_state.art_theme_text = report.get('theme', '') or ''
     st.session_state.art_theme_plan = report.get('theme_plan')
+    st.session_state.art_family_style_plan = report.get('family_style_plan')
     st.session_state.art_reference_run = report.get('reference_run') or ''
     st.session_state.art_run_name = run_name
     st.session_state.art_loaded_run = run_name

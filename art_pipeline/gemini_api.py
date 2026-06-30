@@ -102,26 +102,77 @@ def generate_image(client, model: str, prompt: str,
 def critique_image(client, model: str, original_png: bytes | None, generated_png: bytes,
                    style_text: str, asset: dict,
                    style_image: bytes | None = None,
-                   *, mode: str = 'restyle') -> dict:
+                   *, mode: str = 'restyle',
+                   family_anchor: bytes | None = None,
+                   family_style_plan: dict | None = None,
+                   multi_category_run: bool = False) -> dict:
     """
     用 Gemini vision 評審生成圖。回傳:
-      {style_score, function_score, background_ok, issues, fix_instructions, verdict}
+      {style_score, function_score, background_ok, cohesion_score?, distinction_score?,
+       issues, fix_instructions, verdict}
 
     mode:
       restyle     — 與原圖比對,function + 構圖保留
       theme_swap  — 僅依 abstract gameplay role 評審,不比對原圖
     """
+    kwargs = dict(
+        family_anchor=family_anchor, family_style_plan=family_style_plan,
+        multi_category_run=multi_category_run)
     if mode == 'theme_swap':
-        return _critique_theme_swap(client, model, generated_png, style_text, asset, style_image)
-    return _critique_restyle(client, model, original_png, generated_png, style_text, asset, style_image)
+        return _critique_theme_swap(
+            client, model, generated_png, style_text, asset, style_image, **kwargs)
+    return _critique_restyle(
+        client, model, original_png, generated_png, style_text, asset, style_image, **kwargs)
+
+
+def _normalize_verdict(verdict: dict, *, style_image: bool | None,
+                       has_family_anchor: bool, multi_category_run: bool) -> dict:
+    verdict.setdefault('style_score', 0)
+    verdict.setdefault('function_score', 0)
+    verdict.setdefault('background_ok', False)
+    verdict.setdefault('issues', [])
+    verdict.setdefault('fix_instructions', '')
+    verdict.setdefault('verdict', 'retry')
+    if style_image:
+        verdict.setdefault('reference_element_score', 0)
+    if has_family_anchor:
+        verdict.setdefault('cohesion_score', 0)
+    if multi_category_run:
+        verdict.setdefault('distinction_score', 0)
+    return verdict
+
+
+def _build_critique_visual_context(asset: dict, family_style_plan: dict | None,
+                                   family_anchor: bytes | None,
+                                   multi_category_run: bool) -> str:
+    from .family_style_planner import family_plan_entry_for_asset
+    from .visual_guidance import format_critic_visual_block
+
+    plan_entry = family_plan_entry_for_asset(asset, family_style_plan)
+    return format_critic_visual_block(
+        asset, family_plan_entry=plan_entry,
+        has_family_anchor=family_anchor is not None,
+        multi_category_run=multi_category_run,
+    )
 
 
 def _critique_restyle(client, model: str, original_png: bytes, generated_png: bytes,
                       style_text: str, asset: dict,
-                      style_image: bytes | None = None) -> dict:
+                      style_image: bytes | None = None,
+                      *, family_anchor: bytes | None = None,
+                      family_style_plan: dict | None = None,
+                      multi_category_run: bool = False) -> dict:
     from google.genai import types
+    from .visual_guidance import cohesion_critic_rubric, cohesion_verdict_rules
 
     constraints = '\n'.join(f'- {c}' for c in asset.get('constraints', []))
+    visual_block = _build_critique_visual_context(
+        asset, family_style_plan, family_anchor, multi_category_run)
+    has_anchor = family_anchor is not None
+    cohesion_extra = cohesion_critic_rubric(
+        has_family_anchor=has_anchor, multi_category_run=multi_category_run)
+    cohesion_rules = cohesion_verdict_rules(
+        has_family_anchor=has_anchor, multi_category_run=multi_category_run)
 
     if style_image:
         ref_line = ('\nThere is also a design-element reference image (Reference B): a source of '
@@ -131,25 +182,31 @@ def _critique_restyle(client, model: str, original_png: bytes, generated_png: by
         ref_score_line = ('\n  "reference_element_score": 0-10, // how well it incorporates the '
                           'design elements from the reference image (Reference B): motifs/totems, '
                           'logos, special shapes, ornamental patterns, plus its palette and style')
-        verdict_rule = ('// pass only if style_score>=7 AND reference_element_score>=7 AND '
-                        'function_score>=7 AND background_ok')
+        base_rule = 'style_score>=7 AND reference_element_score>=7 AND function_score>=7 AND background_ok'
     else:
         ref_line = ''
         ref_score_line = ''
-        verdict_rule = '// pass only if style_score>=7 AND function_score>=7 AND background_ok'
+        base_rule = 'style_score>=7 AND function_score>=7 AND background_ok'
+
+    anchor_line = ''
+    if has_anchor:
+        anchor_line = ('\nThere is also a family cohesion anchor image: the new version should '
+                       'match its rendering style and material, not necessarily its silhouette.')
+
+    verdict_rule = f'// pass only if {cohesion_rules}{base_rule}'
 
     rubric = f"""You are a game art QA reviewer. Evaluate the result of restyling a match-3 game asset.
 
 [Asset function] {asset['name']}: {asset['function']}
 [Visual constraints]
 {constraints}
-[Target art style (text)] {style_text}{NO_FACE_REVIEW_NOTE}
+[Target art style (text)] {style_text}{visual_block}{NO_FACE_REVIEW_NOTE}
 
 The first image is the original asset (the baseline for function and composition);
-the last image is the AI-generated new version.{ref_line}
+the last image is the AI-generated new version.{ref_line}{anchor_line}
 Score it against the criteria below and return ONLY JSON (no other text):
 {{
-  "style_score": 0-10,         // how well it matches the target art style described in text{ref_score_line}
+  "style_score": 0-10,         // how well it matches the target art style described in text{ref_score_line}{cohesion_extra}
   "function_score": 0-10,      // judging from the image alone, can the original gameplay function be recognized
   "background_ok": true/false, // background cleanliness (transparent assets: no solid color / checkerboard; background images: low contrast)
   "issues": ["issue 1", ...],
@@ -161,6 +218,9 @@ Score it against the criteria below and return ONLY JSON (no other text):
         '[Original asset]',
         types.Part.from_bytes(data=original_png, mime_type='image/png'),
     ]
+    if family_anchor:
+        contents += ['[Family cohesion anchor]',
+                     types.Part.from_bytes(data=family_anchor, mime_type='image/png')]
     if style_image:
         contents += ['[Design-element reference (Reference B)]',
                      types.Part.from_bytes(data=style_image, mime_type='image/png')]
@@ -178,34 +238,37 @@ Score it against the criteria below and return ONLY JSON (no other text):
     try:
         verdict = json.loads(resp.text)
     except (json.JSONDecodeError, TypeError):
-        return {'style_score': 0, 'function_score': 0, 'background_ok': False,
-                'issues': ['critic returned non-JSON output'], 'fix_instructions': '',
-                'verdict': 'retry'}
-    # 防衛性補欄位
-    verdict.setdefault('style_score', 0)
-    verdict.setdefault('function_score', 0)
-    verdict.setdefault('background_ok', False)
-    verdict.setdefault('issues', [])
-    verdict.setdefault('fix_instructions', '')
-    verdict.setdefault('verdict', 'retry')
-    if style_image:
-        verdict.setdefault('reference_element_score', 0)
-    return verdict
+        return _normalize_verdict(
+            {'style_score': 0, 'function_score': 0, 'background_ok': False,
+             'issues': ['critic returned non-JSON output'], 'fix_instructions': '',
+             'verdict': 'retry'},
+            style_image=style_image, has_family_anchor=has_anchor,
+            multi_category_run=multi_category_run)
+    return _normalize_verdict(
+        verdict, style_image=style_image, has_family_anchor=has_anchor,
+        multi_category_run=multi_category_run)
 
 
 def _critique_theme_swap(client, model: str, generated_png: bytes,
                          style_text: str, asset: dict,
-                         style_image: bytes | None = None) -> dict:
+                         style_image: bytes | None = None,
+                         *, family_anchor: bytes | None = None,
+                         family_style_plan: dict | None = None,
+                         multi_category_run: bool = False) -> dict:
     from google.genai import types
-    from .roles import get_family_meta, role_mode_brief
+    from .roles import role_mode_brief
+    from .visual_guidance import cohesion_critic_rubric, cohesion_verdict_rules
 
     constraints = '\n'.join(f'- {c}' for c in asset.get('constraints', []))
     brief = role_mode_brief(asset, 'theme_swap')
     preserve = ', '.join(brief.get('preserve', []))
-    family_meta = get_family_meta(asset.get('family'))
-    family_line = ''
-    if family_meta.get('series_note'):
-        family_line = f'\n[Series consistency] {family_meta["series_note"]}'
+    visual_block = _build_critique_visual_context(
+        asset, family_style_plan, family_anchor, multi_category_run)
+    has_anchor = family_anchor is not None
+    cohesion_extra = cohesion_critic_rubric(
+        has_family_anchor=has_anchor, multi_category_run=multi_category_run)
+    cohesion_rules = cohesion_verdict_rules(
+        has_family_anchor=has_anchor, multi_category_run=multi_category_run)
 
     if style_image:
         ref_line = ('\nThere is also a theme reference image: use it as the visual theme source '
@@ -213,12 +276,18 @@ def _critique_theme_swap(client, model: str, generated_png: bytes,
                     'original sprite.')
         ref_score_line = ('\n  "reference_element_score": 0-10, // how well it incorporates the '
                           'theme reference image motifs, palette and style')
-        verdict_rule = ('// pass only if style_score>=7 AND reference_element_score>=7 AND '
-                        'function_score>=7 AND background_ok')
+        base_rule = 'style_score>=7 AND reference_element_score>=7 AND function_score>=7 AND background_ok'
     else:
         ref_line = ''
         ref_score_line = ''
-        verdict_rule = '// pass only if style_score>=7 AND function_score>=7 AND background_ok'
+        base_rule = 'style_score>=7 AND function_score>=7 AND background_ok'
+
+    anchor_line = ''
+    if has_anchor:
+        anchor_line = ('\nThere is also a family cohesion anchor image for this family: match '
+                       'its rendering style and material, not necessarily its silhouette.')
+
+    verdict_rule = f'// pass only if {cohesion_rules}{base_rule}'
 
     rubric = f"""You are a game art QA reviewer. Evaluate a NEW themed match-3 game asset created from an abstract gameplay role (theme-swap mode — there is NO original sprite to compare against).
 
@@ -228,12 +297,12 @@ def _critique_theme_swap(client, model: str, generated_png: bytes,
 [Must preserve (gameplay readability)] {preserve}
 [Visual constraints]
 {constraints}
-[Target art style (text)] {style_text}{family_line}{ref_line}{NO_FACE_REVIEW_NOTE}
+[Target art style (text)] {style_text}{visual_block}{ref_line}{anchor_line}{NO_FACE_REVIEW_NOTE}
 
-The image is the AI-generated new version. Judge ONLY whether it fulfills the gameplay role and constraints — do NOT penalize for looking different from any legacy sprite.
+The last image is the AI-generated new version. Judge ONLY whether it fulfills the gameplay role and constraints — do NOT penalize for looking different from any legacy sprite.
 Score it and return ONLY JSON (no other text):
 {{
-  "style_score": 0-10,         // how well it matches the target art style / theme{ref_score_line}
+  "style_score": 0-10,         // how well it matches the target art style / theme{ref_score_line}{cohesion_extra}
   "function_score": 0-10,      // from the image alone, can the gameplay function be recognized
   "background_ok": true/false,
   "issues": ["issue 1", ...],
@@ -242,6 +311,9 @@ Score it and return ONLY JSON (no other text):
 }}"""
 
     contents: list = []
+    if family_anchor:
+        contents += ['[Family cohesion anchor]',
+                     types.Part.from_bytes(data=family_anchor, mime_type='image/png')]
     if style_image:
         contents += ['[Theme reference image]',
                      types.Part.from_bytes(data=style_image, mime_type='image/png')]
@@ -259,15 +331,12 @@ Score it and return ONLY JSON (no other text):
     try:
         verdict = json.loads(resp.text)
     except (json.JSONDecodeError, TypeError):
-        return {'style_score': 0, 'function_score': 0, 'background_ok': False,
-                'issues': ['critic returned non-JSON output'], 'fix_instructions': '',
-                'verdict': 'retry'}
-    verdict.setdefault('style_score', 0)
-    verdict.setdefault('function_score', 0)
-    verdict.setdefault('background_ok', False)
-    verdict.setdefault('issues', [])
-    verdict.setdefault('fix_instructions', '')
-    verdict.setdefault('verdict', 'retry')
-    if style_image:
-        verdict.setdefault('reference_element_score', 0)
-    return verdict
+        return _normalize_verdict(
+            {'style_score': 0, 'function_score': 0, 'background_ok': False,
+             'issues': ['critic returned non-JSON output'], 'fix_instructions': '',
+             'verdict': 'retry'},
+            style_image=style_image, has_family_anchor=has_anchor,
+            multi_category_run=multi_category_run)
+    return _normalize_verdict(
+        verdict, style_image=style_image, has_family_anchor=has_anchor,
+        multi_category_run=multi_category_run)

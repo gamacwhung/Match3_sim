@@ -6,7 +6,44 @@
       "A single centered object occupying 70%-90% of the canvas, with padding around it",
       "Silhouette must remain clearly recognizable when displayed at {cell_display_px}px",
       "No text, letters, or watermarks of any kind"
-    ]
+    ],
+    "visual_categories": {
+      "element": {
+        "label": "Basic match elements",
+        "cohesion": [
+          "shared object template across all five colors",
+          "same material, shading model and line weight",
+          "only dominant hue changes between colors"
+        ],
+        "distinct_from": "Simpler and rounder than powerups; no glow, sparks or directional cues. More colorful and less boxy than obstacles."
+      },
+      "powerup": {
+        "label": "Special powerup items",
+        "cohesion": [
+          "shared premium material and ornament language",
+          "consistent glow/accent treatment across the set",
+          "each keeps its unique directional or explosive readability"
+        ],
+        "distinct_from": "More complex and eye-catching than basic elements; add glow, metal or motion cues. Lighter and more magical than heavy obstacles."
+      },
+      "obstacle": {
+        "label": "Board obstacles",
+        "cohesion": [
+          "shared weathering/material language within the obstacle family",
+          "consistent cell-filling proportions",
+          "progressive damage stages share identical base design"
+        ],
+        "distinct_from": "Heavier, boxier and more muted than elements and powerups. Reads as blocking terrain, not swappable candy."
+      },
+      "background": {
+        "label": "Board background",
+        "cohesion": [
+          "low-contrast environment palette",
+          "no single strong focal object"
+        ],
+        "distinct_from": "Full-canvas backdrop only — never compete with foreground sprites for attention."
+      }
+    }
   },
   "role_classes": {
     "match_element": {
@@ -246,40 +283,106 @@
   },
   "families": {
     "elements": {
-      "series_note": "All five element colors share one consistent design language — only the dominant color differs."
+      "series_note": "All five element colors share one consistent design language — only the dominant color differs.",
+      "anchor_asset": "Red",
+      "cohesion": [
+        "All five colors use the SAME base shape template and rendering style",
+        "Dominant hue must stay unmistakably red/green/blue/yellow/purple — never confuse colors",
+        "Plump rounded forms that tile densely on the grid"
+      ],
+      "distinct_from_categories": ["powerup", "obstacle"]
     },
     "powerups": {
-      "series_note": "All powerups share a premium/special feel distinct from basic elements."
+      "series_note": "All powerups share a premium/special feel distinct from basic elements.",
+      "anchor_asset": "Soda0d",
+      "cohesion": [
+        "Shared premium material, rim lighting and accent color across all powerups",
+        "Each powerup keeps its unique directional or explosive silhouette"
+      ],
+      "distinct_from_categories": ["element", "obstacle"]
     },
     "crate": {
-      "series_note": "Crt1-Crt4 are the SAME object at 4 progressive damage stages — identical design, only damage increases."
+      "series_note": "Crt1-Crt4 are the SAME object at 4 progressive damage stages — identical design, only damage increases.",
+      "anchor_asset": "Crt4",
+      "cohesion": [
+        "Crt1-Crt4 are identical crate design at progressive damage — only wear increases",
+        "Boxy silhouette that fills the cell"
+      ],
+      "distinct_from_categories": ["element", "powerup"]
     },
     "movable": {
-      "series_note": "Movable obstacles share a pushable, physics-aware feel."
+      "series_note": "Movable obstacles share a pushable, physics-aware feel.",
+      "anchor_asset": "Barrel",
+      "cohesion": [
+        "Shared pushable/movable visual language — rounded or cylindrical, not bolted down",
+        "TrafficCone lv1/lv2 share one cone design with different wear"
+      ],
+      "distinct_from_categories": ["element", "powerup"]
     },
     "salmon_can": {
-      "series_note": "SalmonCan and its body/lid parts share one metallic can design language."
+      "series_note": "SalmonCan and its body/lid parts share one metallic can design language.",
+      "anchor_asset": "SalmonCan",
+      "cohesion": [
+        "SalmonCan, body and lid parts share one metallic can design",
+        "Hard impervious surface — reads immune to normal matches"
+      ],
+      "distinct_from_categories": ["element", "powerup"]
     },
     "puddle": {
-      "series_note": "Puddle_lv1 is a nearly-dried version of Puddle_lv2."
+      "series_note": "Puddle_lv1 is a nearly-dried version of Puddle_lv2.",
+      "anchor_asset": "Puddle_lv2",
+      "cohesion": [
+        "Puddle_lv1 is the dried-down version of Puddle_lv2 — same stain shape and palette"
+      ],
+      "distinct_from_categories": ["element", "powerup"]
     },
     "rope": {
-      "series_note": "Rope_lv1 is the damaged version of Rope_lv2."
+      "series_note": "Rope_lv1 is the damaged version of Rope_lv2.",
+      "anchor_asset": "Rope_lv2",
+      "cohesion": [
+        "Rope_lv1 is the frayed version of Rope_lv2 — same rope material and twist pattern"
+      ],
+      "distinct_from_categories": ["element", "powerup"]
     },
     "postmark": {
-      "series_note": "The whole Postmark_* set must share one consistent style."
+      "series_note": "The whole Postmark_* set must share one consistent style.",
+      "anchor_asset": "Postmark_01",
+      "cohesion": [
+        "All Postmark_* variants share one postal/stamp art style and paper texture"
+      ],
+      "distinct_from_categories": ["element", "powerup"]
     },
     "pool": {
-      "series_note": "Pool_lv1-lv5 are the SAME pool at 5 progressive depletion stages."
+      "series_note": "Pool_lv1-lv5 are the SAME pool at 5 progressive depletion stages.",
+      "anchor_asset": "Pool_lv5",
+      "cohesion": [
+        "Pool_lv1-lv5 are the SAME stone pool at progressive water depletion — identical masonry, only water level changes"
+      ],
+      "distinct_from_categories": ["element", "powerup"]
     },
     "water_chiller": {
-      "series_note": "Water chiller cabinet, door, and lv1-lv11 bottle states share one cabinet design."
+      "series_note": "Water chiller cabinet, door, and lv1-lv11 bottle states share one cabinet design.",
+      "anchor_asset": "WaterChiller_closed",
+      "cohesion": [
+        "Cabinet, door and bottle lv states share one water-chiller cabinet design language"
+      ],
+      "distinct_from_categories": ["element", "powerup"]
     },
     "beverage_chiller": {
-      "series_note": "Beverage chiller body, door, bottles, and lv states share one chiller design."
+      "series_note": "Beverage chiller body, door, bottles, and lv states share one chiller design.",
+      "anchor_asset": "BeverageChiller_closed",
+      "cohesion": [
+        "Body, door, bottles and lv states share one beverage-chiller design language"
+      ],
+      "distinct_from_categories": ["element", "powerup"]
     },
     "background": {
-      "series_note": "Standalone full-canvas background."
+      "series_note": "Standalone full-canvas background.",
+      "anchor_asset": "board_bg",
+      "cohesion": [
+        "Low-contrast full-canvas environment — no strong focal sprite"
+      ],
+      "distinct_from_categories": ["element", "powerup", "obstacle"]
     }
   },
   "asset_groups": [

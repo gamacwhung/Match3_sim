@@ -26,6 +26,7 @@ from .apply import (
     apply_default_packed_art,
     restore,
 )
+from .family_style_planner import expand_family_styles, should_plan_family_styles
 from .manifest import PROJECT_ROOT, build_manifest, families
 from .pipeline import GENERATED_ROOT, resolve_expand_theme
 from .theme_planner import expand_theme_for_elements
@@ -70,6 +71,7 @@ class GenerationSummary:
     theme_text: str | None = None
     theme_plan: dict | None = None
     theme_expanded: str | None = None
+    family_style_plan: dict | None = None
     reference_run: str | None = None
 
     @property
@@ -174,6 +176,10 @@ def format_verdict_scores(verdict: dict | None) -> str:
     ]
     if 'reference_element_score' in verdict:
         parts.append(f"ref {verdict['reference_element_score']}")
+    if 'cohesion_score' in verdict:
+        parts.append(f"coh {verdict['cohesion_score']}")
+    if 'distinction_score' in verdict:
+        parts.append(f"dist {verdict['distinction_score']}")
     return ' · '.join(parts)
 
 
@@ -275,6 +281,7 @@ def _load_generation_summary(
         theme_text=theme_text,
         theme_plan=report.get('theme_plan'),
         theme_expanded=report.get('theme_expanded'),
+        family_style_plan=report.get('family_style_plan'),
         reference_run=reference_run,
     )
 
@@ -352,6 +359,30 @@ def preview_theme_plan(
     client = gemini_api.get_client()
     return expand_theme_for_elements(
         theme_concept, style_text, names,
+        client=client, model=critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
+    )
+
+
+def preview_family_style_plan(
+    theme_concept: str,
+    style_text: str,
+    asset_names: list[str] | None = None,
+    *,
+    critic_model: str | None = None,
+) -> dict:
+    """LLM-expand theme into per-family visual language (no image generation)."""
+    manifest = build_manifest()
+    if asset_names:
+        wanted = set(asset_names)
+        targets = [a for a in manifest if a['name'] in wanted]
+    else:
+        targets = manifest
+    family_ids = sorted({a.get('family') or 'misc' for a in targets})
+    if not should_plan_family_styles(theme_concept, targets):
+        raise ValueError('需要至少 2 張圖或 2 個 family 才會展開 family 視覺規劃')
+    client = gemini_api.get_client()
+    return expand_family_styles(
+        theme_concept, style_text, family_ids,
         client=client, model=critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
     )
 
