@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Match3 AI Level Designer — 圖示預覽（Lucide 線條風）</title>
+  <!-- 沿用 8501 正式版同一份 style.css，不改它 -->
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── 只在 preview 生效的 icon 樣式（不進正式 style.css）── */
+    /* Lucide 產出的 <svg> 會帶 class「lucide」；讓它跟著文字大小 / 顏色走 */
+    .lucide { width: 1.05em; height: 1.05em; vertical-align: -0.15em; stroke-width: 2; flex: 0 0 auto; }
+    /* sec-title / thinking-head 是 flex，icon 要能好好對齊 */
+    .sec-title .lucide { width: 18px; height: 18px; vertical-align: middle; }
+    .thinking-head .lucide { color: var(--g-yellow); }
+    .gen-btn .lucide { width: 18px; height: 18px; vertical-align: -0.2em; }
+    .icon-btn .lucide { width: 20px; height: 20px; vertical-align: -0.25em; }
+    .tool-btn .lucide, .theme-pick .lucide { width: 16px; height: 16px; vertical-align: -0.15em; }
+    .fs-exit .lucide { width: 17px; height: 17px; vertical-align: -0.2em; }
+    /* preview 專用：頂部一條說明帶 */
+    .preview-note {
+      text-align:center; font-size:12px; color:var(--muted);
+      padding:6px 12px; background:rgba(66,133,244,.08);
+      border-bottom:1px solid var(--border);
+    }
+    .preview-note b { color:var(--g-blue); }
+  </style>
+</head>
+<body>
+  <div class="preview-note">
+    圖示預覽 — <b>Lucide 線條風</b>。此檔為靜態預覽，<b>不影響 8501 正式頁</b>；標題與副標刻意保留純文字（不加 icon）。
+  </div>
+
+  <header class="topbar">
+    <!-- 標題 / 副標：純文字，不加 icon（依需求）-->
+    <h1>Match3 AI Level Designer</h1>
+    <p class="tagline">用一句話設計你的遊戲關卡</p>
+  </header>
+
+  <div class="app">
+    <!-- ── 左：控制台 ── -->
+    <section class="panel">
+      <div class="sec-title"><span class="bar"></span>描述你想要的關卡</div>
+      <p class="sec-sub">點範本填進下面的框，可直接按生成</p>
+
+      <div class="pills" id="presets">
+        <button class="pill"><i data-lucide="zap"></i> 超爽連鎖</button>
+        <button class="pill"><i data-lucide="puzzle"></i> 步步為營</button>
+        <button class="pill"><i data-lucide="cylinder"></i> 障礙雨</button>
+      </div>
+
+      <textarea id="prompt" rows="4"
+        placeholder="例如：做一個有很多木桶從上面掉下來的關卡、做一個愛心形狀的關、清掉所有紅色糖果…"></textarea>
+
+      <details class="prompt-detail">
+        <summary><i data-lucide="search"></i> 查看實際送給 AI 的完整 prompt</summary>
+        <div class="pp-label">① 你的需求 ＋ 攤位指示（這次的訊息）</div>
+        <pre>（範例 prompt 內容）</pre>
+      </details>
+
+      <details class="prompt-detail">
+        <summary><i data-lucide="search"></i> 查看 AI 這關的完整輸出（含設計說明）</summary>
+        <pre>（範例輸出內容）</pre>
+      </details>
+
+      <div class="gen-row">
+        <button class="gen-btn"><i data-lucide="sparkles"></i> 用 AI 生成關卡</button>
+        <button class="icon-btn" title="清除輸入與選項"><i data-lucide="trash-2"></i></button>
+      </div>
+
+      <div class="status"><span class="ok"><i data-lucide="circle-check"></i> 關卡已生成，右邊開始玩吧！</span></div>
+
+      <!-- AI 思考即時串流 -->
+      <div class="thinking">
+        <div class="thinking-head"><span class="thinking-dot"></span><span><i data-lucide="pencil-line"></i> 正在產出關卡…</span></div>
+        <pre>{ "name": "木桶大作戰", "rows": 9, "cols": 9, ...</pre>
+      </div>
+
+      <div class="sec-title mt"><span class="bar y"></span>形狀</div>
+      <p class="sec-sub">選了會在這一關基礎上重生</p>
+      <div class="pills">
+        <button class="pill active">不指定</button>
+        <button class="pill">矩形</button>
+        <button class="pill">十字</button>
+        <button class="pill">菱形</button>
+        <button class="pill">愛心</button>
+        <button class="pill">Google G</button>
+      </div>
+
+      <div class="sec-title mt"><span class="bar g"></span>難度</div>
+      <div class="pills">
+        <button class="pill active">不指定</button>
+        <button class="pill">簡單</button>
+        <button class="pill">普通</button>
+        <button class="pill">困難</button>
+      </div>
+
+      <footer class="panel-foot"><span class="tag">模型：claude-opus-4-8</span></footer>
+    </section>
+
+    <!-- ── 右：遊戲 ── -->
+    <section class="game-col">
+      <div class="game-head">
+        <div class="sec-title"><span class="bar"></span><i data-lucide="joystick"></i> 遊戲區</div>
+        <div class="game-tools">
+          <button class="tool-btn" title="回到待機畫面"><i data-lucide="rotate-ccw"></i> 待機</button>
+          <button class="tool-btn" title="全螢幕遊玩"><i data-lucide="maximize"></i> 全螢幕</button>
+          <div class="theme-pick">
+            <label><i data-lucide="palette"></i></label>
+            <select><option value="">糖果 Candy</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="game-body">
+        <div class="game-frame-wrap">
+          <div id="game" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;">（遊戲畫面）</div>
+          <button class="fs-exit" style="display:block;position:static;margin-top:8px;"><i data-lucide="x"></i> 退出全螢幕</button>
+        </div>
+
+        <aside class="game-side">
+          <div class="level-meta">
+            <div class="level-name">木桶大作戰</div>
+            <div class="level-desc">木桶會從上方持續掉落，邊消除邊清理。</div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="st-k">盤面</div><div class="st-v">9×9</div></div>
+            <div class="stat"><div class="st-k">步數</div><div class="st-v">25</div></div>
+            <div class="stat"><div class="st-k">目標數</div><div class="st-v">2</div></div>
+            <div class="stat clickable"><div class="st-k">AI 勝率</div><div class="st-v" style="color:var(--g-green)">72%</div></div>
+          </div>
+
+          <div class="goals-line">
+            <span class="goals-label">目標</span>
+            <span class="goals-chips">
+              <span class="goal-chip">木桶 <b>×12</b></span>
+              <span class="goal-chip">紅色 <b>×30</b></span>
+            </span>
+          </div>
+
+          <div class="banner ok"><i data-lucide="check"></i> 通過驗證，可以玩</div>
+
+          <div class="sim-report">
+            <div class="card">
+              <div class="row"><span class="k">AI 試玩 100 場</span><span style="color:var(--g-green)">勝率 72% <i data-lucide="smile"></i> 輕鬆</span></div>
+              <div class="row"><span class="k">勝 / 敗</span><span>72 / 28</span></div>
+              <div class="row"><span class="k">平均過關步數</span><span>18</span></div>
+            </div>
+          </div>
+
+          <!-- 四種勝率徽章 icon 一覽（給你挑）-->
+          <div class="sim-report">
+            <div class="card">
+              <div class="row"><span class="k">徽章對照</span><span></span></div>
+              <div class="row"><span class="k">輕鬆</span><span style="color:var(--g-green)"><i data-lucide="smile"></i> smile</span></div>
+              <div class="row"><span class="k">適中</span><span style="color:var(--g-blue)"><i data-lucide="meh"></i> meh</span></div>
+              <div class="row"><span class="k">有挑戰</span><span style="color:var(--g-yellow)"><i data-lucide="angry"></i> angry</span></div>
+              <div class="row"><span class="k">極難</span><span style="color:var(--g-red)"><i data-lucide="flame"></i> flame</span></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    if (window.lucide) lucide.createIcons();
+  </script>
+</body>
+</html>

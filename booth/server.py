@@ -1,7 +1,9 @@
 """
 攤位關卡生成器 — FastAPI 後端（脫離 Streamlit）。
 
-為什麼有這支：Streamlit 每次互動都整頁 rerun + 重畫，會把瀏覽器主執行緒吃光、
+為什麼有這支：Streamlit 每次互動都整頁 rerun + 重畫，會把瀏覽器主執行緒吃光、    
+
+  
 把同頁嵌入的 Godot 遊戲 iframe 主迴圈餓死 → 生成後遊戲凍住（standalone 不會）。
 這支用「靜態前端 + 純 API」取代：
   - 前端是一個靜態頁，直接 <iframe> 嵌 Godot 遊戲（無 rerun，永遠不被拖累）
@@ -334,15 +336,15 @@ def api_simulate(req: SimReq):
         return JSONResponse({"ok": False, "error": f"模擬失敗：{e}"}, status_code=500)
     wr = float(res.win_rate)
     if wr >= 0.8:
-        badge, color, emoji = "輕鬆", "#34A853", "😄"
+        badge, color, icon = "輕鬆", "#34A853", "smile"
     elif wr >= 0.5:
-        badge, color, emoji = "適中", "#4285F4", "🙂"
+        badge, color, icon = "適中", "#4285F4", "meh"
     elif wr >= 0.25:
-        badge, color, emoji = "有挑戰", "#F9AB00", "😤"
+        badge, color, icon = "有挑戰", "#F9AB00", "angry"
     else:
-        badge, color, emoji = "極難", "#EA4335", "🔥"
+        badge, color, icon = "極難", "#EA4335", "flame"
     return {
-        "ok": True, "win_rate": wr, "badge": badge, "color": color, "emoji": emoji,
+        "ok": True, "win_rate": wr, "badge": badge, "color": color, "icon": icon,
         "n_games": res.n_games, "wins": res.wins, "losses": res.losses,
         "avg_steps": round(res.avg_steps_won or res.avg_steps, 1),
         "min_steps": res.min_steps, "max_steps_seen": res.max_steps_seen,

@@ -8,8 +8,10 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>🎮 Match3 AI Level Designer ✨</h1>
-    <p class="tagline">🚀 用一句話設計你的遊戲關卡</p>
+    <!-- 標題後方滾動美術牆（跑馬燈）；圖片由 app.js 依當前主題填入 -->
+    <div class="art-wall" id="art-wall" aria-hidden="true"></div>
+    <h1>Match3 AI Level Designer</h1>
+    <p class="tagline">用一句話設計你的遊戲關卡</p>
   </header>
 
   <div class="app">
@@ -19,32 +21,37 @@
       <p class="sec-sub">點範本填進下面的框，可直接按生成</p>
 
       <div class="pills" id="presets">
-        <button class="pill" data-prompt="做一個中間有一大片空地、障礙物集中在四周和底部的關卡，讓我容易累積很多道具、一次消掉超多東西，超有成就感。">💥 超爽連鎖</button>
-        <button class="pill" data-prompt="做一個障礙物幾乎塞滿、只留一小塊空間，讓我從那一小塊慢慢往外清、越玩越大的關卡。">🧩 步步為營</button>
-        <button class="pill" data-prompt="做一個木桶會一直從上面掉下來的關卡，讓我一邊消除、一邊把掉下來的木桶清掉。">🛢️ 障礙雨</button>
+        <button class="pill" data-prompt="做一個中間有一大片空地、障礙物集中在四周和底部的關卡，讓我容易累積很多道具、一次消掉超多東西，超有成就感。"><svg class="ic"><use href="#ic-zap"></use></svg> 超爽連鎖</button>
+        <button class="pill" data-prompt="做一個障礙物幾乎塞滿、只留一小塊空間，讓我從那一小塊慢慢往外清、越玩越大的關卡。"><svg class="ic"><use href="#ic-puzzle"></use></svg> 步步為營</button>
+        <button class="pill" data-prompt="做一個木桶會一直從上面掉下來的關卡，讓我一邊消除、一邊把掉下來的木桶清掉。"><svg class="ic"><use href="#ic-cylinder"></use></svg> 障礙雨</button>
       </div>
 
       <textarea id="prompt" rows="4"
         placeholder="例如：做一個有很多木桶從上面掉下來的關卡、做一個愛心形狀的關、清掉所有紅色糖果…"></textarea>
 
       <details class="prompt-detail" id="prompt-detail" hidden>
-        <summary>🔍 查看實際送給 AI 的完整 prompt</summary>
+        <summary><svg class="ic"><use href="#ic-search"></use></svg> 查看實際送給 AI 的完整 prompt</summary>
         <div class="pp-label">① 你的需求 ＋ 攤位指示（這次的訊息）</div>
         <pre id="full-prompt"></pre>
         <div class="pp-label">② 系統提示（設計規範，每次都附帶）</div>
         <pre id="system-prompt"></pre>
       </details>
 
+      <details class="prompt-detail" id="output-detail" hidden>
+        <summary><svg class="ic"><use href="#ic-search"></use></svg> 查看 AI 這關的完整輸出（含設計說明）</summary>
+        <pre id="model-output"></pre>
+      </details>
+
       <div class="gen-row">
-        <button id="gen-btn" class="gen-btn" disabled>✨ 用 AI 生成關卡</button>
-        <button id="clear-btn" class="icon-btn" title="清除輸入與選項" disabled>🗑</button>
+        <button id="gen-btn" class="gen-btn" disabled><svg class="ic"><use href="#ic-sparkles"></use></svg> 用 AI 生成關卡</button>
+        <button id="clear-btn" class="icon-btn" title="清除輸入與選項" disabled><svg class="ic"><use href="#ic-trash-2"></use></svg></button>
       </div>
 
       <div id="status" class="status"></div>
 
       <!-- AI 思考即時串流（生成時顯示打字效果）-->
       <div id="thinking" class="thinking" hidden>
-        <div class="thinking-head"><span class="thinking-dot"></span><span id="thinking-label">✨ AI 生成關卡中…</span></div>
+        <div class="thinking-head"><span class="thinking-dot"></span><span id="thinking-label"><svg class="ic"><use href="#ic-sparkles"></use></svg> AI 生成關卡中…</span></div>
         <pre id="thinking-text"></pre>
       </div>
 
@@ -73,12 +80,12 @@
     <!-- ── 右：遊戲 ── -->
     <section class="game-col">
       <div class="game-head">
-        <div class="sec-title"><span class="bar"></span>🕹️ 遊戲區</div>
+        <div class="sec-title"><span class="bar"></span><svg class="ic"><use href="#ic-joystick"></use></svg> 遊戲區</div>
         <div class="game-tools">
-          <button id="idle-btn" class="tool-btn" title="回到待機畫面（換下一位訪客）">↺ 待機</button>
-          <button id="fs-btn" class="tool-btn" title="全螢幕遊玩">⛶ 全螢幕</button>
+          <button id="idle-btn" class="tool-btn" title="回到待機畫面（換下一位訪客）"><svg class="ic"><use href="#ic-rotate-ccw"></use></svg> 待機</button>
+          <button id="fs-btn" class="tool-btn" title="全螢幕遊玩"><svg class="ic"><use href="#ic-maximize"></use></svg> 全螢幕</button>
           <div class="theme-pick">
-            <label for="theme">🎨</label>
+            <label for="theme"><svg class="ic"><use href="#ic-palette"></use></svg></label>
             <select id="theme"><option value="">糖果 Candy</option></select>
           </div>
         </div>
@@ -88,10 +95,16 @@
       <div class="game-body">
         <div class="game-frame-wrap" id="game-wrap">
           <iframe id="game" title="Match3 遊戲" allow="autoplay; fullscreen" allowfullscreen scrolling="no"></iframe>
-          <button id="fs-exit" class="fs-exit">✕ 退出全螢幕</button>
+          <button id="fs-exit" class="fs-exit"><svg class="ic"><use href="#ic-x"></use></svg> 退出全螢幕</button>
         </div>
 
         <aside class="game-side">
+          <!-- 關卡名稱 + 設計理念（AI 回傳的 name / description）-->
+          <div class="level-meta" id="level-meta" hidden>
+            <div class="level-name" id="level-name" hidden></div>
+            <div class="level-desc" id="level-desc" hidden></div>
+          </div>
+
           <!-- 數據條(2×2) -->
           <div class="stats" id="stats">
             <div class="stat"><div class="st-k">盤面</div><div class="st-v" id="st-board">—</div></div>
@@ -114,6 +127,7 @@
     </section>
   </div>
 
+  <script src="icons.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

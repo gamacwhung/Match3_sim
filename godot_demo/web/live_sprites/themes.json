@@ -1,8 +1,12 @@
 [
   {
-    "name": "",
-    "label": "糖果 Candy",
+    "name": "fruit_cartoon",
+    "label": "水果 Fruit",
     "default": true
+  },
+  {
+    "name": "",
+    "label": "糖果 Candy"
   },
   {
     "name": "candy_pixar_cyberpunk_yuan",

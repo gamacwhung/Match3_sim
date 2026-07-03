@@ -3,6 +3,24 @@
 // postMessage 推關會卡，網址帶關不會卡。所以每次生成 = reload iframe 到帶新關卡的網址。
 
 const $ = (id) => document.getElementById(id);
+
+// 目標/物件 ID → 中文名（觀眾看得懂）。key 會先去掉 HP/lv 後綴再查。
+const TILE_ZH = {
+  Crt: "紙箱", Barrel: "木桶", Puddle: "水漥", TrafficCone: "三角錐",
+  SalmonCan: "鮭魚罐頭", WaterChiller: "礦泉水櫃", BeverageChiller: "飲料櫃",
+  Rope: "繩子", Mud: "泥巴", Pool: "充氣泳池", Stamp: "郵戳機",
+  Red: "紅色", Grn: "綠色", Blu: "藍色", Yel: "黃色", Pur: "紫色", Brn: "咖啡色",
+  Soda0d: "火箭", Soda90: "火箭", TNT: "炸彈", TrPr: "紙飛機", LtBl: "光球",
+};
+// 把 "Crt2" / "Puddle_lv2" / "TrafficCone_lv1" 之類正規化成家族字首再查中文。
+function tileZh(key) {
+  if (TILE_ZH[key]) return TILE_ZH[key];
+  let base = String(key).replace(/_lv\d+$/i, "").replace(/\d+$/, "");
+  if (TILE_ZH[base]) return TILE_ZH[base];
+  // 去掉 _xxx 後綴再試一次（如 WaterChiller_closed）
+  base = base.replace(/_.*$/, "");
+  return TILE_ZH[base] || key; // 查不到就原樣顯示（保底）
+}
 const gameFrame = $("game");
 const promptEl = $("prompt");
 const genBtn = $("gen-btn");
@@ -23,6 +41,7 @@ async function boot() {
     if (cfg.model) $("model-tag").textContent = "模型：" + cfg.model;
   } catch (e) {}
   await loadThemes();
+  buildArtWall(currentTheme); // 標題跑馬燈用當前(預設)主題的 sprite
   reloadGame(); // 一進頁面就載遊戲（待機畫面）
 }
 
@@ -38,8 +57,28 @@ async function loadThemes() {
         o.textContent = t.label || t.name || "預設";
         sel.appendChild(o);
       });
+      // 預設主題(themes.json 標 default:true 的那個)→ 開機就套用
+      const def = themes.find((t) => t.default) || themes[0];
+      currentTheme = def.name || "";
+      sel.value = currentTheme;
     }
   } catch (e) {}
+}
+
+// ── 標題後方滾動美術牆（跑馬燈）───────────────────────────────────
+// 挑好看、辨識度高的 sprite（避開泥巴/水漥/繩子這類偏暗的障礙）。
+const WALL_SPRITES = ["Red", "Yel", "Grn", "Blu", "Pur", "LtBl", "Soda0d", "Soda90", "TrPr", "TNT", "SalmonCan", "Barrel", "Crt2"];
+function spriteBase(theme) {
+  // 具名主題 → live_sprites/themes/<name>/；預設 candy（空字串）→ flat live_sprites/
+  return GAME_URL + "live_sprites/" + (theme ? "themes/" + theme + "/" : "");
+}
+function buildArtWall(theme) {
+  const wall = $("art-wall");
+  if (!wall) return;
+  const base = spriteBase(theme);
+  const strip = WALL_SPRITES.map((n) => `<img src="${base}${n}.png" alt="" loading="lazy">`).join("");
+  // 兩份相同 strip 並排 → translateX 0→-50% 無縫循環
+  wall.innerHTML = `<div class="art-wall-track"><div class="art-wall-strip">${strip}</div><div class="art-wall-strip" aria-hidden="true">${strip}</div></div>`;
 }
 
 // ── 遊戲 iframe（關卡編進網址 level_lz，開機直接載）──────────────────
@@ -55,6 +94,7 @@ function reloadGame() {
 
 $("theme").addEventListener("change", (e) => {
   currentTheme = e.target.value || "";
+  buildArtWall(currentTheme); // 跑馬燈跟著換主題
   reloadGame();
 });
 
@@ -71,6 +111,8 @@ $("idle-btn").addEventListener("click", () => {
   $("banner").hidden = true;
   $("sim-report").hidden = true;
   $("prompt-detail").hidden = true;
+  $("output-detail").hidden = true;
+  $("level-meta").hidden = true;
   statusEl.innerHTML = "";
 });
 
@@ -148,10 +190,11 @@ async function generate() {
   setStatus("work", '<span class="spinner"></span>AI 生成關卡中…');
   const tBox = $("thinking"), tText = $("thinking-text"), tLabel = $("thinking-label");
   tText.textContent = "";
-  tLabel.textContent = "✨ AI 生成關卡中…";
+  tLabel.innerHTML = icon("sparkles") + " AI 生成關卡中…";
   tBox.hidden = false;
 
   let acc = "";
+  let fullOut = ""; // 不截斷的完整輸出（含 JSON + 設計說明）→ 給左邊「查看完整輸出」
   const appendThink = (s) => {
     acc += s;
     if (acc.length > 1600) acc = acc.slice(-1600); // 只留末段,避免太長
@@ -180,35 +223,53 @@ async function generate() {
         if (!m) continue;
         let evt;
         try { evt = JSON.parse(m[1]); } catch (e) { continue; }
-        if (evt.type === "phase") { tLabel.textContent = "✨ " + evt.data; }
+        if (evt.type === "phase") { tLabel.innerHTML = icon("sparkles") + " " + evt.data; }
         else if (evt.type === "thought") { appendThink(evt.data); }
-        else if (evt.type === "text") { tLabel.textContent = "✍️ 正在產出關卡…"; appendThink(evt.data); }
-        else if (evt.type === "error") { setStatus("err", "❌ " + (evt.error || "生成失敗")); }
-        else if (evt.type === "done") { onGenerated(evt, prompt); finished = true; }
+        else if (evt.type === "text") { tLabel.innerHTML = icon("pencil-line") + " 正在產出關卡…"; fullOut += evt.data; appendThink(evt.data); }
+        else if (evt.type === "error") { setStatus("err", icon("circle-x") + " " + (evt.error || "生成失敗")); }
+        else if (evt.type === "done") { onGenerated(evt, prompt, fullOut); finished = true; }
       }
     }
   } catch (e) {
-    setStatus("err", "❌ 連線後端失敗：" + e.message);
+    setStatus("err", icon("circle-x") + " 連線後端失敗：" + e.message);
   } finally {
     setLoading(false);
     setTimeout(() => { tBox.hidden = true; }, finished ? 1200 : 0);
   }
 }
 
-function onGenerated(data, prompt) {
+function onGenerated(data, prompt, rawOutput) {
   currentLevel = data.level;
   reloadGame(); // reload iframe → 帶新關卡網址（level_lz）
   $("full-prompt").textContent = data.full_prompt || prompt;
   $("system-prompt").textContent = data.system_prompt || "（無）";
   $("prompt-detail").hidden = false;
+  // AI 這關的完整輸出（串流時接住的文字；接不到就退而顯示格式化 JSON）
+  const out = (rawOutput || "").trim() || (data.level ? JSON.stringify(data.level, null, 2) : "（無）");
+  $("model-output").textContent = out;
+  $("output-detail").hidden = false;
+  renderLevelMeta(data.level);
   renderStats(data);
-  setStatus("ok", data.valid ? "✅ 關卡已生成，右邊開始玩吧！" : "⚠️ 生成完成（小瑕疵，仍可玩）");
+  setStatus("ok", data.valid ? icon("circle-check") + " 關卡已生成，右邊開始玩吧！" : icon("triangle-alert") + " 生成完成（小瑕疵，仍可玩）");
+  runSimulation(); // 生成完自動跑 AI 試玩 → 直接出勝率報表
+}
+
+// 關卡名稱 + 設計理念（模型回傳 JSON 裡的 name / description）
+function renderLevelMeta(level) {
+  const box = $("level-meta");
+  const name = (level && level.name || "").trim();
+  const desc = (level && level.description || "").trim();
+  $("level-name").textContent = name;
+  $("level-desc").textContent = desc;
+  $("level-name").hidden = !name;
+  $("level-desc").hidden = !desc;
+  box.hidden = !(name || desc);
 }
 
 function setLoading(on) {
   genBtn.disabled = on || promptEl.value.trim().length === 0;
   genBtn.classList.toggle("loading", on);
-  genBtn.textContent = on ? "⏳ 生成中…" : "✨ 用 AI 生成關卡";
+  genBtn.innerHTML = on ? icon("loader-circle", "spin") + " 生成中…" : icon("sparkles") + " 用 AI 生成關卡";
 }
 function setStatus(kind, html) { statusEl.innerHTML = `<span class="${kind}">${html}</span>`; }
 
@@ -228,47 +289,53 @@ function renderStats(data) {
   goalKeys.forEach((k) => {
     const el = document.createElement("span");
     el.className = "goal-chip";
-    el.innerHTML = `${k} <b>×${goals[k]}</b>`;
+    el.title = k; // 原始 ID 留給操作者除錯
+    el.innerHTML = `${tileZh(k)} <b>×${goals[k]}</b>`;
     chips.appendChild(el);
   });
   $("goals-line").hidden = goalKeys.length === 0;
 
   // 訪客只看乾淨訊息;原因放 hover(title) 給操作者除錯用
   const b = $("banner");
-  if (data.valid) { b.className = "banner ok"; b.textContent = "✓ 通過驗證，可以玩"; b.title = ""; }
+  if (data.valid) { b.className = "banner ok"; b.innerHTML = icon("check") + " 通過驗證，可以玩"; b.title = ""; }
   else {
     b.className = "banner warn";
-    b.textContent = "⚠️ 這關可能有點小瑕疵，建議再生成一次（滑鼠移上看原因）";
+    b.innerHTML = icon("triangle-alert") + " 這關可能有點小瑕疵，建議再生成一次（滑鼠移上看原因）";
     b.title = (data.errors || []).join("\n") || "（無詳細原因）";
   }
   b.hidden = false;
 }
 
-// ── AI 勝率 + 步數報表：點卡片才跑模擬 ───────────────────────────
-$("st-winrate-card").addEventListener("click", async () => {
-  if (!currentLevel) return;
+// ── AI 勝率 + 步數報表：生成後自動跑、也可點卡片重跑 ──────────────
+let simRunning = false;
+async function runSimulation() {
+  if (!currentLevel || simRunning) return;
+  simRunning = true;
   const cell = $("st-winrate");
   cell.textContent = "測試中…";
+  cell.style.color = "";
   try {
     const r = await fetch("/api/simulate", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ level: currentLevel, n_games: 60 }),
+      body: JSON.stringify({ level: currentLevel, n_games: 100 }),
     }).then((x) => x.json());
     if (r.ok) {
       cell.textContent = Math.round(r.win_rate * 100) + "%";
       cell.style.color = r.color;
-      cell.title = `${r.emoji} ${r.badge}`;
+      cell.title = r.badge;
       renderSimReport(r);
     } else cell.textContent = "失敗";
   } catch (e) { cell.textContent = "失敗"; }
-});
+  finally { simRunning = false; }
+}
+$("st-winrate-card").addEventListener("click", runSimulation);
 
 function renderSimReport(r) {
   const box = $("sim-report");
   if (!box) return;
   let html = `<div class="card">`;
-  html += `<div class="row"><span class="k">AI 試玩 ${r.n_games || 60} 場</span>` +
-          `<span style="color:${r.color}">勝率 ${Math.round(r.win_rate * 100)}% ${r.emoji} ${r.badge}</span></div>`;
+  html += `<div class="row"><span class="k">AI 試玩 ${r.n_games || 100} 場</span>` +
+          `<span style="color:${r.color}">勝率 ${Math.round(r.win_rate * 100)}% ${icon(r.icon)} ${r.badge}</span></div>`;
   if (r.wins != null) html += `<div class="row"><span class="k">勝 / 敗</span><span>${r.wins} / ${r.losses}</span></div>`;
   if (r.avg_steps) html += `<div class="row"><span class="k">平均過關步數</span><span>${r.avg_steps}</span></div>`;
   if (r.min_steps != null && r.max_steps_seen != null)
@@ -278,7 +345,7 @@ function renderSimReport(r) {
   const keys = Object.keys(hist);
   if (keys.length) {
     const mx = Math.max(...keys.map((k) => hist[k]));
-    html += `<div class="hist-title">過關步數分布（勝場，每 5 步一格）</div><div class="hist">`;
+    html += `<div class="hist-title">勝場過關步數分佈</div><div class="hist">`;
     keys.forEach((k) => {
       const w = Math.max(4, Math.round((hist[k] / mx) * 100));
       const lo = parseInt(k, 10);

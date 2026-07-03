@@ -14,6 +14,20 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
+
+/* ── Inline SVG 圖示（Lucide 線條風，見 icons.js）── */
+.ic {
+  width: 1.05em; height: 1.05em; vertical-align: -0.15em; flex: 0 0 auto;
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.ic-spin { animation: spin .7s linear infinite; }
+/* 各處微調對齊 / 尺寸 */
+.sec-title .ic { width: 18px; height: 18px; vertical-align: middle; }
+.gen-btn .ic { width: 18px; height: 18px; vertical-align: -0.2em; }
+.icon-btn .ic { width: 20px; height: 20px; vertical-align: -0.25em; }
+.tool-btn .ic, .theme-pick .ic { width: 16px; height: 16px; vertical-align: -0.15em; }
+.fs-exit .ic { width: 17px; height: 17px; vertical-align: -0.2em; }
 body {
   background:
     radial-gradient(900px 500px at 85% -5%, #1a1c3a 0%, transparent 60%),
@@ -25,9 +39,25 @@ body {
 }
 
 /* ── 頂部標題（壓低高度）── */
-.topbar { text-align: center; padding: 8px 16px 2px; flex-shrink: 0; }
-.topbar h1 { margin: 0; font-size: 20px; letter-spacing: .5px; }
-.topbar .tagline { margin: 3px 0 0; color: var(--muted); font-size: 12.5px; }
+.topbar { position: relative; overflow: hidden; text-align: center; padding: 8px 16px 2px; flex-shrink: 0; }
+.topbar h1 { position: relative; z-index: 1; margin: 0; font-size: 20px; letter-spacing: .5px; text-shadow: 0 1px 10px rgba(12,13,26,.9); }
+.topbar .tagline { position: relative; z-index: 1; margin: 3px 0 0; color: var(--muted); font-size: 12.5px; text-shadow: 0 1px 8px rgba(12,13,26,.9); }
+
+/* 標題後方滾動美術牆（跑馬燈）— 深色底：兩側漸層淡出、整體壓暗，確保標題可讀 */
+.art-wall { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+.art-wall::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg,
+    var(--bg) 0%, rgba(12,13,26,.62) 22%, rgba(12,13,26,.62) 78%, var(--bg) 100%);
+}
+.art-wall-track {
+  display: flex; width: max-content; height: 100%; align-items: center; opacity: .5;
+  animation: art-wall-scroll var(--art-wall-secs, 60s) linear infinite;
+}
+.art-wall-strip { display: flex; align-items: center; gap: 14px; padding-right: 14px; }
+.art-wall-strip img { height: 42px; width: 42px; object-fit: contain; flex-shrink: 0; }
+@keyframes art-wall-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .art-wall-track { animation: none; } }
 
 /* ── 版面（佔滿剩餘高度）── */
 .app {
@@ -202,10 +232,15 @@ textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 .stat.clickable:hover { background: var(--panel-2); }
 #st-winrate { font-size: 16px; }
 
+/* 關卡名稱 + 設計理念 */
+.level-meta { width: 100%; flex-shrink: 0; background: var(--panel-2); border: 1px solid var(--border); border-left: 4px solid var(--g-blue); border-radius: 12px; padding: 11px 14px; }
+.level-name { font-size: 18px; font-weight: 800; line-height: 1.35; }
+.level-desc { font-size: 14px; color: var(--muted); line-height: 1.55; margin-top: 4px; }
+
 .goals-line { display: flex; align-items: flex-start; gap: 8px; width: 100%; flex-wrap: wrap; flex-shrink: 0; }
-.goals-label { color: var(--muted); font-size: 13px; padding-top: 4px; }
+.goals-label { color: var(--muted); font-size: 14.5px; padding-top: 4px; }
 .goals-chips { display: flex; gap: 7px; flex-wrap: wrap; }
-.goal-chip { background: var(--chip); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; font-size: 13px; }
+.goal-chip { background: var(--chip); border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px; font-size: 14.5px; }
 .goal-chip b { color: var(--g-yellow); }
 
 .banner { width: 100%; padding: 9px 13px; border-radius: 10px; font-size: 13px; flex-shrink: 0; }
@@ -213,14 +248,14 @@ textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 .banner.warn { background: rgba(249,171,0,.12); border: 1px solid rgba(249,171,0,.4); color: #f3c969; }
 
 .sim-report { width: 100%; flex-shrink: 0; }
-.sim-report .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; font-size: 13px; }
-.sim-report .row { display: flex; justify-content: space-between; padding: 2px 0; gap: 8px; }
+.sim-report .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 15px; }
+.sim-report .row { display: flex; justify-content: space-between; padding: 3px 0; gap: 8px; }
 .sim-report .row .k { color: var(--muted); }
-.sim-report .hist-title { color: var(--muted); font-size: 12px; margin: 8px 0 5px; }
-.sim-report .hist { display: flex; flex-direction: column; gap: 3px; }
-.hist-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
-.hist-k { color: var(--muted); width: 42px; text-align: right; }
-.hist-bar { height: 9px; background: linear-gradient(90deg, var(--g-blue), #6f5bff); border-radius: 3px; min-width: 4px; }
+.sim-report .hist-title { color: var(--muted); font-size: 13.5px; margin: 9px 0 6px; }
+.sim-report .hist { display: flex; flex-direction: column; gap: 4px; }
+.hist-row { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.hist-k { color: var(--muted); flex: 0 0 56px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hist-bar { height: 11px; background: linear-gradient(90deg, var(--g-blue), #6f5bff); border-radius: 3px; min-width: 4px; }
 .hist-n { color: var(--muted); }
 
 .pp-label { color: var(--g-yellow); font-size: 11.5px; margin: 8px 0 3px; }
