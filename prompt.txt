@@ -3,6 +3,18 @@ python scripts/ai_art_gen.py generate \
   --style "3D Disney Cartoon Style, Simple design, high gloss color" \
   --theme "水果" \
   --run fruit_3dCartoon \
+  --no-reference-image
+
+python scripts/ai_art_gen.py generate \
+  --mode theme-swap \
+  --style "Gibli Style" \
+  --theme "Pet" \
+  --run Pet_Gibli \
+  --no-reference-image
+
+python scripts/ai_art_gen.py generate \
+  --mode theme-swap \
+  --style "3D Disney Cartoon Style, Simple design, Clean illustrations, Intuitive icon, highly recognizable" \
+  --theme "水果" \
+  --run fruit_3dCartoonSimple \
   --no-reference-image \
-  --family elements \
-  --dry-run

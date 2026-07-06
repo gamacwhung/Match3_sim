@@ -96,7 +96,7 @@ def main():
     g.add_argument('--reference-run', metavar='RUN',
                    help='restyle 專用:用 generated_art/<RUN>/sprites/ 當 Reference A; '
                         'reference run 沒有的 asset 跳過,不 fallback 官方圖')
-    g.add_argument('--image-model', default=None, help='生圖模型(預設 gemini-3.5-flash-image)')
+    g.add_argument('--image-model', default=None, help='生圖模型(預設 gemini-3.1-flash-image)')
     g.add_argument('--critic-model', default=None, help='評審模型(預設 gemini-3.5-flash)')
     g.add_argument('--max-iters', type=int, default=3, help='每張 asset 最多迭代次數(預設 3)')
     g.add_argument('--force', action='store_true', help='重生已 pass 的 asset')

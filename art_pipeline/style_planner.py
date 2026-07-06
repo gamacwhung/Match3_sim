@@ -58,9 +58,10 @@ The user gave a SHORT or VAGUE art-style prompt. Expand it into a PRECISE, LOCKE
 
 Requirements for style_brief:
 - Write in English, 3-6 sentences, imperative tone ("Use…", "Keep…").
-- Specify: rendering dimension (2D/3D/pixel), line weight, shading model, material finish, palette temperature, lighting, edge treatment.
+- Specify: rendering dimension (2D/3D/pixel), shading model, material finish, palette temperature, lighting, edge treatment.
+- HARD RULE: no outline strokes, ink borders, or contour lines on any sprite — form is defined by shading and color only.
 - Emphasize CROSS-ASSET CONSISTENCY — all sprites must share the same rendering pipeline.
-- For match-3: readable silhouettes at ~70px; no photoreal noise; no text/watermarks.
+- For match-3: readable silhouettes at ~70px; no photoreal noise; no text/watermarks; no outlines.
 - Do NOT invent gameplay objects — only define HOW to render.
 
 Return ONLY JSON (no markdown):
@@ -68,7 +69,7 @@ Return ONLY JSON (no markdown):
   "summary": "one sentence art direction in English",
   "style_brief": "full locked art-direction paragraph for image generation prompts",
   "rendering": "e.g. soft 3D toon render, not flat vector",
-  "line_and_shape": "outline weight, corner roundness, proportions",
+  "line_and_shape": "corner roundness, proportions (no outline strokes)",
   "color_and_lighting": "palette, saturation, highlight/shadow style",
   "material_finish": "matte/glossy/painterly texture language",
   "avoid": "what to never do in this style"

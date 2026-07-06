@@ -99,6 +99,7 @@ def _expand_group(group: dict, config: dict) -> dict[str, dict]:
             'constraints': constraints,
             'family': family,
             'transparent': transparent,
+            'params': params,
         }
     return out
 

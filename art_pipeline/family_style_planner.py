@@ -17,13 +17,7 @@ def should_plan_family_styles(
     theme_text: str | None,
     targets: list[dict],
 ) -> bool:
-    if not theme_text:
-        return False
-    families = {a.get('family') or 'misc' for a in targets}
-    if len(families) >= 2:
-        return True
-    if len(targets) >= 2:
-        return True
+    # ponytail: per-family distinct visual languages fight unified run-wide style
     return False
 
 
@@ -68,9 +62,9 @@ def expand_family_styles(
 [Theme concept] {theme_concept}
 [Target art style] {style_text}
 
-Define a DISTINCT visual language for each sprite family below so that:
+Define a shared visual language for each sprite family below so that:
 1. Assets WITHIN the same family feel cohesive (shared material, ornament, rendering).
-2. Different families are visually DISTINCT (elements simpler than powerups; obstacles heavier).
+2. All families share the same overall art style, lighting and material finish.
 3. Basic match elements keep unmistakable red/green/blue/yellow/purple color identity.
 
 Families:

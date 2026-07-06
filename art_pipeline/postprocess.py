@@ -7,23 +7,38 @@ https://www.philschmid.de/generate-stickers
 精準偵測並移除該背景色,比叫模型「直接輸出透明」乾淨得多。
 
 robustness:
-- chromakey 顏色按 asset 自動選:綠色主體(Grn / 綠瓶)用洋紅背景,其它用綠色背景,
-  避免把主體本身的顏色一起 key 掉
+- chromakey 顏色按 asset 自動選:綠色主體(Grn / 綠瓶)用洋紅背景,其它用綠色背景
+- 邊緣:僅移除與畫布邊緣連通的 chromakey(flood-fill)+choke,保護主體反鋸齒邊
+- 內部:未連到邊界的 chromakey 島(模型用背景色填洞)一併移除
+- 生圖 prompt 禁止在空洞/縫隙使用 chromakey 色
 - 模型若真的輸出透明 → 直接採用;若 chromakey 偵測不到 → 退回四角同色去背
-- HSV mask 用 PIL MaxFilter 膨脹以吃掉反鋸齒邊緣,再做 edge cleanup 去 halo
+- edge cleanup 去 halo; chromakey 路徑不再額外 alpha erode
 """
 
 from __future__ import annotations
 
 import io
+from collections import deque
 
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
-# 物件至少要佔畫面面積比例
-_MIN_BBOX_COVERAGE = 0.15
+# 物件外接框至少要佔畫面面積比例(填滿畫面,不要縮在角落)
+_MIN_BBOX_COVERAGE = 0.30
+# 不透明像素至少要佔畫面比例(擋掉細長/稀疏的形狀)
+_MIN_OPAQUE_COVERAGE = 0.18
 # 退回方案:四角同色去背容差
 _CORNER_TOLERANCE = 28
+# flood 去背 mask 內縮像素(choke),避免吃到主體反鋸齒邊
+_MATTE_CHOKE_PX = 1
+# chromakey 後整體 alpha 再內縮 1px,去掉殘留色邊
+_ALPHA_CHOKE_PX = 1
+# candidate mask 膨脹(僅用於吃掉背景鋸齒,過大會侵蝕主體邊)
+_CANDIDATE_DILATE = 1
+# 內部島顏色與「實際取樣到的背景純色」的距離(sum of abs per-channel)須小於此值,
+# 才算「模型拿背景色填的洞」而移除;主體本身落在同色相區間的高光/區塊(如綠西瓜)
+# 距離背景純色很遠,予以保留,避免在主體上打出破洞。
+_INTERIOR_BG_TOL = 60
 
 # chromakey 設定 — 純色背景,HSV hue_center 用來偵測
 CHROMAKEYS: dict[str, dict] = {
@@ -39,6 +54,38 @@ def chromakey_for(asset: dict) -> dict:
     is_green_subject = (name == 'Grn' or name.endswith('_green')
                         or 'unmistakably green' in text)
     return CHROMAKEYS['magenta'] if is_green_subject else CHROMAKEYS['green']
+
+
+def chromakey_forbidden_description(ck: dict) -> str:
+    """Human-readable hue range the model must avoid inside the subject."""
+    if ck['name_en'] == 'green':
+        return (f'pure green-screen tones (hue ~95°–145°, high saturation/brightness, '
+                f'including {ck["hex"]} RGB {ck["rgb"]})')
+    return (f'pure magenta-screen tones (hue ~275°–325°, high saturation/brightness, '
+            f'including {ck["hex"]} RGB {ck["rgb"]})')
+
+
+def chromakey_generation_rules(asset: dict) -> str:
+    """Chromakey background + forbidden-in-subject rules for image generation prompts."""
+    ck = chromakey_for(asset)
+    r, g, b = ck['rgb']
+    name = ck['name_en']
+    forbidden = chromakey_forbidden_description(ck)
+    return (
+        f"""- BACKGROUND: render the subject on a SOLID, FLAT, UNIFORM {name} background using
+  EXACTLY hex {ck['hex']} (RGB {r}, {g}, {b}). The whole background must be this single pure
+  color — no gradients, no shadows, no lighting effects. This background will be removed
+  programmatically by chromakey, so it must be clean.
+- NO OUTLINE/BORDER: do NOT add any outline, stroke, border, halo, glow or sticker frame around
+  the subject (no black/white/colored ink lines). The subject must touch the {name} background
+  directly with crisp, clean edges defined by shading only.
+- FORBIDDEN IN SUBJECT: the subject must NEVER use {forbidden} anywhere — not on surfaces,
+  highlights, leaves, gaps, cavities, holes, or negative space between parts. Use clearly
+  different hues (shift hue away from the key color, lower saturation, or darken).
+- NO CHROMAKEY IN GAPS: hollow areas, interior holes, gaps between limbs/parts, and negative
+  space must NOT be filled with the background key color. Fill them with deep neutral shadow
+  (dark grey/brown), a darker local material color, or imply emptiness — never the key color.
+- SHARP EDGES: crisp, well-defined edges — no soft or blurry boundaries.""")
 
 
 def _rgb_to_hsv(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -61,26 +108,106 @@ def _rgb_to_hsv(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return h, s * 100.0, mx * 100.0
 
 
-def _remove_chromakey(im: Image.Image, hue_center: float,
-                      hue_range: float = 25, min_sat: float = 55, min_val: float = 55,
-                      dilate: int = 2) -> tuple[Image.Image, float]:
-    """HSV chromakey 去背。回傳 (image, 被移除像素比例)。"""
-    im = im.convert('RGBA')
-    data = np.array(im)
-    h, s, v = _rgb_to_hsv(data[..., :3])
+def _chromakey_candidate_mask(
+    rgb: np.ndarray,
+    hue_center: float,
+    *,
+    hue_range: float = 25,
+    min_sat: float = 55,
+    min_val: float = 55,
+    dilate: int = 2,
+) -> np.ndarray:
+    """HSV pixels that match the chromakey color (before border flood)."""
+    h, s, v = _rgb_to_hsv(rgb)
     hue_diff = np.abs(h - hue_center)
     hue_diff = np.minimum(hue_diff, 360 - hue_diff)
     mask = (hue_diff < hue_range) & (s > min_sat) & (v > min_val)
     if dilate > 0 and mask.any():
-        # 膨脹 mask 吃掉反鋸齒邊緣(用 PIL MaxFilter,免 scipy 依賴)
         m = Image.fromarray((mask * 255).astype(np.uint8))
         m = m.filter(ImageFilter.MaxFilter(2 * dilate + 1))
         mask = np.array(m) > 0
-    removed_ratio = float(mask.mean())
+    return mask
+
+
+def _flood_fill_from_border(candidate: np.ndarray) -> np.ndarray:
+    """Pixels in candidate that are 4-connected to any image border."""
+    h, w = candidate.shape
+    connected = np.zeros((h, w), dtype=bool)
+    q: deque[tuple[int, int]] = deque()
+
+    def _seed(y: int, x: int) -> None:
+        if candidate[y, x] and not connected[y, x]:
+            connected[y, x] = True
+            q.append((y, x))
+
+    for x in range(w):
+        _seed(0, x)
+        _seed(h - 1, x)
+    for y in range(h):
+        _seed(y, 0)
+        _seed(y, w - 1)
+
+    while q:
+        y, x = q.popleft()
+        for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < h and 0 <= nx < w and candidate[ny, nx] and not connected[ny, nx]:
+                connected[ny, nx] = True
+                q.append((ny, nx))
+    return connected
+
+
+def _choke_mask(mask: np.ndarray, pixels: int) -> np.ndarray:
+    """Shrink a True mask inward — standard matte choke to protect subject edges."""
+    if pixels <= 0 or not mask.any():
+        return mask
+    m = Image.fromarray((mask * 255).astype(np.uint8))
+    m = m.filter(ImageFilter.MinFilter(2 * pixels + 1))
+    return np.array(m) > 0
+
+
+def _remove_chromakey_connected(
+    im: Image.Image,
+    hue_center: float,
+    hue_range: float = 25,
+    min_sat: float = 55,
+    min_val: float = 55,
+    dilate: int = _CANDIDATE_DILATE,
+    choke: int = _MATTE_CHOKE_PX,
+) -> tuple[Image.Image, float, float]:
+    """Remove border-connected + interior chromakey islands. Returns (image, total, interior)."""
+    im = im.convert('RGBA')
+    data = np.array(im)
+    rgb = data[..., :3]
+    candidate = _chromakey_candidate_mask(
+        rgb, hue_center,
+        hue_range=hue_range, min_sat=min_sat, min_val=min_val, dilate=dilate,
+    )
+    border_connected = _flood_fill_from_border(candidate)
+    interior = candidate & ~border_connected
+    # 內部島只移除「顏色貼近實際背景純色」的像素(模型拿背景色填的洞)。
+    # 主體本身的同色相高光/區塊距離背景純色很遠 → 保留,不在主體上打出破洞。
+    if interior.any() and border_connected.any():
+        bg = np.median(rgb[border_connected].astype(np.int32), axis=0)
+        dist = np.abs(rgb.astype(np.int32) - bg).sum(axis=-1)
+        interior = interior & (dist < _INTERIOR_BG_TOL)
+    remove_mask = _choke_mask(border_connected, choke) | interior
+    removed_ratio = float(remove_mask.mean())
+    interior_ratio = float(interior.mean())
     alpha = data[..., 3].copy()
-    alpha[mask] = 0
+    alpha[remove_mask] = 0
     data[..., 3] = alpha
-    return Image.fromarray(data), removed_ratio
+    return Image.fromarray(data), removed_ratio, interior_ratio
+
+
+def _remove_chromakey(im: Image.Image, hue_center: float,
+                      hue_range: float = 25, min_sat: float = 55, min_val: float = 55,
+                      dilate: int = _CANDIDATE_DILATE) -> tuple[Image.Image, float, float]:
+    """HSV chromakey 去背(邊緣 flood + 內部島)。回傳 (image, 總移除比例, 內部島比例)。"""
+    return _remove_chromakey_connected(
+        im, hue_center,
+        hue_range=hue_range, min_sat=min_sat, min_val=min_val, dilate=dilate,
+    )
 
 
 def _strip_white_edge(data: np.ndarray, white_thresh: int = 205,
@@ -122,6 +249,42 @@ def _cleanup_edges(im: Image.Image, threshold: int = 64, erode: int = 1) -> Imag
     return Image.fromarray(data)
 
 
+def _frame_fill_ok(alpha: np.ndarray) -> tuple[bool, str]:
+    """填滿畫面 + 非細長 的客觀檢查。回傳 (ok, 失敗訊息)。"""
+    opaque = alpha > 16
+    if not opaque.any():
+        return False, 'Image is fully transparent (no object present)'
+    ys, xs = np.where(opaque)
+    bbox_cov = ((xs.max() - xs.min() + 1) * (ys.max() - ys.min() + 1)) / alpha.size
+    opaque_cov = float(opaque.mean())
+    if bbox_cov < _MIN_BBOX_COVERAGE:
+        return False, (f'Object too small (bbox coverage {bbox_cov:.0%} '
+                       f'< {_MIN_BBOX_COVERAGE:.0%}). Make it larger and fill the frame.')
+    if opaque_cov < _MIN_OPAQUE_COVERAGE:
+        return False, (f'Object too thin/sparse (fills {opaque_cov:.0%} of the frame '
+                       f'< {_MIN_OPAQUE_COVERAGE:.0%}). Make it a chunky, compact shape that '
+                       f'fills the sprite.')
+    return True, ''
+
+
+def preview_on_checkerboard(png_bytes: bytes, cell: int = 16) -> bytes:
+    """把透明 PNG 疊到高對比洋紅/白棋盤格上。
+
+    給 critic 看用:主體內若有透明破洞或鋸齒缺口,棋盤格會直接透出來,一眼可辨。
+    """
+    im = Image.open(io.BytesIO(png_bytes)).convert('RGBA')
+    w, h = im.size
+    yy, xx = np.mgrid[0:h, 0:w]
+    checker = (((xx // cell) + (yy // cell)) % 2).astype(bool)
+    bg = np.empty((h, w, 4), dtype=np.uint8)
+    bg[checker] = (255, 0, 255, 255)
+    bg[~checker] = (255, 255, 255, 255)
+    out = Image.alpha_composite(Image.fromarray(bg, 'RGBA'), im).convert('RGB')
+    buf = io.BytesIO()
+    out.save(buf, format='PNG')
+    return buf.getvalue()
+
+
 def _corner_key(im: Image.Image) -> tuple[Image.Image, bool]:
     """退回方案:四角同色的不透明圖 → 把該色 key 成透明。回傳 (image, was_keyed)。"""
     rgba = im.convert('RGBA')
@@ -159,11 +322,14 @@ def process(generated_bytes: bytes, asset: dict) -> tuple[bool, list[str], bytes
             issues.append('model already produced transparency; kept as is')
         else:
             ck = chromakey_for(asset)
-            keyed, removed = _remove_chromakey(im, ck['hue_center'])
+            keyed, removed, interior = _remove_chromakey(im, ck['hue_center'])
             if removed >= 0.05:
-                im = _cleanup_edges(keyed)
-                issues.append(f'background removed via {ck["name_en"]} chromakey '
-                              f'({removed:.0%} of pixels)')
+                im = _cleanup_edges(keyed, erode=_ALPHA_CHOKE_PX)
+                msg = (f'background removed via {ck["name_en"]} chromakey '
+                       f'({removed:.0%} of pixels)')
+                if interior >= 0.005:
+                    msg += f', including {interior:.0%} interior islands'
+                issues.append(msg)
             else:
                 # chromakey 偵測不到 → 退回四角同色去背
                 im2, ok2 = _corner_key(im)
@@ -175,14 +341,10 @@ def process(generated_bytes: bytes, asset: dict) -> tuple[bool, list[str], bytes
                     return False, [f'Opaque background with no detectable {ck["name_en"]} '
                                    f'chromakey nor uniform corner color'], None
 
-        # 物件佔比檢查
-        bbox = im.getchannel('A').getbbox()
-        if bbox is None:
-            return False, ['Image is fully transparent after background removal (no object present)'], None
-        coverage = ((bbox[2] - bbox[0]) * (bbox[3] - bbox[1])) / (im.width * im.height)
-        if coverage < _MIN_BBOX_COVERAGE:
-            return False, [f'Object too small (bbox coverage {coverage:.0%} '
-                           f'< {_MIN_BBOX_COVERAGE:.0%})'], None
+        # 物件佔比檢查:要填滿畫面、不要細長
+        ok_fill, msg = _frame_fill_ok(np.array(im)[..., 3])
+        if not ok_fill:
+            return False, [msg], None
 
     # resize 回原始尺寸
     target = (asset['width'], asset['height'])
@@ -192,3 +354,82 @@ def process(generated_bytes: bytes, asset: dict) -> tuple[bool, list[str], bytes
     buf = io.BytesIO()
     im.save(buf, format='PNG')
     return True, issues, buf.getvalue()
+
+
+def _self_check() -> None:
+    """Border flood protects edges; interior chromakey islands are keyed; real greens survive."""
+    size = 256
+    green = (0, 255, 0, 255)
+    red = (255, 0, 0, 255)
+    olive = (40, 120, 40, 255)  # subject green, not chromakey candidate
+
+    # Case 1: red subject on green bg — background keyed, subject kept
+    img1 = Image.new('RGBA', (size, size), green)
+    draw1 = ImageDraw.Draw(img1)
+    draw1.ellipse((64, 64, 192, 192), fill=red)
+    out1, ratio1, _ = _remove_chromakey_connected(img1, CHROMAKEYS['green']['hue_center'])
+    data1 = np.array(out1)
+    assert ratio1 > 0.2
+    assert data1[128, 128, 3] > 200  # center of red circle opaque
+
+    # Case 2: chromakey-filled interior hole inside subject — hole keyed out
+    img2 = Image.new('RGBA', (size, size), green)
+    draw2 = ImageDraw.Draw(img2)
+    draw2.ellipse((48, 48, 208, 208), fill=red)
+    draw2.ellipse((96, 96, 160, 160), fill=green)
+    out2, _, interior2 = _remove_chromakey_connected(img2, CHROMAKEYS['green']['hue_center'])
+    data2 = np.array(out2)
+    assert interior2 > 0.01
+    assert data2[128, 128, 3] < 16   # interior chromakey hole transparent
+    assert data2[0, 0, 3] < 16       # corner background transparent
+
+    # Case 2b: non-chromakey green inside subject — kept
+    img2b = Image.new('RGBA', (size, size), green)
+    draw2b = ImageDraw.Draw(img2b)
+    draw2b.ellipse((48, 48, 208, 208), fill=red)
+    draw2b.ellipse((96, 96, 160, 160), fill=olive)
+    out2b, _, _ = _remove_chromakey_connected(img2b, CHROMAKEYS['green']['hue_center'])
+    data2b = np.array(out2b)
+    assert data2b[128, 128, 3] > 200
+
+    # Case 3: yellow subject on green bg — edge should not develop interior holes
+    img3 = Image.new('RGBA', (size, size), green)
+    draw3 = ImageDraw.Draw(img3)
+    draw3.ellipse((72, 72, 184, 184), fill=(255, 220, 0, 255))
+    out3, _, _ = _remove_chromakey_connected(img3, CHROMAKEYS['green']['hue_center'])
+    data3 = np.array(out3)
+    assert data3[128, 128, 3] > 200
+    # left edge column near mid-height should stay mostly opaque (no bite notch)
+    assert data3[96:160, 80, 3].mean() > 180
+
+    # Case 4: subject-colored green highlight island (same hue as key, NOT pure key)
+    # must survive — this is the watermelon-hole regression guard.
+    img4 = Image.new('RGBA', (size, size), green)
+    draw4 = ImageDraw.Draw(img4)
+    draw4.ellipse((48, 48, 208, 208), fill=red)
+    draw4.ellipse((104, 104, 152, 152), fill=(120, 230, 60, 255))  # in-key-hue highlight
+    out4, _, _ = _remove_chromakey_connected(img4, CHROMAKEYS['green']['hue_center'])
+    data4 = np.array(out4)
+    assert data4[128, 128, 3] > 200  # highlight kept, no hole punched into subject
+
+    # Case 4b: composite-on-checkerboard preview keeps the same pixel dimensions
+    buf4 = io.BytesIO()
+    out4.save(buf4, format='PNG')
+    prev = Image.open(io.BytesIO(preview_on_checkerboard(buf4.getvalue())))
+    assert prev.size == (size, size)
+
+    # Case 5: frame-fill guard — chunky centered object passes, thin sliver fails
+    a_full = np.zeros((size, size), np.uint8)
+    a_full[40:216, 40:216] = 255  # fills ~47% of frame
+    assert _frame_fill_ok(a_full)[0]
+    a_thin = np.zeros((size, size), np.uint8)
+    a_thin[:, 120:136] = 255       # tall thin sliver, ~6% opaque
+    assert not _frame_fill_ok(a_thin)[0]
+    a_tiny = np.zeros((size, size), np.uint8)
+    a_tiny[8:40, 8:40] = 255       # small object in a corner
+    assert not _frame_fill_ok(a_tiny)[0]
+
+
+if __name__ == '__main__':
+    _self_check()
+    print('postprocess self-check ok')

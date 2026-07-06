@@ -30,7 +30,7 @@ from .family_style_planner import expand_family_styles, should_plan_family_style
 from .manifest import PROJECT_ROOT, build_manifest, families
 from .pipeline import GENERATED_ROOT, resolve_expand_theme, resolve_refine_style
 from .style_planner import refine_style_prompt
-from .theme_planner import expand_theme_for_elements
+from .theme_planner import expand_theme_for_targets
 
 BASIC_ELEMENTS: tuple[str, ...] = ('Red', 'Grn', 'Blu', 'Yel', 'Pur')
 
@@ -176,13 +176,14 @@ def format_verdict_scores(verdict: dict | None) -> str:
     parts = [
         f"style {verdict.get('style_score', '?')}",
         f"func {verdict.get('function_score', '?')}",
+        f"real {verdict.get('reasonableness_score', '?')}",
     ]
     if 'reference_element_score' in verdict:
         parts.append(f"ref {verdict['reference_element_score']}")
     if 'cohesion_score' in verdict:
         parts.append(f"coh {verdict['cohesion_score']}")
-    if 'distinction_score' in verdict:
-        parts.append(f"dist {verdict['distinction_score']}")
+    if 'cutout_ok' in verdict:
+        parts.append(f"cut {'✓' if verdict['cutout_ok'] else '✗'}")
     return ' · '.join(parts)
 
 
@@ -364,12 +365,21 @@ def preview_theme_plan(
     critic_model: str | None = None,
 ) -> dict:
     """LLM-expand a theme concept into per-asset object assignments (no image generation)."""
-    names = asset_names or list(BASIC_ELEMENTS)
+    manifest = build_manifest()
+    if asset_names:
+        wanted = set(asset_names)
+        targets = [a for a in manifest if a['name'] in wanted]
+    else:
+        targets = manifest
     client = gemini_api.get_client()
-    return expand_theme_for_elements(
-        theme_concept, style_text, names,
+    plan = expand_theme_for_targets(
+        theme_concept, style_text, targets,
         client=client, model=critic_model or gemini_api.DEFAULT_CRITIC_MODEL,
     )
+    from .theme_planner import _assignment_order, format_assignments
+    order = _assignment_order([a['name'] for a in targets], plan['assignments'])
+    plan['theme_direction'] = format_assignments(plan['assignments'], order)
+    return plan
 
 
 def preview_style_plan(

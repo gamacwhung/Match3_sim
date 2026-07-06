@@ -129,8 +129,11 @@ class RunLog:
                       passed: bool, has_style_image: bool) -> None:
         style = verdict.get('style_score', '?')
         func = verdict.get('function_score', '?')
+        real = verdict.get('reasonableness_score', '?')
         bg = '✓' if verdict.get('background_ok') else '✗'
-        parts = [f'style {style}', f'fn {func}', f'bg {bg}', f'score {score}']
+        cut = '✓' if verdict.get('cutout_ok') else '✗'
+        parts = [f'style {style}', f'fn {func}', f'real {real}',
+                 f'bg {bg}', f'cut {cut}', f'score {score}']
         if has_style_image:
             parts.insert(2, f'ref {verdict.get("reference_element_score", "?")}')
         detail = '  '.join(parts)

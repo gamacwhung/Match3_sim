@@ -5,14 +5,15 @@
     "common_sprite_constraints": [
       "A single centered object occupying 70%-90% of the canvas, with padding around it",
       "Silhouette must remain clearly recognizable when displayed at {cell_display_px}px",
-      "No text, letters, or watermarks of any kind"
+      "No text, letters, or watermarks of any kind",
+      "No outline, stroke, or ink border on the subject — define edges with shading and color only"
     ],
     "visual_categories": {
       "element": {
         "label": "Basic match elements",
         "cohesion": [
           "shared object template across all five colors",
-          "same material, shading model and line weight",
+          "same material and shading model; no outline strokes",
           "only dominant hue changes between colors"
         ],
         "distinct_from": "Simpler and rounder than powerups; no glow, sparks or directional cues. More colorful and less boxy than obstacles."
@@ -20,11 +21,11 @@
       "powerup": {
         "label": "Special powerup items",
         "cohesion": [
-          "shared premium material and ornament language",
-          "consistent glow/accent treatment across the set",
-          "each keeps its unique directional or explosive readability"
+          "simple iconic silhouette, same clean shading model as the rest of the set",
+          "NO metallic filigree, gold rims, gems, jewelry, ornament, glow, sparks, aura or motion trails",
+          "each reads by its object SHAPE alone (direction / explosive), not by added effects"
         ],
-        "distinct_from": "More complex and eye-catching than basic elements; add glow, metal or motion cues. Lighter and more magical than heavy obstacles."
+        "distinct_from": "Reads as a special item purely through a clear, simple object shape — not through glow, metal trim or particle effects."
       },
       "obstacle": {
         "label": "Board obstacles",
@@ -103,8 +104,8 @@
       "category": "powerup",
       "summary": "Clears all elements of one color when swapped.",
       "theme_swap": {
-        "creative_brief": "Invent a NEW themed object that reads as the rarest, most powerful item — a glowing orb with rainbow/multi-color hints implying it works on ALL colors.",
-        "preserve": ["multi_color_power_readability", "premium_rare_feel"],
+        "creative_brief": "Invent a NEW themed round object whose OWN SURFACE carries all colors (multi-color / rainbow pattern) implying it works on ALL colors. No glow, aura or sparkle — read it from the object's surface colors alone.",
+        "preserve": ["multi_color_power_readability"],
         "avoid": "Do not copy the original light-ball sprite."
       },
       "restyle": {
@@ -116,8 +117,8 @@
       "category": "powerup",
       "summary": "Cross clear + flies to a high-value target.",
       "theme_swap": {
-        "creative_brief": "Invent a NEW themed flying projectile (plane, dart, bird, etc.) with clear direction and motion.",
-        "preserve": ["projectile_motion_readability", "powerup_feel"],
+        "creative_brief": "Invent a NEW themed flying projectile (plane, dart, bird, etc.) whose SHAPE clearly faces one direction. No speed lines, motion trails or glow — direction comes from the shape alone.",
+        "preserve": ["projectile_motion_readability"],
         "avoid": "Do not copy the original paper-plane sprite."
       },
       "restyle": {
@@ -187,6 +188,19 @@
       },
       "restyle": {
         "preserve": ["subject", "overlay_readability"]
+      }
+    },
+    "obstacle_rope_net": {
+      "label": "Rope Net Overlay",
+      "category": "obstacle",
+      "summary": "Top-layer rope mesh; the covered element is drawn by the game engine on a separate layer.",
+      "theme_swap": {
+        "creative_brief": "Invent a NEW themed rope/net/mesh overlay for one cell. Draw ONLY the rope structure — twisted strands, knots, fraying for damaged state.",
+        "preserve": ["rope_mesh_readability", "transparent_gaps_for_layering"],
+        "avoid": "Do NOT draw any fruit, candy, element, or trapped object inside or behind the net. Gaps must be empty/transparent for compositing."
+      },
+      "restyle": {
+        "preserve": ["subject", "rope_mesh_readability"]
       }
     },
     "obstacle_goal_machine": {
@@ -293,17 +307,19 @@
       "distinct_from_categories": ["powerup", "obstacle"]
     },
     "powerups": {
-      "series_note": "All powerups share a premium/special feel distinct from basic elements.",
+      "series_note": "All powerups share the same clean, simple rendering as the rest of the set — a plain themed object, no ornament.",
       "anchor_asset": "Soda0d",
       "cohesion": [
-        "Shared premium material, rim lighting and accent color across all powerups",
-        "Each powerup keeps its unique directional or explosive silhouette"
+        "Same clean shading and material as the other sprites — plain themed objects",
+        "NO gold rims, metallic trim, gems, filigree, glow, sparks, aura or motion trails",
+        "Each powerup keeps its own simple directional or explosive silhouette"
       ],
       "distinct_from_categories": ["element", "obstacle"]
     },
     "crate": {
       "series_note": "Crt1-Crt4 are the SAME object at 4 progressive damage stages — identical design, only damage increases.",
       "anchor_asset": "Crt4",
+      "stage_progression": true,
       "cohesion": [
         "Crt1-Crt4 are identical crate design at progressive damage — only wear increases",
         "Boxy silhouette that fills the cell"
@@ -337,10 +353,11 @@
       "distinct_from_categories": ["element", "powerup"]
     },
     "rope": {
-      "series_note": "Rope_lv1 is the damaged version of Rope_lv2.",
+      "series_note": "Rope_lv1 is the damaged version of Rope_lv2 — rope mesh overlay only, no trapped objects.",
       "anchor_asset": "Rope_lv2",
       "cohesion": [
-        "Rope_lv1 is the frayed version of Rope_lv2 — same rope material and twist pattern"
+        "Rope_lv1 is the frayed version of Rope_lv2 — same rope material and twist pattern",
+        "Draw ONLY the rope/net mesh; gaps are transparent — never fill with fruit or elements"
       ],
       "distinct_from_categories": ["element", "powerup"]
     },
@@ -410,7 +427,9 @@
       "family": "powerups",
       "function": "Horizontal rocket powerup (created by matching 4 in a vertical line). When triggered it clears the entire row.",
       "constraints": [
-        "Appearance must clearly read as HORIZONTAL direction (e.g. sideways rocket/arrow/energy bar) — players must anticipate it fires left and right"
+        "Base it on a short, stout UPRIGHT object: a chunky column with a clear top and bottom",
+        "Direction must read as HORIZONTAL from the OBJECT SHAPE alone — lay that upright object on its SIDE so its long axis points left-right. Keep it stout and full (roughly 2:1, never a thin stick or bar) and large enough to fill the frame",
+        "NO glow, sparks, energy beams, exhaust flames, motion trails, gold rims or gems — plain clean object only"
       ]
     },
     {
@@ -419,8 +438,10 @@
       "family": "powerups",
       "function": "Vertical rocket powerup (created by matching 4 in a horizontal line). When triggered it clears the entire column.",
       "constraints": [
-        "Appearance must clearly read as VERTICAL direction — players must anticipate it fires up and down",
-        "Should look like the same object as Soda0d rotated 90 degrees"
+        "Base it on a short, stout UPRIGHT object: a chunky column with a clear top and bottom, STANDING vertically",
+        "Direction must read as VERTICAL from the OBJECT SHAPE alone — the upright object standing so its long axis points up-down. Keep it stout and full (roughly 2:1, never a thin stick or bar) and large enough to fill the frame",
+        "Should be the same object as Soda0d rotated 90 degrees",
+        "NO glow, sparks, energy beams, exhaust flames, whoosh, motion trails, gold rims or gems — plain clean object only"
       ]
     },
     {
@@ -429,7 +450,8 @@
       "family": "powerups",
       "function": "Bomb powerup (created by an L/T-shaped match). When triggered it explodes a 5x5 area around itself.",
       "constraints": [
-        "Must instantly read as an EXPLOSIVE (bomb / dynamite / energy orb) with a sense of danger"
+        "Must read as EXPLOSIVE from the OBJECT SHAPE alone — a compact round bomb-like object",
+        "NO glow, sparks, fire, smoke, blast/aura effects, motion trails, gold rims or gems — plain clean object only"
       ]
     },
     {
@@ -438,7 +460,9 @@
       "family": "powerups",
       "function": "Color bomb / light ball powerup (created by matching 5 in a line; the strongest powerup). Swapping it with an element clears every element of that color on the board.",
       "constraints": [
-        "A glowing spherical orb with rainbow/multi-color hints implying \"works on all colors\"; it should look like the rarest, most powerful item"
+        "A single round object that carries ALL element colors at once (e.g. multi-color surface / rainbow pattern) so it reads as 'works on every color'",
+        "Convey multi-color via the object's own surface colors — NOT via glow, aura, sparks, rainbow halo, gold rims or gems",
+        "NO glow, sparks, aura, motion trails, metallic trim — plain clean object only"
       ]
     },
     {
@@ -447,7 +471,8 @@
       "family": "powerups",
       "function": "Paper plane powerup (created by a 2x2 square match). When triggered it clears the 4 adjacent cells in a cross, then flies to a high-value target for a precision strike.",
       "constraints": [
-        "Must read as a FLYING PROJECTILE (paper plane / dart / small bird) with direction and a sense of motion"
+        "Must read as a FLYING PROJECTILE from the OBJECT SHAPE alone — a compact winged/pointed object with a clear facing direction",
+        "NO glow, sparks, speed lines, motion trails, exhaust, sparkle dust, gold rims or gems — plain clean object only"
       ]
     },
     {
@@ -538,12 +563,13 @@
     },
     {
       "names": ["Rope_lv1", "Rope_lv2"],
-      "role_class": "obstacle_top_layer",
+      "role_class": "obstacle_rope_net",
       "family": "rope",
       "function": "Rope (top-layer obstacle, remaining HP {lv}/2). Covers the element underneath so it cannot be swapped; each adjacent match deals 1 damage.",
       "constraints": [
-        "Net/frame structure — the trapped element underneath must remain visible through it",
-        "lv1 is the damaged version of lv2"
+        "Rope/net mesh ONLY — no fruit, candy, element, or any object inside or behind the mesh",
+        "Gaps between rope strands must be transparent (empty) for game-layer compositing",
+        "lv1 is the frayed/damaged version of lv2"
       ],
       "params": {
         "Rope_lv1": {"lv": 1},

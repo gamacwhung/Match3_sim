@@ -90,7 +90,7 @@ def format_reproduce_command(cfg: dict) -> str:
     if cfg.get('max_iters', 3) != 3:
         lines.append(f'  --max-iters {cfg["max_iters"]} \\')
     default_image = 'gemini-3.1-flash-image'
-    default_critic = 'gemini-2.5-flash'
+    default_critic = 'gemini-3.5-flash'
     if cfg.get('image_model') and cfg['image_model'] != default_image:
         lines.append(f'  --image-model {shlex.quote(cfg["image_model"])} \\')
     if cfg.get('critic_model') and cfg['critic_model'] != default_critic:
@@ -108,7 +108,7 @@ if __name__ == '__main__':
         theme_text='水果',
         family='elements',
         image_model='gemini-3.1-flash-image',
-        critic_model='gemini-2.5-flash',
+        critic_model='gemini-3.5-flash',
         max_iters=3,
         dry_run=True,
         reference_image=False,

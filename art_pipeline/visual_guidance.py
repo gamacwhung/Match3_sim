@@ -3,7 +3,6 @@ Family / category visual guidance — shared prompt and critic blocks.
 
 Used by pipeline (generation) and gemini_api (critique) for:
   - intra-family cohesion
-  - cross-category visual distinction
   - family anchor reference notes
 """
 
@@ -13,7 +12,7 @@ from .roles import get_category_visual, get_family_meta, load_config
 
 FAMILY_ANCHOR_REF_LABEL = (
     'Reference — family cohesion anchor. '
-    'Match rendering style, material, line weight, ornament language and shading model. '
+    'Match rendering style, material, ornament language and shading model. '
     'Change subject, color and gameplay-specific shape as required by this asset\'s role. '
     'Do NOT copy the anchor\'s silhouette if the gameplay role differs.')
 
@@ -57,34 +56,14 @@ def order_targets_for_family_anchors(targets: list[dict], config: dict | None = 
     return ordered
 
 
-def _distinct_from_lines(asset: dict, config: dict | None = None) -> list[str]:
-    cfg = config or load_config()
-    family_id = asset.get('family')
-    family_meta = get_family_meta(family_id, cfg)
-    lines: list[str] = []
-
-    category = asset.get('category', 'unknown')
-    cat_visual = get_category_visual(category, cfg)
-    if cat_visual.get('distinct_from'):
-        lines.append(cat_visual['distinct_from'])
-
-    for other_cat in family_meta.get('distinct_from_categories', []):
-        other = get_category_visual(other_cat, cfg)
-        if other.get('label') and other.get('distinct_from'):
-            lines.append(f"vs {other['label']}: {other['distinct_from']}")
-
-    return lines
-
-
 def format_family_visual_block(
     asset: dict,
     family_names: list[str] | None = None,
     *,
-    family_plan_entry: dict | None = None,
     has_family_anchor: bool = False,
     config: dict | None = None,
 ) -> str:
-    """Build [Family visual language] + distinction block for prompts / critic."""
+    """Build [Family visual language] block for prompts / critic."""
     cfg = config or load_config()
     family_id = asset.get('family')
     if not family_id:
@@ -106,16 +85,6 @@ def format_family_visual_block(
         lines.append('[Within-family cohesion — MUST follow]')
         lines.extend(f'- {c}' for c in cohesion)
 
-    if family_plan_entry:
-        plan_bits = [f'{k}: {v}' for k, v in family_plan_entry.items() if v]
-        if plan_bits:
-            lines.append('[Theme-specific family visual language] ' + '; '.join(plan_bits))
-
-    distinct = _distinct_from_lines(asset, cfg)
-    if distinct:
-        lines.append('[Visual distinction from other sprite categories]')
-        lines.extend(f'- {d}' for d in distinct)
-
     if family_names and len(family_names) > 1:
         lines.append(
             f'[Family members] {", ".join(family_names)} — keep a unified design language '
@@ -130,16 +99,13 @@ def format_family_visual_block(
 def format_critic_visual_block(
     asset: dict,
     *,
-    family_plan_entry: dict | None = None,
     has_family_anchor: bool = False,
-    multi_category_run: bool = False,
     config: dict | None = None,
 ) -> str:
     """Shorter visual guidance block for critic rubrics."""
     block = format_family_visual_block(
-        asset, family_plan_entry=family_plan_entry,
-        has_family_anchor=has_family_anchor, config=config)
-    if not block and not multi_category_run:
+        asset, has_family_anchor=has_family_anchor, config=config)
+    if not block:
         return ''
     extra = ''
     if asset.get('category') == 'element':
@@ -150,25 +116,20 @@ def format_critic_visual_block(
     return block + extra
 
 
-def cohesion_critic_rubric(*, has_family_anchor: bool, multi_category_run: bool) -> str:
-    parts: list[str] = []
-    if has_family_anchor:
-        parts.append(
-            '\n  "cohesion_score": 0-10, // how well it matches the family anchor rendering '
-            'style, material and ornament language (not necessarily the same silhouette)')
-    if multi_category_run:
-        parts.append(
-            '\n  "distinction_score": 0-10, // how visually distinct this is from other '
-            'sprite categories (elements vs powerups vs obstacles) per the guidance above')
-    return ''.join(parts)
+def cohesion_critic_rubric(*, has_family_anchor: bool) -> str:
+    if not has_family_anchor:
+        return ''
+    return (
+        '\n  "cohesion_score": 0-10, // how well it matches the family anchor rendering '
+        'style, material and ornament language (silhouette may differ)')
 
 
-def cohesion_verdict_rules(*, has_family_anchor: bool, multi_category_run: bool) -> str:
+def cohesion_verdict_rules(*, has_family_anchor: bool) -> str:
+    from .gemini_api import PASS_COHESION
+
     rules = []
     if has_family_anchor:
-        rules.append('cohesion_score>=7')
-    if multi_category_run:
-        rules.append('distinction_score>=6')
+        rules.append(f'cohesion_score>={PASS_COHESION}')
     if not rules:
         return ''
     return ' AND '.join(rules) + ' AND '
