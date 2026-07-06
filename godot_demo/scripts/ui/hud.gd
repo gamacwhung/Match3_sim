@@ -66,11 +66,16 @@ func _ready() -> void:
 
 
 func _apply_font_overrides() -> void:
-	if _font == null:
-		return
 	for lb in [score_label, level_label, moves_label, objective_label]:
 		if lb:
-			lb.add_theme_font_override("font", _font)
+			if _font:
+				lb.add_theme_font_override("font", _font)
+			# 細黑描邊 + 柔和陰影 → 黃字/白字在淺色遊戲背景上看得清楚又不笨重
+			lb.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.75))
+			lb.add_theme_constant_override("outline_size", 4)
+			lb.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
+			lb.add_theme_constant_override("shadow_offset_x", 1)
+			lb.add_theme_constant_override("shadow_offset_y", 2)
 
 
 func setup(level_data: Resource) -> void:
@@ -148,7 +153,7 @@ func _build_objective_icons(objectives: Array) -> void:
 		vbox.add_child(check_lb)
 
 		objectives_bar.add_child(panel)
-		var key = family if family != "" else str(obj.get("type", ""))
+		var key = tile_id if tile_id != "" else str(obj.get("type", ""))
 		_objective_widgets[key] = {
 			"panel": panel,
 			"style": sb,
@@ -156,6 +161,7 @@ func _build_objective_icons(objectives: Array) -> void:
 			"count": count_lb,
 			"check": check_lb,
 			"obj_ref": obj,
+			"family": family,
 		}
 
 	_update_objective_icons(objectives)
@@ -173,7 +179,7 @@ func _refresh_objective_textures() -> void:
 			continue
 		var obj_ref: Dictionary = w.get("obj_ref", {})
 		var obj_type: String = str(obj_ref.get("type", ""))
-		icon.texture = _icon_for_family(key, obj_type)
+		icon.texture = _icon_for_family(str(w.get("family", key)), obj_type)
 
 
 static func _named_or(name: String, fallback: Texture2D) -> Texture2D:
@@ -228,7 +234,7 @@ func _update_objective_icons(objectives: Array) -> void:
 	for obj in objectives:
 		var tile_id: String = str(obj.get("tile_id", ""))
 		var family = _tile_family(tile_id) if tile_id != "" else ""
-		var key = family if family != "" else str(obj.get("type", ""))
+		var key = tile_id if tile_id != "" else str(obj.get("type", ""))
 		if not _objective_widgets.has(key):
 			continue
 		var w: Dictionary = _objective_widgets[key]

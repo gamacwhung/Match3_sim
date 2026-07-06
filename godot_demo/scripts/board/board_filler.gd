@@ -19,6 +19,13 @@ var num_colors: int = 6
 var spawner_data: Array[Dictionary] = []
 var _spawner_counters: Array[int] = []  # 每個 spawner 的累計 fill 計數
 var obstacle_map_ref: Dictionary = {}   # game_board.obstacle_map 的 reference
+# 每回合最多生成的障礙數：防止 AI 生出 100% ratio + 全欄 spawner 時，cascade 每輪每格都生
+# → 灌爆數百個 barrel 把盤面卡死(輸入鎖死/ReadPixels 過載)。每回合上限後就改填一般元素 → cascade 收斂。
+var _turn_spawn_count: int = 0
+const MAX_SPAWN_PER_TURN: int = 8
+
+func reset_turn_spawn() -> void:
+	_turn_spawn_count = 0
 
 func setup(w: int, h: int, c_size: float, offset: Vector2, container: Node2D, scene: PackedScene, blocked: Array[Vector2i] = []) -> void:
 	width = w
@@ -39,6 +46,7 @@ func setup(w: int, h: int, c_size: float, offset: Vector2, container: Node2D, sc
 func set_spawners(data: Array[Dictionary]) -> void:
 	spawner_data = data
 	_spawner_counters.clear()
+	_turn_spawn_count = 0
 	for i in data.size():
 		_spawner_counters.append(0)
 
@@ -131,12 +139,18 @@ func apply_gravity() -> Array[Tween]:
 
 		# Phase 1: 全欄直落到底
 		for x in width:
+			var _dg1 := 0
 			while _column_drop(x):
 				overall_moved = true
+				_dg1 += 1
+				if _dg1 > height + 2:  # 防無窮迴圈(凍結整個引擎):糖最多掉 height 次
+					break
 
 		# Phase 2: 左斜落 — 反覆直到沒有任何左斜可動
 		var left_moved = true
-		while left_moved:
+		var _lguard := 0
+		while left_moved and _lguard < width * height:
+			_lguard += 1
 			left_moved = false
 			for y in range(height - 2, -1, -1):
 				for x in range(width):
@@ -150,14 +164,19 @@ func apply_gravity() -> Array[Tween]:
 						grid[x - 1][y + 1] = c
 						grid[x][y] = null
 						# 落到 x-1 後立刻一路直落
+						var _dg2 := 0
 						while _column_drop(x - 1):
-							pass
+							_dg2 += 1
+							if _dg2 > height + 2:
+								break
 						left_moved = true
 						overall_moved = true
 
 		# Phase 3: 右斜落 — 反覆直到沒有任何右斜可動
 		var right_moved = true
-		while right_moved:
+		var _rguard := 0
+		while right_moved and _rguard < width * height:
+			_rguard += 1
 			right_moved = false
 			for y in range(height - 2, -1, -1):
 				for x in range(width):
@@ -169,8 +188,11 @@ func apply_gravity() -> Array[Tween]:
 					if x < width - 1 and _can_fall_to(x + 1, y + 1) and not _reachable_from_top(x + 1, y + 1):
 						grid[x + 1][y + 1] = c
 						grid[x][y] = null
+						var _dg3 := 0
 						while _column_drop(x + 1):
-							pass
+							_dg3 += 1
+							if _dg3 > height + 2:
+								break
 						right_moved = true
 						overall_moved = true
 
@@ -310,7 +332,8 @@ func fill_empty_cells() -> Array[Tween]:
 			var target_y = reachable_empty_ys[reachable_empty_ys.size() - 1 - i]
 			var start_y = -(i + 1)
 
-			# 檢查 spawner 是否要在此欄生成障礙
+			# spawner 跟普通元素同一個模型:每個掉進來的格子,不是放糖就是(依機率)放木桶。
+			# AI 常寫 100%(barrel_rain.json 是 3/3),靠 _turn_spawn_count 每回合上限擋洪水。
 			var spawned_tile = _try_spawn_obstacle(x)
 			if spawned_tile != "":
 				obstacle_spawned.emit(Vector2i(x, target_y), spawned_tile)
@@ -328,6 +351,9 @@ func fill_empty_cells() -> Array[Tween]:
 
 
 func _try_spawn_obstacle(col: int) -> String:
+	# 這回合生成的障礙已達上限 → 不再生(改填一般元素)，避免 100% ratio 灌爆把 cascade 卡死
+	if _turn_spawn_count >= MAX_SPAWN_PER_TURN:
+		return ""
 	for idx in spawner_data.size():
 		var s: Dictionary = spawner_data[idx]
 		var spawn_cols: Array = s.get("spawn_cols", [])
@@ -356,6 +382,7 @@ func _try_spawn_obstacle(col: int) -> String:
 		for e in elements:
 			accum += int(e.get("ratio", 1))
 			if elem_roll < accum:
+				_turn_spawn_count += 1
 				return str(e.get("tile_id", ""))
 	return ""
 

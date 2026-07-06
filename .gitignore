@@ -89,6 +89,14 @@ test_pixel_art.zip
 godot_demo/web/live_sprites.local.bak/
 godot_demo/web/live_sprites/*.png
 
+# 個人/機密文件:簡報、關卡編輯試算表、簡報截圖,絕不進版控
+*.pptx
+*.pdf
+關卡編輯*.xlsx
+temp_slides/
+Google Talk.*
+橘子集團*
+
 # AI 破關示意影片(本機產物,大檔)
 ai_solve_*.mp4
 ai_solve_*.gif

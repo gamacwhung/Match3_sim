@@ -189,7 +189,7 @@ func _process(_delta: float) -> void:
 	var pending = JavaScriptBridge.eval("window._godotLevelJson || ''")
 	if pending is String and pending.length() > 2:
 		JavaScriptBridge.eval("window._godotLevelJson = '';")
-		# 去重：重載後 Streamlit 會重試推送同一關卡好幾次，只在「內容變了」時才重載
+		# 去重：重載後外部會重試推送同一關卡好幾次，只在「內容變了」時才重載
 		if pending != _last_level_json:
 			var json = JSON.new()
 			if json.parse(pending) == OK and json.data is Dictionary:

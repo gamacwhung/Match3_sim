@@ -233,7 +233,7 @@ def extract_json_from_response(text: str) -> dict | None:
 # Google Gemini 呼叫
 # ---------------------------------------------------------------------------
 
-def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, image_media_type, stream_callback=None) -> str:
+def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, image_media_type, stream_callback=None, thinking_mode: str = 'off') -> str:
     from google import genai
     from google.genai import types
 
@@ -302,20 +302,25 @@ def _call_gemini(model: str, system_prompt: str, messages: list, image_bytes, im
     # 思考歸思考、答案(JSON)歸答案 —— 既能即時顯示 AI 在想什麼(不再是空白長停頓)、
     # 思考也能提升盤面品質，又不會把碎念混進 JSON 害解析失敗。
     # thinking_config 在舊版 SDK / 不支援的模型上會失敗 → 自動 fallback。
-    def _build_config(with_thinking: bool):
+    def _build_config(thinking_mode: str):
         kw = dict(
             system_instruction=system_prompt,
             max_output_tokens=8192,
             temperature=0.9,
         )
-        if with_thinking:
+        if thinking_mode == 'off':
+            # 攤位求快：thinking_budget=0 直接關閉思考，生成快很多（不再有思考停頓）
+            kw['thinking_config'] = types.ThinkingConfig(thinking_budget=0)
+        elif thinking_mode == 'show':
             kw['thinking_config'] = types.ThinkingConfig(include_thoughts=True)
         return types.GenerateContentConfig(**kw)
 
+    # thinking_mode: 'off'=關閉思考最快(預設) / 'show'=回傳思考過程(攤位串流顯示用)。
+    # 舊 SDK/模型不支援 thinking_config 就退回模型預設。
     try:
-        config = _build_config(True)
+        config = _build_config(thinking_mode)
     except Exception:
-        config = _build_config(False)
+        config = _build_config('none')
 
     # 逐字串流：有 callback 時用 stream API，邊收邊回報。
     # 把「思考」與「答案」分流：思考 → callback(text, is_thought=True) 只顯示不入庫；
@@ -484,6 +489,7 @@ def generate_level(
     image_media_type: str = 'image/png',
     model: str = DEFAULT_MODEL,
     stream_callback=None,
+    thinking: str = 'off',
 ) -> tuple:
     """
     呼叫 AI API 生成關卡（自動根據 model 路由到 OpenAI 或 Anthropic）。
@@ -501,7 +507,7 @@ def generate_level(
     chat_history.append({'role': 'user', 'content': user_message})
 
     if provider == 'google':
-        assistant_text = _call_gemini(model, system_prompt, chat_history, image_bytes, image_media_type, stream_callback=stream_callback)
+        assistant_text = _call_gemini(model, system_prompt, chat_history, image_bytes, image_media_type, stream_callback=stream_callback, thinking_mode=thinking)
     elif provider == 'anthropic':
         assistant_text = _call_anthropic(model, system_prompt, chat_history, image_bytes, image_media_type)
     else:

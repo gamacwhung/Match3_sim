@@ -27,8 +27,8 @@ const NAMED_TEXTURES: Array[String] = ["board_bg"]
 
 # Web 端 live 貼圖最大邊長(避免大圖吃光 WASM/GPU 記憶體)。攤位畫面小，256 就很夠，
 # 換皮一次載 60+ 張，太大會 GPU OOM 整個瀏覽器當掉。
-const LIVE_MAX_DIM_ELEMENTS: int = 256
-const LIVE_MAX_DIM_NAMED: Dictionary = {"board_bg": 512}
+const LIVE_MAX_DIM_ELEMENTS: int = 512  # 原圖就是 512;之前降到 256 在全螢幕/大畫面會糊
+const LIVE_MAX_DIM_NAMED: Dictionary = {"board_bg": 1024}
 
 var theme_revision: int = 0
 # 目前套用的換皮主題:空字串 = 預設 candy(flat live_sprites/);否則 = live_sprites/themes/<name>/。
@@ -96,6 +96,7 @@ func _load_themes_index() -> void:
 		return
 	var http := HTTPRequest.new()
 	add_child(http)
+	http.accept_gzip = false  # GitHub Pages 會 gzip 回傳；Godot gzip 解壓失敗會卡在 _process 狂噴錯 → 關掉
 	if http.request("%sthemes.json?v=%d" % [base, theme_revision]) != OK:
 		http.queue_free()
 		return
@@ -151,17 +152,46 @@ func _apply_live_overrides() -> void:
 	var total := names.size()
 	var done := 0
 	_js_progress(0, total)
-	for nm in names:
-		var max_dim: int = int(LIVE_MAX_DIM_NAMED.get(nm, LIVE_MAX_DIM_ELEMENTS))
-		var url := "%s%s.png?v=%d" % [base_url, nm, theme_revision]
-		var tex := await _fetch_texture(url, max_dim)
-		done += 1
-		_js_progress(done, total)
-		if tex == null:
-			continue
-		loaded_named[nm] = tex
-		if ELEMENT_INDEX.has(nm):
-			loaded_textures[ELEMENT_INDEX[nm]] = tex
+	# 併發下載(每批 BATCH 張同時抓)→ 切主題從「閃糖果+等好幾秒」變快。
+	# 用 callback(在 request 之前就連好,不會像 await signal 那樣 miss 掉已回來的訊號)+ 輪詢計數,
+	# 等整批回來再進下一批。避免「先發再逐一 await」在本機快速回應時 miss signal 卡住的 bug。
+	const BATCH := 12
+	var i := 0
+	while i < names.size():
+		var batch: Array = names.slice(i, mini(i + BATCH, names.size()))
+		var remaining := [batch.size()]
+		var results := {}
+		for nm in batch:
+			var max_dim: int = int(LIVE_MAX_DIM_NAMED.get(nm, LIVE_MAX_DIM_ELEMENTS))
+			var url := "%s%s.png?v=%d" % [base_url, nm, theme_revision]
+			var http := HTTPRequest.new()
+			add_child(http)
+			http.accept_gzip = false
+			var nm2: String = str(nm)
+			http.request_completed.connect(
+				func(result, code, _headers, body):
+					results[nm2] = _texture_from_response([result, code, _headers, body], max_dim)
+					remaining[0] -= 1
+					http.queue_free(),
+				CONNECT_ONE_SHOT)
+			if http.request(url) != OK:
+				remaining[0] -= 1
+				http.queue_free()
+		var guard := 0.0
+		while remaining[0] > 0 and guard < 15.0:
+			await get_tree().process_frame
+			guard += get_process_delta_time()
+		for nm in results:
+			done += 1
+			_js_progress(done, total)
+			var tex = results[nm]
+			if tex == null:
+				push_warning("[theme] 貼圖載入失敗: " + str(nm) + " (" + current_theme + ")")
+				continue
+			loaded_named[nm] = tex
+			if ELEMENT_INDEX.has(nm):
+				loaded_textures[ELEMENT_INDEX[nm]] = tex
+		i += BATCH
 	for key in loaded_named:
 		_named[key] = loaded_named[key]
 	for idx in loaded_textures:
@@ -171,6 +201,7 @@ func _apply_live_overrides() -> void:
 func _fetch_manifest(base_url: String) -> Array:
 	var http := HTTPRequest.new()
 	add_child(http)
+	http.accept_gzip = false  # GitHub Pages 會 gzip 回傳；Godot gzip 解壓失敗會卡在 _process 狂噴錯 → 關掉
 	var err := http.request("%smanifest.json?v=%d" % [base_url, theme_revision])
 	if err != OK:
 		http.queue_free()
@@ -244,6 +275,7 @@ func _live_base_url() -> String:
 func _fetch_texture(url: String, max_dim: int = 0) -> Texture2D:
 	var http := HTTPRequest.new()
 	add_child(http)
+	http.accept_gzip = false  # GitHub Pages 會 gzip 回傳；Godot gzip 解壓失敗會卡在 _process 狂噴錯 → 關掉
 	if http.request(url) != OK:
 		http.queue_free()
 		return null

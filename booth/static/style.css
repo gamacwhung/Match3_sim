@@ -1,0 +1,237 @@
+:root {
+  --g-blue: #4285F4;
+  --g-red: #EA4335;
+  --g-yellow: #F9AB00;
+  --g-green: #34A853;
+  --bg: #0c0d1a;
+  --panel: #16172a;
+  --panel-2: #1f2138;
+  --chip: #262844;
+  --text: #ececf6;
+  --muted: #9596b8;
+  --border: #2e3052;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background:
+    radial-gradient(900px 500px at 85% -5%, #1a1c3a 0%, transparent 60%),
+    radial-gradient(900px 500px at 10% -8%, #201a38 0%, var(--bg) 60%);
+  color: var(--text);
+  font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  /* 鎖在一個視窗高度、整頁不滾動（16:9 不用往下滑）*/
+  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+}
+
+/* ── 頂部標題（壓低高度）── */
+.topbar { text-align: center; padding: 8px 16px 2px; flex-shrink: 0; }
+.topbar h1 { margin: 0; font-size: 20px; letter-spacing: .5px; }
+.topbar .tagline { margin: 3px 0 0; color: var(--muted); font-size: 12.5px; }
+
+/* ── 版面（佔滿剩餘高度）── */
+.app {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(360px, 440px) 1fr;
+  gap: 20px;
+  max-width: 1320px; width: 100%;
+  margin: 6px auto 0;
+  padding: 0 20px 14px;
+}
+
+/* ── 區塊標題 ── */
+.sec-title { display: flex; align-items: center; gap: 9px; font-size: 16px; font-weight: 700; }
+.sec-title.mt { margin-top: 16px; }
+.sec-title .bar { width: 4px; height: 17px; border-radius: 3px; background: var(--g-blue); }
+.sec-title .bar.y { background: var(--g-yellow); }
+.sec-title .bar.g { background: var(--g-green); }
+.sec-sub { margin: 4px 0 10px; color: var(--muted); font-size: 12px; }
+
+/* ── 左：控制台（過高就自己捲，不撐破版面）── */
+.panel {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+  padding: 18px; align-self: start; max-height: 100%; overflow-y: auto;
+}
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill {
+  background: var(--chip); color: var(--text);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 14px; font-size: 13px; cursor: pointer; font-family: inherit; transition: all .12s;
+}
+.pill:hover { border-color: var(--g-blue); }
+.pill.active { background: linear-gradient(135deg, var(--g-blue), #6f5bff); border-color: transparent; color: #fff; font-weight: 600; }
+
+.last-sent {
+  margin: 10px 0 0; padding: 8px 11px;
+  background: rgba(255,255,255,.03); border-left: 3px solid var(--border);
+  border-radius: 6px; color: var(--muted); font-size: 12px; line-height: 1.5;
+}
+
+textarea {
+  width: 100%; resize: vertical; margin-top: 10px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px; font-size: 15px; line-height: 1.5; font-family: inherit;
+}
+textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
+
+.prompt-detail { margin-top: 9px; }
+.prompt-detail summary {
+  cursor: pointer; color: var(--muted); font-size: 13px; padding: 8px 12px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; list-style: none;
+}
+.prompt-detail summary::-webkit-details-marker { display: none; }
+.prompt-detail pre {
+  white-space: pre-wrap; word-break: break-word;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px; font-size: 12px; color: var(--muted);
+  margin: 8px 0 0; max-height: 180px; overflow: auto;
+}
+
+.gen-row { display: flex; gap: 10px; margin-top: 12px; }
+.gen-btn {
+  flex: 1; padding: 13px; font-size: 16px; font-weight: 700; color: #fff;
+  border: none; border-radius: 13px; cursor: pointer;
+  background: linear-gradient(135deg, var(--g-blue), #6f5bff); transition: transform .08s, filter .15s;
+}
+.gen-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.gen-btn:active:not(:disabled) { transform: translateY(1px); }
+.gen-btn:disabled { opacity: .45; cursor: not-allowed; }
+.gen-btn.loading { background: linear-gradient(135deg, #555, #777); cursor: wait; }
+.icon-btn {
+  width: 50px; border-radius: 13px; font-size: 19px; cursor: pointer;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+}
+.icon-btn:hover:not(:disabled) { border-color: var(--g-red); }
+.icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.status { margin-top: 11px; min-height: 18px; font-size: 14px; }
+.status .ok { color: var(--g-green); }
+.status .err { color: var(--g-red); }
+.status .work { color: var(--g-yellow); }
+.spinner {
+  display: inline-block; width: 13px; height: 13px; margin-right: 6px;
+  border: 2px solid rgba(255,255,255,.25); border-top-color: var(--g-yellow);
+  border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* AI 思考串流框 */
+.thinking {
+  margin-top: 11px; background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 12px;
+}
+.thinking-head { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--g-yellow); margin-bottom: 6px; }
+.thinking-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--g-yellow);
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: .3; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+.thinking pre {
+  margin: 0; max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+  font-size: 11.5px; line-height: 1.55; color: var(--muted);
+  font-family: "Noto Sans TC", monospace;
+}
+
+.panel-foot { margin-top: 14px; }
+.tag { font-size: 11px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; }
+
+/* ── 右：遊戲欄（flex column，遊戲填滿剩餘高度，數據條永遠看得見）── */
+.game-col { display: flex; flex-direction: column; min-height: 0; }
+.game-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
+.game-tools { display: flex; align-items: center; gap: 10px; }
+.tool-btn {
+  background: var(--chip); color: var(--text); border: 1px solid var(--border);
+  border-radius: 999px; padding: 7px 14px; font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.tool-btn:hover { border-color: var(--g-blue); }
+.theme-pick { display: flex; align-items: center; gap: 6px; }
+.theme-pick label { font-size: 14px; }
+.theme-pick select {
+  background: var(--chip); color: var(--text); border: 1px solid var(--border);
+  border-radius: 999px; padding: 7px 12px; font-size: 13px; font-family: inherit; min-width: 120px;
+}
+.theme-pick select:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
+
+/* 遊戲(撐滿高度,保持大) + 右側資訊欄(資訊放這,不會把遊戲擠小) */
+.game-body {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; gap: 16px; justify-content: center; align-items: stretch;
+}
+.game-frame-wrap {
+  position: relative;
+  flex: 0 1 auto; min-height: 0; height: 100%;
+  display: flex; justify-content: center; align-items: center;
+}
+.game-side {
+  flex: 0 0 244px; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+}
+#game {
+  height: 100%; aspect-ratio: 720 / 1280; width: auto; max-width: 100%;
+  border: 1px solid var(--border); border-radius: 14px; background: #000;
+  box-shadow: 0 16px 45px rgba(0,0,0,.5); display: block;
+}
+/* 全螢幕退出鈕：平常隱藏，整個遊戲框進全螢幕時才顯示（觸控可點，不用鍵盤 ESC）*/
+.fs-exit {
+  display: none; position: absolute; top: 18px; right: 18px; z-index: 10;
+  padding: 10px 18px; font-size: 15px; font-weight: 700; color: #fff; cursor: pointer;
+  background: rgba(20,20,35,.82); border: 1px solid rgba(255,255,255,.3); border-radius: 999px;
+  backdrop-filter: blur(4px); font-family: inherit;
+}
+.fs-exit:hover { background: rgba(234,67,53,.85); }
+#game-wrap:fullscreen { background: #000; }
+#game-wrap:fullscreen #game { height: 100%; border-radius: 0; }
+#game-wrap:fullscreen .fs-exit { display: block; }
+
+/* 數據條 / 目標 / banner / 報表：固定不縮，永遠在視窗內 */
+.stats {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  width: 100%;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+  flex-shrink: 0;
+}
+.stat { padding: 11px 8px; text-align: center; border-left: 1px solid var(--border); }
+.stat:nth-child(odd) { border-left: none; }
+.stat:nth-child(n+3) { border-top: 1px solid var(--border); }
+.stat .st-k { font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
+.stat .st-v { font-size: 22px; font-weight: 800; }
+.stat.clickable { cursor: pointer; transition: background .15s; }
+.stat.clickable:hover { background: var(--panel-2); }
+#st-winrate { font-size: 16px; }
+
+.goals-line { display: flex; align-items: flex-start; gap: 8px; width: 100%; flex-wrap: wrap; flex-shrink: 0; }
+.goals-label { color: var(--muted); font-size: 13px; padding-top: 4px; }
+.goals-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+.goal-chip { background: var(--chip); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; font-size: 13px; }
+.goal-chip b { color: var(--g-yellow); }
+
+.banner { width: 100%; padding: 9px 13px; border-radius: 10px; font-size: 13px; flex-shrink: 0; }
+.banner.ok { background: rgba(52,168,83,.13); border: 1px solid rgba(52,168,83,.4); color: #8ee0a4; }
+.banner.warn { background: rgba(249,171,0,.12); border: 1px solid rgba(249,171,0,.4); color: #f3c969; }
+
+.sim-report { width: 100%; flex-shrink: 0; }
+.sim-report .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; font-size: 13px; }
+.sim-report .row { display: flex; justify-content: space-between; padding: 2px 0; gap: 8px; }
+.sim-report .row .k { color: var(--muted); }
+.sim-report .hist-title { color: var(--muted); font-size: 12px; margin: 8px 0 5px; }
+.sim-report .hist { display: flex; flex-direction: column; gap: 3px; }
+.hist-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.hist-k { color: var(--muted); width: 42px; text-align: right; }
+.hist-bar { height: 9px; background: linear-gradient(90deg, var(--g-blue), #6f5bff); border-radius: 3px; min-width: 4px; }
+.hist-n { color: var(--muted); }
+
+.pp-label { color: var(--g-yellow); font-size: 11.5px; margin: 8px 0 3px; }
+
+.hint { color: var(--muted); font-size: 12.5px; line-height: 1.5; flex-shrink: 0; }
+
+/* 窄螢幕（手機/平板直立）→ 單欄、允許捲動 */
+@media (max-width: 940px) {
+  body { height: auto; overflow: auto; }
+  .app { grid-template-columns: 1fr; }
+  .panel { max-height: none; overflow: visible; }
+  .game-frame-wrap { aspect-ratio: 720/1280; }
+  #game { height: auto; width: 100%; }
+}

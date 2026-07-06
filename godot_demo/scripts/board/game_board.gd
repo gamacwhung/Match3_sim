@@ -41,6 +41,8 @@ var cascade_level: int = 0
 var _lock_watchdog: float = 0.0
 # flush 卡住看門狗：_deferred_running 一直 true(延遲爆炸/cascade 卡死)時的累計秒數
 var _flush_watchdog: float = 0.0
+# 總看門狗：不管什麼狀態,is_processing 卡超過這秒數一律強制解鎖(蓋住所有死鎖路徑)
+var _stuck_watchdog: float = 0.0
 
 var _hint_timer: float = 0.0
 var _hint_delay: float = 3.0
@@ -224,6 +226,8 @@ func _process(delta: float) -> void:
 	# 只在「真的閒置」(沒有待爆炸佇列、沒在跑 flush)時計時；正常動畫/連鎖遠在 5 秒內結束，
 	# 所以只有真的卡死才會觸發，不會誤判正常遊玩。
 	if is_processing:
+		# 總看門狗：不管哪種卡死狀態都會累計，超時一律強制解鎖（蓋住「佇列有 entry 但沒在跑」那個會永久卡住的破口）
+		_stuck_watchdog += delta
 		if _deferred_queue.is_empty() and not _deferred_running:
 			# 全部 settle 了卻沒解鎖 → 5 秒後強制恢復
 			_lock_watchdog += delta
@@ -233,19 +237,22 @@ func _process(delta: float) -> void:
 			_flush_watchdog += delta
 			_lock_watchdog = 0.0
 		else:
-			# 佇列有 entry 但還沒 ready(飛機飛行中)→ 正常，不計時
+			# 佇列有 entry 但還沒 ready(飛機飛行中)→ 由總看門狗保底
 			_lock_watchdog = 0.0
 			_flush_watchdog = 0.0
-		if _lock_watchdog > 5.0 or _flush_watchdog > 8.0:
+		if _lock_watchdog > 4.0 or _flush_watchdog > 5.0 or _stuck_watchdog > 5.0:
 			_lock_watchdog = 0.0
 			_flush_watchdog = 0.0
+			_stuck_watchdog = 0.0
 			push_warning("[watchdog] is_processing 卡住 → 強制解鎖")
 			_deferred_running = false
 			_deferred_queue.clear()
+			is_processing = false   # ← 關鍵：一定要把鎖打開，否則 input 永遠進不來
 			_post_turn_check()
 	else:
 		_lock_watchdog = 0.0
 		_flush_watchdog = 0.0
+		_stuck_watchdog = 0.0
 
 	if filler == null or is_processing or _hint_shown:
 		return
@@ -344,8 +351,14 @@ func init_board(level_data: Resource = null) -> void:
 	filler.fill_initial()
 	_connect_candy_signals()
 
+	# 重洗到「①沒有預先連線 ②有可走的一步」為止 —— 只避開三消還不夠,
+	# 一開始若沒有任何能湊出消除的交換,玩家會卡在無解盤面不能玩。cap 50 次保底。
 	var retry_count = 0
-	while MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, init_skip).size() > 0 and retry_count < 50:
+	while retry_count < 50:
+		var has_match: bool = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, init_skip).size() > 0
+		var has_move: bool = MatchFinder.find_hint_move(filler.grid, grid_width, grid_height, init_skip).size() >= 2
+		if not has_match and has_move:
+			break
 		_clear_board()
 		filler.setup(grid_width, grid_height, cell_size, board_offset, candy_container, candy_scene, init_skip)
 		if level_data and level_data.num_colors > 0:
@@ -786,7 +799,7 @@ func _try_move_into_empty(candy: CandyScript, empty_pos: Vector2i) -> void:
 	filler.set_candy_at(empty_pos, candy)
 	var tw = candy.animate_to(world_to)
 	if tw:
-		await tw.finished
+		await _await_tweens_safe([tw])
 	var matches = MatchFinder.find_all_matches(filler.grid, grid_width, grid_height, blocked_cells)
 	if matches.is_empty():
 		filler.remove_candy_at(empty_pos)
@@ -794,7 +807,7 @@ func _try_move_into_empty(candy: CandyScript, empty_pos: Vector2i) -> void:
 		var back = filler.grid_to_world(from_pos)
 		var tw2 = candy.animate_to(back)
 		if tw2:
-			await tw2.finished
+			await _await_tweens_safe([tw2])
 		is_processing = false
 		return
 	await _process_matches(matches, [from_pos, empty_pos])
@@ -1586,6 +1599,24 @@ func _process_matches(matches: Array[Dictionary], swap_cells: Array[Vector2i] = 
 	await get_tree().create_timer(0.25).timeout
 	await _cascade_loop()
 
+# 等一批 tween 全部跑完，但「每個都有逾時保護」：tween 中途被 free / finished 訊號永遠不來時，
+# 用逐幀輪詢 + 上限秒數收尾，絕不會卡死 await（這是輸入鎖死的根因）。
+func _await_tweens_safe(tweens: Array, max_sec: float = 2.5) -> void:
+	var pending: Array = []
+	for tw in tweens:
+		if tw and is_instance_valid(tw) and tw.is_running():
+			pending.append(tw)
+	var t := 0.0
+	while not pending.is_empty() and t < max_sec:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var still: Array = []
+		for tw in pending:
+			if tw and is_instance_valid(tw) and tw.is_running():
+				still.append(tw)
+		pending = still
+
+
 func _cascade_loop() -> void:
 	# Gravity 跟 fill 一起 tween:
 	# - 可移動障礙物 (Barrel / TrafficCone) 先掉(它們不在 grid 裡,要另外處理)
@@ -1601,11 +1632,11 @@ func _cascade_loop() -> void:
 	while safety < (grid_width + grid_height) * 2:
 		safety += 1
 
-		# 順序很重要：先讓元素落下 → 再讓木桶落進元素讓出的空格 → 最後才補新元素。
-		# (若先補格，fill 會把木桶下方剛空出的格填回新元素——因為 fill 把可移動障礙當「會讓路」
-		#  → 木桶永遠等不到空格、卡在上面不落。Level 39「清下面元素、上面木桶不落」就是這個。)
-		var gravity_tweens = filler.apply_gravity()
+		# 順序：木桶先直落 → 再讓元素落下/斜落 → 最後補新元素。
+		# 木桶要在元素之前:否則元素的「斜落」會把木桶正下方剛空出的格搶先填掉 → 木桶卡住不落
+		# (使用者回報「清掉下面元素後木桶不會掉下來」)。木桶仍在 fill 之前,Level 39 也正確。
 		var obs_tweens = _apply_movable_obstacle_gravity()
+		var gravity_tweens = filler.apply_gravity()
 		var fill_tweens = filler.fill_empty_cells()
 
 		# 新生成的 candy 接 input signals(舊的有 is_connected check,不會重複 connect)
@@ -1621,10 +1652,8 @@ func _cascade_loop() -> void:
 		if all_tweens.size() == 0:
 			break
 
-		# 等 tween 完(sequential await,但 tween 本身平行跑)
-		for tw in all_tweens:
-			if tw and tw.is_running():
-				await tw.finished
+		# 等 tween 完(逾時保護,tween 被 free 也不會卡死)
+		await _await_tweens_safe(all_tweens)
 		if first_round:
 			await get_tree().create_timer(0.08).timeout
 			first_round = false
@@ -2289,8 +2318,11 @@ func _final_settle_barrels() -> void:
 		if obs.get("instance_cells", []).size() > 1:
 			continue
 		var below: Vector2i = pos + Vector2i(0, 1)
+		# 注意：void 格(異形盤面挖空處)不是「空格」，木桶坐在 void 上方是正常的，不能算 stuck，
+		# 否則每回合都會誤判 → 反覆跑重力/填充/await → 跟連鎖一起把盤面鎖死(無法操作)。
 		if below.y < grid_height and filler.get_candy_at(below) == null \
-				and not obstacle_map.has(below) and not (below in blocked_cells):
+				and not obstacle_map.has(below) and not (below in blocked_cells) \
+				and not filler.void_cells.has(below):
 			stuck.append(pos)
 	if stuck.is_empty():
 		return
@@ -2298,9 +2330,7 @@ func _final_settle_barrels() -> void:
 	var tws: Array[Tween] = _apply_movable_obstacle_gravity()
 	var grav: Array[Tween] = filler.apply_gravity()
 	var fil: Array[Tween] = filler.fill_empty_cells()
-	for tw in (tws + grav + fil):
-		if tw and tw.is_running():
-			await tw.finished
+	await _await_tweens_safe(tws + grav + fil)
 	_sync_candy_layer_visibility()
 	board_bg.queue_redraw()
 
@@ -2308,6 +2338,8 @@ func _final_settle_barrels() -> void:
 func _post_turn_check() -> void:
 	GameManager.reset_combo()
 	_reset_hint_timer()
+	if filler:
+		filler.reset_turn_spawn()   # 下一回合重置 barrel rain 生成額度
 	await _final_settle_barrels()
 
 	if GameManager.current_state == GameManager.GameState.LEVEL_COMPLETE:

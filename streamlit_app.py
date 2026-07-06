@@ -47,7 +47,10 @@ st.set_page_config(
 #   本機測試「整個網站 pipeline + 自己分支的 Godot」時，設環境變數 BOOTH_GODOT_LOCAL=1
 #   並另開 `python serve_godot_local.py`(localhost:8765 服務本機 godot_demo/web/)。
 GODOT_PAGES_URL = 'https://gamacwhung.github.io/Match3_sim/'
-GODOT_LOCAL_URL = 'http://localhost:8765/'
+# 遊戲伺服器位址：別台(攤位筆電)要連得到「這台」，就把 BOOTH_GODOT_HOST 設成這台的
+# 區網 IP:8765（例：172.23.19.106:8765）；自己這台玩就用預設 localhost:8765。
+_GODOT_HOST = os.environ.get('BOOTH_GODOT_HOST', 'localhost:8765')
+GODOT_LOCAL_URL = f'http://{_GODOT_HOST}/'
 _USE_LOCAL_GODOT = os.environ.get('BOOTH_GODOT_LOCAL', '0') == '1'
 GODOT_DEMO_URL = GODOT_LOCAL_URL if _USE_LOCAL_GODOT else GODOT_PAGES_URL
 # 找 Godot iframe 用的 host 標記（本機/Pages 都通）：localhost:8765 或 gamacwhung.github.io
@@ -59,15 +62,21 @@ BOOTH_MODEL = 'gemini-3.5-flash'
 # 顯示用的漂亮名稱（單一來源：改 BOOTH_MODEL，標題/頁尾/log 全部跟著變）
 BOOTH_MODEL_LABEL = BOOTH_MODEL.replace('gemini-', 'Gemini ').replace('-', ' ').title()
 
+# Demo 安全模式：只生「不會卡死」的簡單關（無木桶雨、無異形 void）。
+# 死鎖根因（tween await 卡住 + gzip 卡住）已修，先關掉恢復全功能測試；若還會卡再開回 True。
+SAFE_MODE = False
+
 # (按鈕文字, 選之前就顯示的白話說明, 實際送給 AI 的 prompt)
 QUICK_PROMPTS = [
     ('💥 超爽連鎖', '一次消掉超多、超有成就感',
      '做一個中間有一大片空地、障礙物集中在四周和底部的關卡，讓我容易累積很多道具、一次消掉超多東西，超有成就感。'),
     ('🧩 步步為營', '從小空間慢慢往外清、越玩越大',
      '做一個障礙物幾乎塞滿、只在中間留一小塊空間的關卡，讓我從那一小塊慢慢往外消、把可以玩的範圍越玩越大。'),
-    ('🛢️ 障礙雨', '木桶一直從上面掉下來',
-     '做一個木桶會一直從上面掉下來的關卡，讓我一邊消除、一邊把掉下來的木桶清掉。'),
 ]
+if not SAFE_MODE:
+    QUICK_PROMPTS.append(
+        ('🛢️ 障礙雨', '木桶一直從上面掉下來',
+         '做一個木桶會一直從上面掉下來的關卡，讓我一邊消除、一邊把掉下來的木桶清掉。'))
 
 # 攤位快速體驗版：所有生成都附上這個指示（白話，不含技術術語；技術規則寫在系統 prompt 的設計指南）。
 BOOTH_LEVEL_HINT = (
@@ -78,6 +87,14 @@ BOOTH_LEVEL_HINT = (
     '障礙物不要多到把盤面塞爆（要留得下操作空間），'
     '讓人 1~2 分鐘內玩完、需要稍微動點腦、過關有成就感的短關卡，重點是好玩、有挑戰但不卡死。）'
 )
+if SAFE_MODE:
+    # 安全模式：明確禁止會觸發遊戲端死鎖的設計（木桶/連續掉落 + 異形 void）
+    BOOTH_LEVEL_HINT += (
+        '\n\n（重要安全限制：請用「普通方形盤面」，'
+        '絕對不要使用 void、不要做特殊形狀（不要愛心/G/十字/菱形等）；'
+        '絕對不要放木桶(Barrel)、也不要任何會從上方持續掉落或不斷生成的障礙（不要 spawner/障礙雨）；'
+        '障礙物只用少量「固定箱子 Crt」，其餘留空地給元素，確保盤面好操作、不會卡死。）'
+    )
 
 # 形狀關專用指示：盤面要大才畫得出形狀，所以不講「小盤面」，其餘要求一樣（單純、不卡死）。
 BOOTH_LEVEL_HINT_SHAPE = (
@@ -400,12 +417,11 @@ def _do_generate(user_msg: str, live: bool = False, status=None, big_board: bool
 
     st.session_state.booth_level = level_dict
 
-    # 關卡就緒 先讓玩家玩；AI 難度測試移到背景（main() 結尾才跑，不擋遊玩）
+    # 關卡就緒 先讓玩家玩；難度測試改成報表裡按鈕觸發（不自動跑，不卡畫面）
     if validation.valid:
         st.session_state.booth_sim_results = None
-        st.session_state.booth_sim_pending = True
+        st.session_state.booth_sim_pending = False
         emit('success', '關卡就緒，可以開始玩了！')
-        emit('tool', 'AI 難度測試將在背景進行（玩你的，測它的）…')
     return True  # 有成功生成關卡（即使驗證有警告也算，關卡仍可玩）
 
 
@@ -543,12 +559,17 @@ def main():
         _adv_label = '⚙️ 進階選項：指定形狀 / 難度（可不選）' \
             + ('​' * st.session_state.get('booth_adv_collapse_n', 0))
         with st.expander(_adv_label, expanded=st.session_state.get('booth_adv_open', False)):
-            _sel_shape = st.pills('🔷 形狀', list(_SHAPE_DIR.keys()) + ['其他'],
-                                  selection_mode='single', key='booth_shape_pill')
-            _custom_shape = ''
-            if _sel_shape == '其他':
-                _custom_shape = st.text_input('自己打一個形狀', key='booth_custom_shape',
-                                              placeholder='例：星星、貓、閃電…')
+            if SAFE_MODE:
+                _sel_shape = None
+                _custom_shape = ''
+                st.caption('🔷 形狀：demo 安全模式期間停用（形狀會挖 void → 卡死）')
+            else:
+                _sel_shape = st.pills('🔷 形狀', list(_SHAPE_DIR.keys()) + ['其他'],
+                                      selection_mode='single', key='booth_shape_pill')
+                _custom_shape = ''
+                if _sel_shape == '其他':
+                    _custom_shape = st.text_input('自己打一個形狀', key='booth_custom_shape',
+                                                  placeholder='例：星星、貓、閃電…')
             _sel_diff = st.pills('🎚️ 難度', list(_DIFF_DIR.keys()) + ['其他'],
                                  selection_mode='single', key='booth_diff_pill')
             _custom_diff = ''
@@ -615,6 +636,8 @@ def main():
             st.session_state['booth_adv_collapse_n'] = \
                 st.session_state.get('booth_adv_collapse_n', 0) + 1
             _base = user_input.strip() if _has_input else '做一個好玩、有挑戰的小關卡。'
+            if SAFE_MODE:
+                _shape_dir = ''   # 安全模式：形狀要挖 void → 會觸發遊戲端死鎖，一律不套形狀
             _prompt = _base + _shape_dir + _diff_dir
             st.session_state.booth_last_prompt = _base
             # 記下這一輪「實際送出的需求」，生成後在下面的小框框可展開查看
@@ -675,6 +698,7 @@ def main():
         _GH = 820
         _GW = round(_GH * 720 / 1280)  # 9:16 ≈ 461；再放大，12×12 大盤面也塞得下
         st.components.v1.iframe(godot_url, width=_GW, height=_GH, scrolling=False)
+        # （全螢幕按鈕暫移除：Godot 畫布在全螢幕沒置中、會跑到左上。demo 用這個直式視窗即可。）
 
         level = st.session_state.booth_level
 
@@ -718,8 +742,6 @@ def main():
             if sim:
                 _bl, _bc, _be, _bd = _difficulty_badge(sim.win_rate)
                 _rep_label = f'📊 關卡報表　·　{_be} 難度：{_bl}（AI 勝率 {sim.win_rate:.0%}）'
-            elif st.session_state.get('booth_sim_pending'):
-                _rep_label = '📊 關卡報表（⏳ AI 正在背景測試難度…）'
             else:
                 _rep_label = '📊 關卡報表'
 
@@ -746,9 +768,18 @@ def main():
                         for err in v.errors[:3]:
                             st.caption(f'　· {err}')
 
-                # 難度 + AI 測試報表
-                if sim is None and st.session_state.get('booth_sim_pending'):
-                    st.caption('⏳ AI 正在背景試玩這關、評估難度…（不影響你先玩）')
+                # 難度 + AI 測試報表（按鈕觸發；不自動跑，避免一載入就模擬把畫面卡住）
+                if sim is None:
+                    if st.button('🤖 讓 AI 自動試玩、測這關難度（15 場）',
+                                 use_container_width=True, key='run_sim_btn'):
+                        with st.spinner('AI 試玩中…（約 1 秒）'):
+                            try:
+                                st.session_state.booth_sim_results = run_simulation_batch(
+                                    level_dict=level, n_games=15,
+                                    steps_multiplier=1.0, max_workers=2)
+                            except Exception as _e:
+                                st.error(f'測試失敗：{_e}')
+                        st.rerun()
                 elif sim:
                     wr = sim.win_rate
                     _lbl, _clr, _emo, _desc = _difficulty_badge(wr)
@@ -838,22 +869,7 @@ def main():
                         st.markdown('　'.join(goals_str_parts))
                     st.caption(f"剩餘步數：{frame['steps_left']}")
 
-    # 背景 AI 難度測試 — 在兩欄都畫完(關卡已 postMessage 給 Godot、玩家可開始玩)之後才跑。
-    # Streamlit 是同步的，這幾秒 Python 會 blocking，但 Godot iframe 是 client-side、照常可玩。
-    if (st.session_state.get('booth_sim_pending')
-            and st.session_state.get('booth_level')
-            and st.session_state.get('booth_validation')
-            and st.session_state.booth_validation.valid):
-        st.session_state.booth_sim_pending = False
-        try:
-            results = run_simulation_batch(
-                level_dict=st.session_state.booth_level, n_games=15,
-                steps_multiplier=1.0, max_workers=2,
-            )
-            st.session_state.booth_sim_results = results
-        except Exception:
-            pass
-        st.rerun()
+    # （難度測試改成報表裡的按鈕觸發，不再一載入就自動背景模擬把畫面卡住）
 
     # 底部 footer
     st.markdown('---')
