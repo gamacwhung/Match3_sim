@@ -27,7 +27,7 @@ const NAMED_TEXTURES: Array[String] = ["board_bg"]
 
 # Web 端 live 貼圖最大邊長(避免大圖吃光 WASM/GPU 記憶體)。攤位畫面小，256 就很夠，
 # 換皮一次載 60+ 張，太大會 GPU OOM 整個瀏覽器當掉。
-const LIVE_MAX_DIM_ELEMENTS: int = 512  # 原圖就是 512;之前降到 256 在全螢幕/大畫面會糊
+const LIVE_MAX_DIM_ELEMENTS: int = 1024  # 道具原圖最高 1024;讓大顯示器全螢幕時保有清晰度(元素原圖 512 → 維持)
 const LIVE_MAX_DIM_NAMED: Dictionary = {"board_bg": 1024}
 
 var theme_revision: int = 0
@@ -163,7 +163,7 @@ func _apply_live_overrides() -> void:
 		var results := {}
 		for nm in batch:
 			var max_dim: int = int(LIVE_MAX_DIM_NAMED.get(nm, LIVE_MAX_DIM_ELEMENTS))
-			var url := "%s%s.png?v=%d" % [base_url, nm, theme_revision]
+			var url := "%s%s.png%s" % [base_url, nm, _bust()]
 			var http := HTTPRequest.new()
 			add_child(http)
 			http.accept_gzip = false
@@ -202,7 +202,7 @@ func _fetch_manifest(base_url: String) -> Array:
 	var http := HTTPRequest.new()
 	add_child(http)
 	http.accept_gzip = false  # GitHub Pages 會 gzip 回傳；Godot gzip 解壓失敗會卡在 _process 狂噴錯 → 關掉
-	var err := http.request("%smanifest.json?v=%d" % [base_url, theme_revision])
+	var err := http.request("%smanifest.json%s" % [base_url, _bust()])
 	if err != OK:
 		http.queue_free()
 		return NAMED_TEXTURES.duplicate()
@@ -270,6 +270,14 @@ func _live_base_url() -> String:
 	if current_theme != "":
 		return base + "themes/" + current_theme + "/"
 	return base
+
+
+# sprite 網址的 cache-bust 尾綴。
+#   具名主題(攤位固定,美術不會中途變)→ 空字串,網址穩定 → 瀏覽器可快取(靠 ETag/304 保新鮮),
+#                                          早上載過一次,之後 F5 near-instant。
+#   flat/live(?live=1,AI Art Lab 開發,美術會即時換)→ 帶開機時間破快取,永遠拿最新。
+func _bust() -> String:
+	return "" if current_theme != "" else "?v=%d" % theme_revision
 
 
 func _fetch_texture(url: String, max_dim: int = 0) -> Texture2D:

@@ -77,6 +77,8 @@ body {
 .sec-title .bar.y { background: var(--g-yellow); }
 .sec-title .bar.g { background: var(--g-green); }
 .sec-sub { margin: 4px 0 10px; color: var(--muted); font-size: 12px; }
+/* 沒有副標的區塊（如「難度」）：標題→pills 補上與有副標區塊一致的 10px 間距 */
+.sec-title + .pills { margin-top: 10px; }
 
 /* ── 左：控制台（過高就自己捲，不撐破版面）── */
 .panel {
@@ -188,7 +190,7 @@ textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 /* 遊戲(撐滿高度,保持大) + 右側資訊欄(資訊放這,不會把遊戲擠小) */
 .game-body {
   flex: 1 1 auto; min-height: 0;
-  display: flex; gap: 16px; justify-content: center; align-items: stretch;
+  display: flex; gap: 16px; justify-content: flex-start; align-items: stretch;
 }
 .game-frame-wrap {
   position: relative;

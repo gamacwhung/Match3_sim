@@ -72,11 +72,20 @@ function spriteBase(theme) {
   // 具名主題 → live_sprites/themes/<name>/；預設 candy（空字串）→ flat live_sprites/
   return GAME_URL + "live_sprites/" + (theme ? "themes/" + theme + "/" : "");
 }
+const WALL_ITEM_W = 42 + 14; // img 寬 + gap，估算用
+const WALL_SPEED = 20;       // px/s（原本約 12，稍微快一點）
 function buildArtWall(theme) {
   const wall = $("art-wall");
   if (!wall) return;
   const base = spriteBase(theme);
-  const strip = WALL_SPRITES.map((n) => `<img src="${base}${n}.png" alt="" loading="lazy">`).join("");
+  // 重複填滿：讓「單一 strip」就比視窗還寬 → 兩份並排時整條永遠填滿、不會捲到空白
+  const reps = Math.max(2, Math.ceil((window.innerWidth * 1.3) / (WALL_SPRITES.length * WALL_ITEM_W)));
+  let names = [];
+  for (let i = 0; i < reps; i++) names = names.concat(WALL_SPRITES);
+  const strip = names.map((n) => `<img src="${base}${n}.png" alt="" loading="lazy">`).join("");
+  // 依 strip 總寬換算秒數 → 不管重複幾次，捲動速度都固定
+  const secs = Math.round((names.length * WALL_ITEM_W) / WALL_SPEED);
+  wall.style.setProperty("--art-wall-secs", secs + "s");
   // 兩份相同 strip 並排 → translateX 0→-50% 無縫循環
   wall.innerHTML = `<div class="art-wall-track"><div class="art-wall-strip">${strip}</div><div class="art-wall-strip" aria-hidden="true">${strip}</div></div>`;
 }
@@ -250,7 +259,9 @@ function onGenerated(data, prompt, rawOutput) {
   $("output-detail").hidden = false;
   renderLevelMeta(data.level);
   renderStats(data);
-  setStatus("ok", data.valid ? icon("circle-check") + " 關卡已生成，右邊開始玩吧！" : icon("triangle-alert") + " 生成完成（小瑕疵，仍可玩）");
+  // 數量問題後端已自動校正 → 幾乎都會通過驗證。極少數殘留結構性問題只丟 console 給操作者(F12)。
+  setStatus("ok", data.valid ? icon("circle-check") + " 關卡已生成，通過驗證" : icon("circle-check") + " 關卡已生成");
+  if (!data.valid && (data.errors || []).length) console.warn("[booth] 關卡仍有結構性問題（不對觀眾顯示）:", data.errors);
   runSimulation(); // 生成完自動跑 AI 試玩 → 直接出勝率報表
 }
 
@@ -295,15 +306,18 @@ function renderStats(data) {
   });
   $("goals-line").hidden = goalKeys.length === 0;
 
-  // 訪客只看乾淨訊息;原因放 hover(title) 給操作者除錯用
+  // 數量問題後端已自動校正 → 幾乎都通過驗證,顯示原本的「通過驗證」資訊。
+  // 罕見殘留的結構性問題不對觀眾顯示(觸控看不到 hover),只丟 console 給操作者(F12)。
   const b = $("banner");
-  if (data.valid) { b.className = "banner ok"; b.innerHTML = icon("check") + " 通過驗證，可以玩"; b.title = ""; }
-  else {
-    b.className = "banner warn";
-    b.innerHTML = icon("triangle-alert") + " 這關可能有點小瑕疵，建議再生成一次（滑鼠移上看原因）";
-    b.title = (data.errors || []).join("\n") || "（無詳細原因）";
+  b.title = "";
+  if (data.valid) {
+    b.className = "banner ok";
+    b.innerHTML = icon("check") + " 通過驗證，可以玩";
+    b.hidden = false;
+  } else {
+    b.hidden = true;
+    if ((data.errors || []).length) console.warn("[booth] 驗證未過（不對觀眾顯示）:", data.errors);
   }
-  b.hidden = false;
 }
 
 // ── AI 勝率 + 步數報表：生成後自動跑、也可點卡片重跑 ──────────────

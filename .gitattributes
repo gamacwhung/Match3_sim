@@ -1,0 +1,2 @@
+# Shell 腳本一律用 LF,避免 Windows 存成 CRLF 導致 macOS/Linux bash 因 \r 壞掉
+*.sh text eol=lf

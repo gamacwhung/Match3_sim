@@ -37,7 +37,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from level_generator.ai_generator import generate_level, build_system_prompt
-from level_generator.validator import validate_level, _tile_family
+from level_generator.validator import validate_level, _tile_family, _count_tiles_on_board
+from tile_defs import get_def, is_element
 from level_generator.sim_runner import run_simulation_batch
 
 
@@ -59,6 +60,44 @@ def _merge_same_family_goals(level: dict) -> None:
             new_goals[fam] = info["total"]            # 多變體 → 合併成家族目標
         else:
             new_goals[info["tiles"][0]] = info["total"]  # 單一 → 保留原 key
+    level["goals"] = new_goals
+
+
+def _snap_obstacle_goals_to_board(level: dict) -> None:
+    """把障礙物目標數「校正成盤面實際可消總數」→ 目標一定跟盤面對得上,免得靠 AI 精準數對。
+    勝利條件本來就是「清光盤上的 X」,所以目標 = 盤面該障礙可消數永遠正確。就地修改 level。
+    不動的:元素(動態無限補充)、有 spawner 持續生成的家族、觸發型(Stamp/Postmark,無限觸發)。"""
+    goals = level.get("goals")
+    if not isinstance(goals, dict) or not goals:
+        return
+    # 各家族盤面可消總數:single(紙箱/木桶…)= 物件數;multi(冰箱…)= HP 累計;Stamp = 無限
+    fam_cap: dict = {}
+    for tid, n in _count_tiles_on_board(level).items():
+        fam = _tile_family(tid)
+        defn = get_def(tid) or {}
+        hp = defn.get("health", 1)
+        if hp >= 9999:
+            fam_cap[fam] = float("inf")
+        else:
+            contrib = hp if defn.get("elimination_type", "single") == "multi" else 1
+            fam_cap[fam] = fam_cap.get(fam, 0) + n * contrib
+    # 有 spawner 持續生成的家族 → 不校正(無限補充,目標可大於盤面現有數)
+    spawner_fams = set()
+    for sp in (level.get("spawners") or []):
+        if isinstance(sp, dict):
+            for e in sp.get("elements", []):
+                if isinstance(e, dict):
+                    spawner_fams.add(_tile_family(e.get("tile_id", "")))
+    new_goals: dict = {}
+    for tile, cnt in goals.items():
+        if is_element(tile) or _tile_family(tile) in spawner_fams:
+            new_goals[tile] = cnt            # 元素 / spawner 補充 → 保留原數
+            continue
+        cap = fam_cap.get(_tile_family(tile), 0)
+        if cap == 0 or cap == float("inf"):
+            new_goals[tile] = cnt            # 盤面沒有(交給驗證擋)或觸發型 → 不動
+        else:
+            new_goals[tile] = int(cap)       # 校正成盤面實際可消總數
     level["goals"] = new_goals
 
 _STATIC = pathlib.Path(__file__).resolve().parent / "static"
@@ -119,12 +158,21 @@ SHAPE_DIRECTIVES: dict[str, str] = {
     "菱形": _shape_directive("菱形"),
     "愛心": _shape_directive("愛心"),
     "Google G": (
-        "（請把「可遊玩盤面範圍」做成大寫「G」形狀：用 void 把 G 以外挖空。"
-        "G 的長相＝像一個「C」（上、左、下三邊各一條粗邊框，整體右邊是開口）"
-        "＋右下角有一條往內、往上的短橫筆（G 的小尾巴/橫槓）。"
-        "所以「右上角必須是缺口（開口）」、右下角才有那段短橫筆，千萬不要把右邊整條封起來變成「O/方框」。"
-        "G 的每一段筆畫務必「至少 2~3 格寬」，絕對不要 1 格寬的細線；"
-        "盤面放大到約 12×12（最大 12×12）來容納夠粗的筆畫、G 做大一點比較好認。"
+        "（請把「可遊玩盤面範圍」做成大寫「G」形狀，其餘用 void 挖空。盤面 10×10～12×12 都可以，"
+        "大小、粗細、比例、開口大小、鉤子長短你都可以自己變化，讓每次生成的 G 長得不太一樣（要有變化、不要每次一模一樣），"
+        "但務必保留下面三個『讓它是 G 而不是 C 或 O』的必備特徵，缺一不可：\n"
+        "① 外圈像 C：上邊、左邊、下邊是連續的粗筆畫（每段至少 2～3 格寬）。\n"
+        "② 右上角必須是明顯開口：右上那一段一定要挖空(void)，千萬不要把右邊整條封起來變成 O／方框。\n"
+        "③ 中間偏右有一條『往盤面內部伸出的短橫槓』(G 的關鍵鉤子)：從右側中段往內畫一小段水平筆畫、下面再接一小段右邊直筆。"
+        "這條橫槓就是 G 跟 C 的唯一差別，一定要畫出來、而且要看得出來。\n"
+        "下面只是『幫助理解特徵』的示意（# = 可玩格、. = void），請「不要照抄」，自己變化出不同的 G：\n"
+        "  .#####.\n"
+        "  ######\n"
+        "  ##....\n"
+        "  ##.###   ← 右上開口 + 中段往內的短橫槓\n"
+        "  ##...#\n"
+        "  ######\n"
+        "  .#####\n"
         "筆畫內部正常放元素、只放少量障礙物，務必留足夠空地能消除。）"
     ),
 }
@@ -138,6 +186,17 @@ DIFFICULTY_DIRECTIVES: dict[str, str] = {
 
 
 app = FastAPI(title="Match3 Booth Generator")
+
+
+@app.middleware("http")
+async def _cache_live_sprites(request, call_next):
+    """具名主題貼圖/manifest 網址已穩定(art_theme 對具名主題不再帶 ?v)→ 給長快取。
+    攤位早上把各主題載過一次後,之後同台瀏覽器 F5 直接吃快取、不再逐檔重新驗證。"""
+    resp = await call_next(request)
+    p = request.url.path
+    if "/live_sprites/" in p and (p.endswith(".png") or p.endswith(".json")):
+        resp.headers["Cache-Control"] = "public, max-age=86400"  # 1 天;要更新主題就 hard-refresh
+    return resp
 
 
 class GenReq(BaseModel):
@@ -209,7 +268,10 @@ def api_generate(req: GenReq):
             )
             continue
 
-        validation = validate_level(level)  # 同家族多目標等會被驗證器擋下 → 觸發重生
+        # 先自動修正可修的(合併同家族目標、目標數校正成盤面數)→ 只有結構性錯誤才觸發重生
+        _merge_same_family_goals(level)
+        _snap_obstacle_goals_to_board(level)
+        validation = validate_level(level)
         if validation.valid:
             break
         feedback = (
@@ -222,8 +284,6 @@ def api_generate(req: GenReq):
             {"ok": False, "error": "連續沒生出有效關卡，請換句話再試一次"}, status_code=502
         )
 
-    # 收尾保險:重生幾次後若同家族多目標還在,合併掉(訪客不該看到重複格子),再重驗拿最終 errors。
-    _merge_same_family_goals(level)
     validation = validate_level(level)
 
     return {
@@ -290,6 +350,9 @@ async def api_generate_stream(req: GenReq):
             if not level:
                 feedback = "\n\n【系統提醒】請「只」輸出一個完整的 ```json ... ``` 區塊。"
                 continue
+            # 先自動修正可修的(合併同家族目標、目標數校正成盤面數)→ 只有結構性錯誤才觸發重生
+            _merge_same_family_goals(level)
+            _snap_obstacle_goals_to_board(level)
             validation = validate_level(level)
             if validation.valid:
                 break
@@ -298,7 +361,6 @@ async def api_generate_stream(req: GenReq):
         if not level:
             q.put({"type": "error", "error": "連續沒生出有效關卡，請換句話再試一次"})
             return
-        _merge_same_family_goals(level)
         validation = validate_level(level)
         q.put({
             "type": "done", "level": level,

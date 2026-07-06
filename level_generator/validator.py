@@ -320,14 +320,15 @@ def _check_goal_consistency(d: dict, result: ValidationResult):
         if total_goal > cap:
             result.errors.append(
                 f'目標 "{label}"×{int(total_goal)} 無法達成：盤面最多只能消 {int(cap)} 個，'
-                f'且無 spawner 補充。請把目標降到 {int(cap)} 以下，或在盤面增加數量／加一個生成它的 spawner。'
+                f'且無 spawner 補充。請把目標「剛好等於」盤面數 {int(cap)}，或在盤面增加該障礙物到 {int(total_goal)} 個。'
             )
-        elif total_goal < cap * 0.7:
-            # 目標遠少於盤面可消數 → 清完目標仍剩一堆障礙物,「還有障礙物卻贏了」很怪。
+        elif total_goal < cap:
+            # 目標數必須「剛好等於」盤面可消總數 → 清完盤上該障礙物剛好達標。
+            # 少於盤面數 → 贏了還剩障礙物沒清,「還有障礙物怎麼就贏了」很怪 → 報錯重生成。
             result.errors.append(
-                f'目標 "{label}"×{int(total_goal)} 太少：盤面共可消 {int(cap)} 個，'
-                f'贏了還會剩 ~{int(cap) - int(total_goal)} 個障礙物沒清，玩家會覺得「還有障礙物怎麼就贏了」。'
-                f'請把目標設成接近盤面總數 {int(cap)}（清完剛好達標），或把盤面該障礙物減少到約 {int(total_goal)} 個。'
+                f'目標 "{label}"×{int(total_goal)} 與盤面數不符：盤面共有 {int(cap)} 個，'
+                f'贏了會剩 {int(cap) - int(total_goal)} 個沒清。目標數必須「剛好等於」盤面數：'
+                f'請把目標改成 {int(cap)}，或把盤面該障礙物減少到 {int(total_goal)} 個。'
             )
 
 
