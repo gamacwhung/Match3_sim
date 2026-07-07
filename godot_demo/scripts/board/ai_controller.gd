@@ -378,13 +378,38 @@ func _estimate_impact_at(
 				for dc in range(-1, 2):
 					cells.append(Vector2i(pos.x + dc, pos.y + dr))
 		CandyScript.CandyType.SPIRAL:
+			# 紙飛機 = 原位十字 5 格 + 「飛到最高權重目標」再清 1 格(見 game_board 紙飛機落點設計)。
+			# 原本只估原地 5 格 → 殘局時最後的目標障礙若不在旁邊會被估成 0,AI 就不啟動它、改去削步數。
 			cells.append(pos)
 			for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
 				cells.append(pos + offset)
+			var local_impact := _count_obstacles_in(cells, obstacle_map, bottom_map, goals)
+			return local_impact + _best_fly_target_value(cells, obstacle_map, bottom_map, goals)
 		CandyScript.CandyType.COLOR_BOMB:
 			# 清最多色
 			return _estimate_rainbow_impact(pos, width, height, obstacle_map, bottom_map, goals)
 	return _count_obstacles_in(cells, obstacle_map, bottom_map, goals)
+
+
+# 紙飛機/螺旋槳會「飛到最高權重目標」再清 1 格 → 盤上只要還有目標障礙,啟動它就等於能清掉 1 個目標。
+# (排除已算進原位十字的格,避免重複計)
+func _best_fly_target_value(
+	exclude: Array, obstacle_map: Dictionary, bottom_map: Dictionary, goals: Dictionary
+) -> float:
+	var has_any := false
+	for p in obstacle_map:
+		if p in exclude:
+			continue
+		has_any = true
+		if _is_goal_tile(obstacle_map[p].get("tile_id", ""), goals):
+			return weight_goal_obstacle
+	for p in bottom_map:
+		if p in exclude:
+			continue
+		has_any = true
+		if _is_goal_tile(bottom_map[p].get("tile_id", ""), goals):
+			return weight_goal_obstacle
+	return weight_obstacle if has_any else 0.0
 
 
 func _evaluate_rainbow_element(

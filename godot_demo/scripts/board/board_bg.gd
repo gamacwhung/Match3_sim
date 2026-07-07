@@ -176,31 +176,69 @@ func _draw() -> void:
 	var blocked = board.blocked_cells
 	var obs_map = board.get_obstacle_map()
 
-	# 外框 — 用 board_bg 紋理(平鋪在整個盤面範圍 + 邊距)做木紋外圈
-	var border = 12.0
-	var bg_rect = Rect2(offset - Vector2(border, border), Vector2(w * cs + border * 2, h * cs + border * 2))
-	var bg_tex := _board_bg_texture()
-	if bg_tex:
-		draw_texture_rect(bg_tex, bg_rect, true)
-	else:
-		draw_rect(bg_rect, Color(0.42, 0.30, 0.20, 1.0), true)
-	# 內框深色
-	var inner_rect = Rect2(offset, Vector2(w * cs, h * cs))
-	draw_rect(inner_rect, Color(0.05, 0.04, 0.10, 1.0), true)
-	draw_rect(bg_rect, Color(0.4, 0.3, 0.6, 0.6), false, 3.0)
-
-	# 棋盤底色:所有盤面格子都畫（void 除外）
-	# void = 在 blocked 裡但不在 obstacle_map/bottom_obstacle_map 裡的格子
+	# void = 在 blocked 裡但沒有任何障礙(obstacle/bottom)的格子 → 純空洞
 	var bottom_map: Dictionary = board.bottom_obstacle_map
+	var is_void := func(px: int, py: int) -> bool:
+		if px < 0 or py < 0 or px >= w or py >= h:
+			return true
+		var pv := Vector2i(px, py)
+		return pv in blocked and not obs_map.has(pv) and not bottom_map.has(pv)
+
+	# 盤面有沒有 void(異型盤面)? 有 → void 露出場景背景、沿輪廓描框;沒有 → 維持原本矩形木框。
+	var has_void := false
 	for x in w:
 		for y in h:
-			var pos_v = Vector2i(x, y)
-			if pos_v in blocked and not obs_map.has(pos_v) and not bottom_map.has(pos_v):
-				continue
-			var cell_pos = offset + Vector2(x * cs, y * cs)
-			var cell_rect = Rect2(cell_pos + Vector2(2, 2), Vector2(cs - 4, cs - 4))
-			var shade = Color(0.18, 0.14, 0.28) if (x + y) % 2 == 0 else Color(0.22, 0.17, 0.32)
-			draw_rect(cell_rect, shade, true)
+			if is_void.call(x, y):
+				has_void = true
+				break
+		if has_void:
+			break
+
+	if not has_void:
+		# ── 矩形盤面:原本的 board_bg 木框 + 深色內底(維持不變) ──
+		var border = 12.0
+		var bg_rect = Rect2(offset - Vector2(border, border), Vector2(w * cs + border * 2, h * cs + border * 2))
+		var bg_tex := _board_bg_texture()
+		if bg_tex:
+			draw_texture_rect(bg_tex, bg_rect, true)
+		else:
+			draw_rect(bg_rect, Color(0.42, 0.30, 0.20, 1.0), true)
+		draw_rect(Rect2(offset, Vector2(w * cs, h * cs)), Color(0.05, 0.04, 0.10, 1.0), true)
+		draw_rect(bg_rect, Color(0.4, 0.3, 0.6, 0.6), false, 3.0)
+		for x in w:
+			for y in h:
+				if is_void.call(x, y):
+					continue
+				var cell_pos = offset + Vector2(x * cs, y * cs)
+				var cell_rect = Rect2(cell_pos + Vector2(2, 2), Vector2(cs - 4, cs - 4))
+				var shade = Color(0.18, 0.14, 0.28) if (x + y) % 2 == 0 else Color(0.22, 0.17, 0.32)
+				draw_rect(cell_rect, shade, true)
+	else:
+		# ── 異型盤面:只畫實際遊玩格;void 留空露出全螢幕背景;沿輪廓描出遊玩區外框 ──
+		for x in w:
+			for y in h:
+				if is_void.call(x, y):
+					continue
+				var cell_pos = offset + Vector2(x * cs, y * cs)
+				draw_rect(Rect2(cell_pos, Vector2(cs, cs)), Color(0.05, 0.04, 0.10, 0.98), true)
+				var shade = Color(0.18, 0.14, 0.28) if (x + y) % 2 == 0 else Color(0.22, 0.17, 0.32)
+				draw_rect(Rect2(cell_pos + Vector2(2, 2), Vector2(cs - 4, cs - 4)), shade, true)
+		# 沿「遊玩格 ↔ void/外界」邊界描框 → 框住實際遊玩區(自動貼合異型輪廓)
+		var edge_w := 4.0
+		var frame_fill := Color(0.34, 0.25, 0.5, 1.0)
+		for x in w:
+			for y in h:
+				if is_void.call(x, y):
+					continue
+				var cp = offset + Vector2(x * cs, y * cs)
+				if is_void.call(x, y - 1):
+					draw_rect(Rect2(cp + Vector2(-edge_w, -edge_w), Vector2(cs + edge_w * 2, edge_w)), frame_fill, true)
+				if is_void.call(x, y + 1):
+					draw_rect(Rect2(cp + Vector2(-edge_w, cs), Vector2(cs + edge_w * 2, edge_w)), frame_fill, true)
+				if is_void.call(x - 1, y):
+					draw_rect(Rect2(cp + Vector2(-edge_w, -edge_w), Vector2(edge_w, cs + edge_w * 2)), frame_fill, true)
+				if is_void.call(x + 1, y):
+					draw_rect(Rect2(cp + Vector2(cs, -edge_w), Vector2(edge_w, cs + edge_w * 2)), frame_fill, true)
 
 	# 下層水窪 — 畫在底色上，不降低透明度（只是疊在糖果下面的圖層）
 	for pos in bottom_map:

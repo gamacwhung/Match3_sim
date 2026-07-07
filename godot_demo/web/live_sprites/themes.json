@@ -1,8 +1,24 @@
 [
   {
-    "name": "",
-    "label": "糖果 Candy",
+    "name": "fruit_cartoon",
+    "label": "水果 Fruit",
     "default": true
+  },
+  {
+    "name": "cat",
+    "label": "貓咪 Cat"
+  },
+  {
+    "name": "ocean2",
+    "label": "海洋2 Ocean"
+  },
+  {
+    "name": "steampunk2",
+    "label": "蒸氣龐克2 Steampunk"
+  },
+  {
+    "name": "",
+    "label": "糖果 Candy"
   },
   {
     "name": "candy_pixar_cyberpunk_yuan",

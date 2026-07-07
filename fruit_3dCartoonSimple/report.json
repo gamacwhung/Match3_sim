@@ -1,0 +1,3526 @@
+{
+  "style": "3D Disney Cartoon Style, Simple design, Clean illustrations, Intuitive icon, highly recognizable",
+  "generation_mode": "theme_swap",
+  "theme": "水果",
+  "reference_run": null,
+  "image_model": "gemini-3.1-flash-image",
+  "critic_model": "gemini-2.5-flash",
+  "results": {
+    "Red": {
+      "name": "Red",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 37.7,
+          "postprocess_warnings": [
+            "background removed via green chromakey (62% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "issues": [],
+            "fix_instructions": "The asset is excellent and meets all requirements.",
+            "verdict": "pass"
+          },
+          "score": 32,
+          "image_file": "history/Red/iter01_s32_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "issues": [],
+        "fix_instructions": "The asset is excellent and meets all requirements.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Blu": {
+      "name": "Blu",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 21.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (62% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/Blu/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Grn": {
+      "name": "Grn",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 22.1,
+          "postprocess_warnings": [
+            "background removed via magenta chromakey (57% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/Grn/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Pur": {
+      "name": "Pur",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 19.9,
+          "postprocess_warnings": [
+            "background removed via green chromakey (64% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/Pur/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Yel": {
+      "name": "Yel",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 20.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (65% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/Yel/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Soda0d": {
+      "name": "Soda0d",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "postprocess",
+          "ok": false,
+          "issues": [
+            "Object too small (bbox coverage 27% < 30%). Make it larger and fill the frame."
+          ],
+          "raw_file": "history/Soda0d/iter01_rejected_raw.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 19.7,
+          "postprocess_warnings": [
+            "background removed via green chromakey (52% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "None. The asset is excellent and perfectly fulfills all style and gameplay requirements.",
+            "verdict": "pass"
+          },
+          "score": 34,
+          "image_file": "history/Soda0d/iter02_s34_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "None. The asset is excellent and perfectly fulfills all style and gameplay requirements.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "LtBl": {
+      "name": "LtBl",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 17.6,
+          "postprocess_warnings": [
+            "background removed via green chromakey (56% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "None needed. The asset perfectly captures the requested theme-swapped visual style and gameplay function.",
+            "verdict": "pass"
+          },
+          "score": 44,
+          "image_file": "history/LtBl/iter01_s44_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "None needed. The asset perfectly captures the requested theme-swapped visual style and gameplay function.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Soda90": {
+      "name": "Soda90",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "postprocess",
+          "ok": false,
+          "issues": [
+            "Object too small (bbox coverage 25% < 30%). Make it larger and fill the frame."
+          ],
+          "raw_file": "history/Soda90/iter01_rejected_raw.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 18.3,
+          "postprocess_warnings": [
+            "background removed via green chromakey (68% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 44,
+          "image_file": "history/Soda90/iter02_s44_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "TNT": {
+      "name": "TNT",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 19.0,
+          "postprocess_warnings": [
+            "background removed via green chromakey (36% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 6,
+            "cohesion_score": 6,
+            "function_score": 5,
+            "reasonableness_score": 7,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The quilted, berry-like design looks more like a soft cushion or fruit than a dangerous explosive device."
+            ],
+            "fix_instructions": "Redesign the object to have a clearer bomb or grenade silhouette with a simple, non-functional fuse to improve explosive readability.",
+            "verdict": "retry"
+          },
+          "score": 28,
+          "image_file": "history/TNT/iter01_s28_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 18.5,
+          "postprocess_warnings": [
+            "background removed via green chromakey (54% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 8,
+            "cohesion_score": 8,
+            "function_score": 8,
+            "reasonableness_score": 8,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "The asset is well-executed and matches the design requirements perfectly.",
+            "verdict": "pass"
+          },
+          "score": 36,
+          "image_file": "history/TNT/iter02_s36_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 8,
+        "cohesion_score": 8,
+        "function_score": 8,
+        "reasonableness_score": 8,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "The asset is well-executed and matches the design requirements perfectly.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "TrPr": {
+      "name": "TrPr",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 17.2,
+          "postprocess_warnings": [
+            "background removed via green chromakey (69% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 9,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 43,
+          "image_file": "history/TrPr/iter01_s43_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 9,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Barrel": {
+      "name": "Barrel",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 23.9,
+          "postprocess_warnings": [
+            "background removed via green chromakey (56% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 7,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "Asset has a thin, dark outline/stroke around its perimeter, violating a hard rule.",
+              "The object strongly resembles a bowling ball due to its spherical shape and finger holes, deviating from the 'cylindrical barrel shape' requested in the creative brief for a 'Barrel' asset."
+            ],
+            "fix_instructions": "Remove the thin dark outline around the object, and redesign it to be a cylindrical barrel shape that still conveys a pushable/movable feel, avoiding elements that make it look like a bowling ball.",
+            "verdict": "retry"
+          },
+          "score": 29,
+          "image_file": "history/Barrel/iter01_s29_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 19.4,
+          "postprocess_warnings": [
+            "background removed via green chromakey (52% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 31,
+          "image_file": "history/Barrel/iter02_s31_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "TrafficCone_lv1": {
+      "name": "TrafficCone_lv1",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 32.3,
+          "postprocess_warnings": [
+            "background removed via green chromakey (68% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 7,
+            "function_score": 2,
+            "reasonableness_score": 2,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The asset name \"TrafficCone_lv1\", gameplay role \"Traffic cone obstacle\", and visual constraint \"Clear cone silhouette\" all explicitly require the object to be a traffic cone, but the generated image is a pineapple.",
+              "The 'Within-family cohesion' rule stating 'TrafficCone lv1/lv2 share one cone design with different wear' is violated as the object generated is not a cone."
+            ],
+            "fix_instructions": "Generate a stylized traffic cone, not a pineapple. Ensure it has a clear cone silhouette, appears pushable/movable, and shows appropriate damage for an lv1 obstacle, maintaining the specified vibrant art style and cohesion with the family anchor.",
+            "verdict": "retry"
+          },
+          "score": 24,
+          "image_file": "history/TrafficCone_lv1/iter01_s24_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 24.2,
+          "postprocess_warnings": [
+            "background removed via green chromakey (63% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "No specific fixes are needed as the asset meets all specified requirements.",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/TrafficCone_lv1/iter02_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "No specific fixes are needed as the asset meets all specified requirements.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "TrafficCone_lv2": {
+      "name": "TrafficCone_lv2",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (65% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 5,
+            "function_score": 1,
+            "reasonableness_score": 7,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The generated asset is a pineapple, not a 'Traffic cone obstacle' as specified in the gameplay role and asset name ('TrafficCone_lv2').",
+              "The asset does not feature a 'Clear cone silhouette' as explicitly required.",
+              "The material language (smooth, glossy fruit texture) differs significantly from the textured wood material of the family anchor barrel, failing to align with the specified 'material' aspect of cohesion."
+            ],
+            "fix_instructions": "Generate a stylized, movable traffic cone asset with a clear cone silhouette and a material that aligns with the textured wood of the family anchor, while maintaining the overall vibrant, stylized 3D rendering style.",
+            "verdict": "retry"
+          },
+          "score": 26,
+          "image_file": "history/TrafficCone_lv2/iter01_s26_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 22.0,
+          "postprocess_warnings": [
+            "background removed via green chromakey (66% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "None needed, the asset successfully meets all requirements.",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/TrafficCone_lv2/iter02_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "None needed, the asset successfully meets all requirements.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "BeverageChiller_closed": {
+      "name": "BeverageChiller_closed",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 20.5,
+          "postprocess_warnings": [
+            "background removed via green chromakey (46% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 31,
+          "image_file": "history/BeverageChiller_closed/iter01_s31_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "BeverageChiller_body": {
+      "name": "BeverageChiller_body",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 28.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (46% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 10,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 41,
+          "image_file": "history/BeverageChiller_body/iter01_s41_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 10,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "BeverageChiller_bottle_blue": {
+      "name": "BeverageChiller_bottle_blue",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 21.4,
+          "postprocess_warnings": [
+            "background removed via green chromakey (72% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/BeverageChiller_bottle_blue/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "BeverageChiller_bottle_green": {
+      "name": "BeverageChiller_bottle_green",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 25.6,
+          "postprocess_warnings": [
+            "background removed via magenta chromakey (80% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 9,
+            "function_score": 10,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/BeverageChiller_bottle_green/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 9,
+        "function_score": 10,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "BeverageChiller_bottle_red": {
+      "name": "BeverageChiller_bottle_red",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 31.4,
+          "postprocess_warnings": [
+            "background removed via green chromakey (76% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 6,
+            "function_score": 10,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The internal detailing of the liquid with visible strawberry shapes deviates from the family anchor's rendering style, which depicts bottles with a much simpler, uniform, and abstract single-color liquid."
+            ],
+            "fix_instructions": "Simplify the liquid inside the bottle, removing visible fruit details like strawberries, to match the more abstract and single-color liquid representation seen in the family anchor bottles.",
+            "verdict": "retry"
+          },
+          "score": 38,
+          "image_file": "history/BeverageChiller_bottle_red/iter01_s38_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 23.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (75% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 44,
+          "image_file": "history/BeverageChiller_bottle_red/iter02_s44_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "BeverageChiller_bottle_yellow": {
+      "name": "BeverageChiller_bottle_yellow",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 22.9,
+          "postprocess_warnings": [
+            "background removed via green chromakey (69% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/BeverageChiller_bottle_yellow/iter01_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "BeverageChiller_door": {
+      "name": "BeverageChiller_door",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 33.2,
+          "postprocess_warnings": [
+            "background removed via green chromakey (56% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 6,
+            "cohesion_score": 5,
+            "function_score": 7,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The color of the frame is slightly desaturated and has a greenish tint compared to the warmer, richer brown/orange of the family anchor.",
+              "The contents behind the glass door are too blurry and desaturated, failing to convey a vibrant, appealing finish or a warm, highly saturated color palette as described in the target art style.",
+              "The indistinct and muted nature of the contents behind the door does not match the clear, distinct, and vibrantly colored items visible in the family anchor, hindering family cohesion and the 'beverage' theme recognition."
+            ],
+            "fix_instructions": "Make the frame color a warmer, richer brown/orange to match the anchor, and ensure the items visible behind the glass are distinct, highly saturated, and vibrant beverage-related elements, similar in clarity and appeal to the bottles in the anchor image.",
+            "verdict": "retry"
+          },
+          "score": 31,
+          "image_file": "history/BeverageChiller_door/iter01_s31_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (46% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 44,
+          "image_file": "history/BeverageChiller_door/iter02_s44_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "BeverageChiller_lv1": {
+      "name": "BeverageChiller_lv1",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 33.6,
+          "postprocess_warnings": [
+            "background removed via green chromakey (46% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/BeverageChiller_lv1/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "BeverageChiller_lv2": {
+      "name": "BeverageChiller_lv2",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 32.2,
+          "postprocess_warnings": [
+            "background removed via green chromakey (46% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "The asset successfully meets all requirements and needs no further adjustments.",
+            "verdict": "pass"
+          },
+          "score": 44,
+          "image_file": "history/BeverageChiller_lv2/iter01_s44_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "The asset successfully meets all requirements and needs no further adjustments.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "BeverageChiller_lv3": {
+      "name": "BeverageChiller_lv3",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 31.0,
+          "postprocess_warnings": [
+            "background removed via green chromakey (43% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 10,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "No fixes needed; the asset is excellent.",
+            "verdict": "pass"
+          },
+          "score": 41,
+          "image_file": "history/BeverageChiller_lv3/iter01_s41_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 10,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "No fixes needed; the asset is excellent.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "BeverageChiller_lv4": {
+      "name": "BeverageChiller_lv4",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 28.2,
+          "postprocess_warnings": [
+            "background removed via green chromakey (46% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "No fixes are needed; the asset meets all requirements.",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/BeverageChiller_lv4/iter01_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "No fixes are needed; the asset meets all requirements.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "BeverageChiller_lv5": {
+      "name": "BeverageChiller_lv5",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 29.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (46% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/BeverageChiller_lv5/iter01_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Crt4": {
+      "name": "Crt4",
+      "status": "pass",
+      "iters": 3,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 32.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (51% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "function_score": 8,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The asset's name 'Crt4' and its description as 'remaining HP 4/4, intact, undamaged' contradict the series consistency rule stating that Crt1-Crt4 represent progressive damage stages, where Crt4 should typically be the most damaged stage. This violates the 'damage_stage_progression' preservation requirement."
+            ],
+            "fix_instructions": "Ensure the damage level of the obstacle aligns with its assigned numerical designation within the Crt1-Crt4 series; if this asset is Crt4, it must depict the most significant damage, not be intact and undamaged.",
+            "verdict": "retry"
+          },
+          "score": 32,
+          "image_file": "history/Crt4/iter01_s32_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 42.4,
+          "postprocess_warnings": [
+            "background removed via green chromakey (57% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 0,
+            "function_score": 0,
+            "reasonableness_score": 0,
+            "background_ok": false,
+            "issues": [
+              "critic returned non-JSON output"
+            ],
+            "fix_instructions": "",
+            "verdict": "retry",
+            "cutout_ok": false
+          },
+          "score": 0,
+          "image_file": "history/Crt4/iter02_s0_critiqued.png"
+        },
+        {
+          "iter": 3,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 20.6,
+          "postprocess_warnings": [
+            "background removed via green chromakey (48% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 34,
+          "image_file": "history/Crt4/iter03_s34_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 3
+    },
+    "Crt1": {
+      "name": "Crt1",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 34.2,
+          "postprocess_warnings": [
+            "background removed via green chromakey (45% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "N/A",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/Crt1/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "N/A",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Crt2": {
+      "name": "Crt2",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.6,
+          "postprocess_warnings": [
+            "background removed via green chromakey (44% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 7,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The wood material in the AI-generated asset, particularly its smoothness and texture, is less refined and 'clean' compared to the highly polished and smooth wood depicted in the family anchor. The anchor's wood exhibits minimal visible grain and a very uniform finish, whereas the damaged crate's wood, even on unbroken sections, shows more textural variation and a less perfectly smooth surface. This creates a minor inconsistency in the shared material language."
+            ],
+            "fix_instructions": "Ensure the wood material across all damage stages (Crt1-Crt4) has the same extremely clean, smooth, and almost polished finish as the family anchor, with minimal visible grain or texture on the plank surfaces.",
+            "verdict": "retry"
+          },
+          "score": 40,
+          "image_file": "history/Crt2/iter01_s40_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 22.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (49% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 10,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "No specific fixes needed; the asset is well-executed.",
+            "verdict": "pass"
+          },
+          "score": 41,
+          "image_file": "history/Crt2/iter02_s41_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 10,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "No specific fixes needed; the asset is well-executed.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "Crt3": {
+      "name": "Crt3",
+      "status": "pass",
+      "iters": 3,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.0,
+          "postprocess_warnings": [
+            "background removed via green chromakey (55% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 4,
+            "function_score": 7,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The crate's design (horizontal planks) is different from the family cohesion anchor image (vertical slats), violating the 'identical design' rule for Crt1-Crt4.",
+              "The damage shown, a prominent crack, appears too significant for an obstacle with 3/4 remaining HP; it looks more like 2/4 HP damage."
+            ],
+            "fix_instructions": "Redesign the crate to match the vertical slat structure of the family cohesion anchor image, and reduce the damage to be very minor, suitable for a 3/4 HP stage.",
+            "verdict": "retry"
+          },
+          "score": 33,
+          "image_file": "history/Crt3/iter01_s33_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 26.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (48% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 5,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The asset is named Crt3 (Static HP Obstacle: remaining HP 3/4, slightly damaged) but shows no signs of damage, appearing identical to Crt1 (full HP). This fails the 'damage_stage_progression' and 'slightly damaged' requirements for Crt3."
+            ],
+            "fix_instructions": "Introduce subtle damage to the crate and/or fruits, such as minor cracks, a few missing planks, or slightly bruised fruits, consistent with a 'slightly damaged' stage (Crt3) while maintaining the original design and material.",
+            "verdict": "retry"
+          },
+          "score": 38,
+          "image_file": "history/Crt3/iter02_s38_critiqued.png"
+        },
+        {
+          "iter": 3,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 23.3,
+          "postprocess_warnings": [
+            "background removed via green chromakey (48% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 9,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 43,
+          "image_file": "history/Crt3/iter03_s43_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 9,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 3
+    },
+    "Mud": {
+      "name": "Mud",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 19.9,
+          "postprocess_warnings": [
+            "background removed via green chromakey (43% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 31,
+          "image_file": "history/Mud/iter01_s31_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Pool_lv5": {
+      "name": "Pool_lv5",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 26.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (59% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 5,
+            "function_score": 8,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The asset is a wooden bowl/basin, but the creative brief specifies that Pool_lv1-lv5 must be the SAME stone pool with identical masonry. The material contradicts the 'within-family cohesion' constraint."
+            ],
+            "fix_instructions": "Rerender the pool obstacle as a stone pool with visible masonry, maintaining the current vibrant, stylized 3D rendering style and a full liquid level.",
+            "verdict": "retry"
+          },
+          "score": 26,
+          "image_file": "history/Pool_lv5/iter01_s26_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 22.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (42% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 31,
+          "image_file": "history/Pool_lv5/iter02_s31_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "Pool_lv1": {
+      "name": "Pool_lv1",
+      "status": "pass",
+      "iters": 3,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 31.3,
+          "postprocess_warnings": [
+            "background removed via green chromakey (46% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 8,
+            "cohesion_score": 4,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The container's material and construction style do not match the smooth, uniform masonry/brick appearance of the family anchor. It appears as distressed wood or very rough, cracked stone instead of clean, uniform masonry. The weathering/material language is not consistent with the family."
+            ],
+            "fix_instructions": "Rework the container walls to match the smooth, uniform masonry/brick material and cleaner overall design of the family anchor, avoiding the distressed wood or heavily cracked stone appearance.",
+            "verdict": "retry"
+          },
+          "score": 34,
+          "image_file": "history/Pool_lv1/iter01_s34_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 40.3,
+          "postprocess_warnings": [
+            "background removed via green chromakey (44% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 7,
+            "function_score": 3,
+            "reasonableness_score": 6,
+            "background_ok": true,
+            "cutout_ok": false,
+            "issues": [
+              "The masonry structure shows damage (broken bricks in the top right), which contradicts the creative brief stating \"Pool_lv1-lv5 are the SAME stone pool at progressive water depletion — identical masonry, only water level changes.\" This also makes 'lv1' inconsistent with being the least damaged stage.",
+              "The water level is high (appears full), which does not indicate 'depletion' for an HP 1/5 remaining state, nor 'progressive water depletion' if this is the first stage.",
+              "There is a transparent hole (showing dark green) within the object where the wall is broken, failing the cutout integrity requirement."
+            ],
+            "fix_instructions": "Create a pool obstacle for stage 1 (Pool_lv1) with intact masonry, matching the material and rendering style of the family anchor, and ensure there are no transparent holes within the object itself. The water level should be consistent with a low depletion stage if 'lv1' is the first stage.",
+            "verdict": "retry"
+          },
+          "score": 27,
+          "image_file": "history/Pool_lv1/iter02_s27_critiqued.png"
+        },
+        {
+          "iter": 3,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 34.3,
+          "postprocess_warnings": [
+            "background removed via green chromakey (42% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 10,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 41,
+          "image_file": "history/Pool_lv1/iter03_s41_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 10,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 3
+    },
+    "Pool_lv2": {
+      "name": "Pool_lv2",
+      "status": "pass",
+      "iters": 3,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 31.7,
+          "postprocess_warnings": [
+            "background removed via green chromakey (42% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 6,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The material language and weathering of the stone structure do not perfectly align with the established family anchor. The stone in the new asset appears smoother, darker, and more like distinct carved wood blocks with very clean cracks, whereas the anchor image shows a more rustic, lighter, and integrated stone/brick material with softer weathering."
+            ],
+            "fix_instructions": "Adjust the stone masonry to have a more rustic, slightly rougher texture and a lighter, less distinct brick/block structure with more integrated weathering, similar to the family anchor image.",
+            "verdict": "retry"
+          },
+          "score": 37,
+          "image_file": "history/Pool_lv2/iter01_s37_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 31.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (42% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 1,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The asset depicts a wooden structure instead of a stone structure, which contradicts the family cohesion requirement for an \"identical masonry\" and \"SAME stone pool\" at progressive depletion stages, and does not align with the material of the family anchor."
+            ],
+            "fix_instructions": "The asset must depict a stone pool with masonry, matching the material and rendering style of the family anchor, not a wooden structure.",
+            "verdict": "retry"
+          },
+          "score": 32,
+          "image_file": "history/Pool_lv2/iter02_s32_critiqued.png"
+        },
+        {
+          "iter": 3,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 30.6,
+          "postprocess_warnings": [
+            "background removed via green chromakey (42% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 10,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 41,
+          "image_file": "history/Pool_lv2/iter03_s41_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 10,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 3
+    },
+    "Pool_lv3": {
+      "name": "Pool_lv3",
+      "status": "pass",
+      "iters": 3,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 31.2,
+          "postprocess_warnings": [
+            "background removed via green chromakey (42% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 6,
+            "cohesion_score": 4,
+            "function_score": 6,
+            "reasonableness_score": 7,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The stone material and weathering are significantly different from the family anchor, which mandates 'identical masonry' and 'shared weathering/material language' within the obstacle family. The anchor features a much smoother, cleaner stone with minimal texture or cracking, while the new version is heavily cracked and textured.",
+              "The asset contains lines and very dark creases within the stone texture that function as outlines/strokes, particularly for the cracks and brick separations. This violates the hard rule against 'outline, stroke, ink border, or contour line' and the style guide's directive to define all forms exclusively through sophisticated color transitions and smooth shading.",
+              "The amount of liquid does not clearly represent 3/5 (60%) remaining HP for a 'Pool_lv3' obstacle; it appears to contain significantly less liquid than expected for this stage of depletion."
+            ],
+            "fix_instructions": "Redesign the stone pool to match the cleaner, smoother, and less weathered masonry style of the family anchor, ensuring forms are defined solely by smooth shading without any dark lines or visible outlines. Adjust the liquid level to accurately represent 3/5 of a full pool's volume.",
+            "verdict": "retry"
+          },
+          "score": 27,
+          "image_file": "history/Pool_lv3/iter01_s27_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 34.3,
+          "postprocess_warnings": [
+            "background removed via green chromakey (42% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 3,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The pool's material is wood in the new version, but the creative brief and family anchor explicitly require it to be a \"stone pool\" with \"identical masonry\" for family cohesion.",
+              "The ornament language (wood planks with a carved apple symbol) does not match the distinct stone brick masonry of the family anchor."
+            ],
+            "fix_instructions": "The pool must be made of stone bricks, matching the material and masonry style of the family anchor, instead of wood. Remove the apple carving.",
+            "verdict": "retry"
+          },
+          "score": 34,
+          "image_file": "history/Pool_lv3/iter02_s34_critiqued.png"
+        },
+        {
+          "iter": 3,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.9,
+          "postprocess_warnings": [
+            "background removed via green chromakey (42% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "No fixes needed, the asset meets all requirements.",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/Pool_lv3/iter03_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "No fixes needed, the asset meets all requirements.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 3
+    },
+    "Pool_lv4": {
+      "name": "Pool_lv4",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.3,
+          "postprocess_warnings": [
+            "background removed via green chromakey (59% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 2,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The material of the pool is wood, but the family cohesion constraints explicitly state 'Pool_lv1-lv5 are the SAME stone pool at progressive water depletion — identical masonry, only water level changes' and 'Align with its rendering style and material' with the family anchor image showing stone bricks. This is a critical material mismatch."
+            ],
+            "fix_instructions": "Change the material of the pool structure from wood to stone or masonry, matching the material and styling of the provided family anchor image.",
+            "verdict": "retry"
+          },
+          "score": 33,
+          "image_file": "history/Pool_lv4/iter01_s33_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.6,
+          "postprocess_warnings": [
+            "background removed via green chromakey (42% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/Pool_lv4/iter02_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "Postmark_01": {
+      "name": "Postmark_01",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 23.9,
+          "postprocess_warnings": [
+            "background removed via green chromakey (63% of pixels), including 12% interior islands"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "function_score": 8,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 30,
+          "image_file": "history/Postmark_01/iter01_s30_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "function_score": 8,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Postmark_02": {
+      "name": "Postmark_02",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 26.6,
+          "postprocess_warnings": [
+            "background removed via green chromakey (66% of pixels), including 14% interior islands"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "No changes needed; the asset adheres perfectly to all guidelines.",
+            "verdict": "pass"
+          },
+          "score": 44,
+          "image_file": "history/Postmark_02/iter01_s44_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "No changes needed; the asset adheres perfectly to all guidelines.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Postmark_bundle": {
+      "name": "Postmark_bundle",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.0,
+          "postprocess_warnings": [
+            "background removed via green chromakey (58% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/Postmark_bundle/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Postmark_card": {
+      "name": "Postmark_card",
+      "status": "pass",
+      "iters": 3,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 29.4,
+          "postprocess_warnings": [
+            "background removed via green chromakey (38% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 4,
+            "cohesion_score": 3,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The asset does not align with the target art style's requirement for a vibrant, high-saturation color palette and a glossy, juicy material finish. The dominant card element is muted and matte, contrasting sharply with the 'warm and inviting' and 'slightly glossy' directive.",
+              "The material language and vibrancy of the asset deviate significantly from the family anchor. The anchor displays a highly saturated, glossy, and 'juicy' material, whereas the new asset features a desaturated, matte, and dry paper texture for the main postcard body."
+            ],
+            "fix_instructions": "Adjust the color palette to be more vibrant and highly saturated, ensuring the card and its elements contribute to a warm and inviting aesthetic. Give all materials, particularly the card itself, a smoother and slightly glossy finish to match the 'juicy' and appealing quality of the family anchor.",
+            "verdict": "retry"
+          },
+          "score": 29,
+          "image_file": "history/Postmark_card/iter01_s29_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 28.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (38% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 4,
+            "cohesion_score": 3,
+            "function_score": 4,
+            "reasonableness_score": 8,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The asset has a prominent dark outline/stroke around the lemon and its leaves, which violates the hard rule against any outlines, strokes, or ink borders.",
+              "The asset does not clearly represent a 'Postcard' as the primary goal item; it appears to be a decorative card with a lemon on it, rather than the postcard itself.",
+              "The rendering style, particularly the use of outlines, deviates significantly from the 'no outline' rule and the clean, sculpted aesthetic of the family anchor image."
+            ],
+            "fix_instructions": "Remove all outlines, strokes, and ink borders from the lemon and its leaves, defining all shapes and forms exclusively through sophisticated color transitions and smooth shading. The primary object must clearly read as a 'Postcard' (the object that receives the stamp), with a visual language aligning with the postal/stamp theme and the clean, outline-free rendering style of the family anchor.",
+            "verdict": "retry"
+          },
+          "score": 23,
+          "image_file": "history/Postmark_card/iter02_s23_critiqued.png"
+        },
+        {
+          "iter": 3,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 29.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (31% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 8,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "No fixes needed.",
+            "verdict": "pass"
+          },
+          "score": 39,
+          "image_file": "history/Postmark_card/iter03_s39_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 8,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "No fixes needed.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 3
+    },
+    "Postmark_goal": {
+      "name": "Postmark_goal",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 29.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (60% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 9,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 43,
+          "image_file": "history/Postmark_goal/iter01_s43_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 9,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Stamp": {
+      "name": "Stamp",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 29.6,
+          "postprocess_warnings": [
+            "background removed via green chromakey (52% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 8,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "Text 'GOAL MACHINE' is present on the asset, violating the 'No text, letters, or watermarks of any kind' constraint.",
+              "The text 'GOAL MACHINE' on the asset has a visible outline/stroke, which violates the 'No outline, stroke, or ink border' hard rule."
+            ],
+            "fix_instructions": "Remove all text and lettering from the asset, specifically 'GOAL MACHINE', and ensure no outlines or strokes are present on any part of the object.",
+            "verdict": "retry"
+          },
+          "score": 39,
+          "image_file": "history/Stamp/iter01_s39_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 28.7,
+          "postprocess_warnings": [
+            "background removed via green chromakey (63% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "No fixes needed.",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/Stamp/iter02_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "No fixes needed.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "Puddle_lv2": {
+      "name": "Puddle_lv2",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 25.6,
+          "postprocess_warnings": [
+            "background removed via green chromakey (66% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "function_score": 5,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The asset is not sufficiently semi-transparent; its main body appears largely opaque.",
+              "The puddle's visual prominence is too high due to its opacity and vibrancy, which could cause it to steal visual focus from elements placed on top, directly contradicting the 'low visual priority' and 'must not steal visual focus' requirements."
+            ],
+            "fix_instructions": "Increase the overall transparency of the puddle significantly so that it clearly conveys a \"semi-transparent feel,\" ensuring it remains a low visual priority and does not distract from game elements placed above it.",
+            "verdict": "retry"
+          },
+          "score": 27,
+          "image_file": "history/Puddle_lv2/iter01_s27_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 22.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (63% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 34,
+          "image_file": "history/Puddle_lv2/iter02_s34_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "Puddle_lv1": {
+      "name": "Puddle_lv1",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 29.4,
+          "postprocess_warnings": [
+            "background removed via green chromakey (63% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 6,
+            "cohesion_score": 5,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The rendering style is too soft and lacks the vibrant, stylized 3D feel and the \"juicy, appealing finish\" of the target art style. It appears more like a flat 2D gradient than a volumetric 3D render.",
+              "The material rendering significantly deviates from the family anchor's rich, glossy, and viscous texture. While the puddle is meant to be thin and semi-transparent, its overall material quality, lighting, and internal reflections are less defined and vibrant than the anchor, failing to align with the established rendering style."
+            ],
+            "fix_instructions": "Increase vibrancy and saturation, enhance the stylized 3D rendering with more defined soft volumetric shading and subtle rim highlights to achieve a juicier, more appealing finish, aligning closer with the family anchor's material richness while maintaining a flat, semi-transparent puddle appearance.",
+            "verdict": "retry"
+          },
+          "score": 33,
+          "image_file": "history/Puddle_lv1/iter01_s33_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 22.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (63% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/Puddle_lv1/iter02_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "Rope_lv2": {
+      "name": "Rope_lv2",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 33.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (58% of pixels), including 22% interior islands"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 31,
+          "image_file": "history/Rope_lv2/iter01_s31_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "Rope_lv1": {
+      "name": "Rope_lv1",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 25.0,
+          "postprocess_warnings": [
+            "background removed via green chromakey (55% of pixels), including 21% interior islands"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/Rope_lv1/iter01_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "SalmonCan": {
+      "name": "SalmonCan",
+      "status": "pass",
+      "iters": 3,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 26.7,
+          "postprocess_warnings": [
+            "background removed via green chromakey (59% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "function_score": 7,
+            "reasonableness_score": 7,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The asset is named \"SalmonCan\" but its label depicts blueberries and peaches, which is inconsistent with the intended 'salmon' theme."
+            ],
+            "fix_instructions": "Replace the fruit label with a design that reflects salmon, consistent with the asset name 'SalmonCan'.",
+            "verdict": "retry"
+          },
+          "score": 28,
+          "image_file": "history/SalmonCan/iter01_s28_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 21.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (66% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 7,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The salmon illustration on the can has a visible eye, which violates the hard rule against facial features or anthropomorphic traits.",
+              "The salmon illustration has distinct outlines/contour lines defining its fins, tail, and body segments, which violates the hard rule against any outlines, strokes, ink borders, or contour lines."
+            ],
+            "fix_instructions": "Remove the eye from the salmon illustration and ensure all elements of the salmon, including fins and tail, are defined exclusively through sophisticated color transitions and smooth shading, without any outlines, strokes, ink borders, or contour lines.",
+            "verdict": "retry"
+          },
+          "score": 29,
+          "image_file": "history/SalmonCan/iter02_s29_critiqued.png"
+        },
+        {
+          "iter": 3,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 19.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (54% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 31,
+          "image_file": "history/SalmonCan/iter03_s31_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 3
+    },
+    "SalmonCan_body": {
+      "name": "SalmonCan_body",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.2,
+          "postprocess_warnings": [
+            "background removed via green chromakey (55% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/SalmonCan_body/iter01_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "SalmonCan_top1": {
+      "name": "SalmonCan_top1",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 24.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (60% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 41,
+          "image_file": "history/SalmonCan_top1/iter01_s41_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "SalmonCan_top2": {
+      "name": "SalmonCan_top2",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (57% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "No fixes needed.",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/SalmonCan_top2/iter01_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "No fixes needed.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "WaterChiller_closed": {
+      "name": "WaterChiller_closed",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 25.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (49% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": false,
+            "issues": [
+              "A very thin, subtle greenish fringe/halo is present along some parts of the outer edge, indicating an imperfect background cutout."
+            ],
+            "fix_instructions": "Ensure a perfectly clean background cutout with no residual color fringe or halo around the edges of the object.",
+            "verdict": "retry"
+          },
+          "score": 29,
+          "image_file": "history/WaterChiller_closed/iter01_s29_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 20.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (49% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "The asset is well-executed and meets all requirements.",
+            "verdict": "pass"
+          },
+          "score": 31,
+          "image_file": "history/WaterChiller_closed/iter02_s31_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "The asset is well-executed and meets all requirements.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "WaterChiller_door": {
+      "name": "WaterChiller_door",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 29.5,
+          "postprocess_warnings": [
+            "background removed via green chromakey (49% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 7,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The door handle's design and placement do not precisely match the door in the family anchor image. The anchor's door features a more subtle, integrated handle on the right side, while the new door has a prominent, separate handle on the left side, deviating from the 'must match the door design' and 'shared cabinet design language' constraints."
+            ],
+            "fix_instructions": "Adjust the door handle's design and placement to exactly match the subtle, integrated handle on the right side of the door in the family anchor image.",
+            "verdict": "retry"
+          },
+          "score": 38,
+          "image_file": "history/WaterChiller_door/iter01_s38_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (49% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 44,
+          "image_file": "history/WaterChiller_door/iter02_s44_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "WaterChiller_lv1": {
+      "name": "WaterChiller_lv1",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 37.8,
+          "postprocess_warnings": [
+            "background removed via green chromakey (43% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "No fixes needed; the asset is excellent and fulfills all requirements.",
+            "verdict": "pass"
+          },
+          "score": 43,
+          "image_file": "history/WaterChiller_lv1/iter01_s43_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "No fixes needed; the asset is excellent and fulfills all requirements.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "WaterChiller_lv10": {
+      "name": "WaterChiller_lv10",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 30.7,
+          "postprocess_warnings": [
+            "background removed via green chromakey (37% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 10,
+            "function_score": 9,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/WaterChiller_lv10/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 10,
+        "function_score": 9,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "WaterChiller_lv11": {
+      "name": "WaterChiller_lv11",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 40.5,
+          "postprocess_warnings": [
+            "background removed via green chromakey (35% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 0,
+            "function_score": 0,
+            "reasonableness_score": 0,
+            "background_ok": false,
+            "issues": [
+              "critic returned non-JSON output"
+            ],
+            "fix_instructions": "",
+            "verdict": "retry",
+            "cutout_ok": false,
+            "cohesion_score": 0
+          },
+          "score": 0,
+          "image_file": "history/WaterChiller_lv11/iter01_s0_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 29.5,
+          "postprocess_warnings": [
+            "background removed via green chromakey (37% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/WaterChiller_lv11/iter02_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "WaterChiller_lv2": {
+      "name": "WaterChiller_lv2",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 31.9,
+          "postprocess_warnings": [
+            "background removed via green chromakey (41% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/WaterChiller_lv2/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "WaterChiller_lv3": {
+      "name": "WaterChiller_lv3",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 30.9,
+          "postprocess_warnings": [
+            "background removed via green chromakey (39% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 3,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": false,
+            "issues": [
+              "The bottle count does not match the gameplay role specification for WaterChiller_lv3, which requires 'remaining 3/11 bottles'. The asset currently shows 6 bottles.",
+              "The interior of the fridge (behind the shelves) is transparent, showing the checkerboard background. The object should be solid, with the checkerboard appearing only around its outer silhouette."
+            ],
+            "fix_instructions": "Adjust the bottle count to precisely 3 bottles, and ensure the interior of the fridge is opaque and not transparent.",
+            "verdict": "retry"
+          },
+          "score": 34,
+          "image_file": "history/WaterChiller_lv3/iter01_s34_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 38.2,
+          "postprocess_warnings": [
+            "background removed via green chromakey (44% of pixels), including 8% interior islands"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 44,
+          "image_file": "history/WaterChiller_lv3/iter02_s44_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "WaterChiller_lv4": {
+      "name": "WaterChiller_lv4",
+      "status": "pass",
+      "iters": 3,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.7,
+          "postprocess_warnings": [
+            "background removed via green chromakey (42% of pixels), including 3% interior islands"
+          ],
+          "verdict": {
+            "style_score": 8,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 8,
+            "background_ok": true,
+            "cutout_ok": false,
+            "issues": [
+              "The inside of the door has a large transparent, greenish area where the checkerboard background shows through, indicating a hole in the object's material.",
+              "A smaller translucent spot is visible on the top shelf inside the cabinet where the checkerboard background shows through."
+            ],
+            "fix_instructions": "Ensure the entire object, including the inside of the door and shelves, is rendered as solid material without any transparent holes or gaps.",
+            "verdict": "retry"
+          },
+          "score": 36,
+          "image_file": "history/WaterChiller_lv4/iter01_s36_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 32.6,
+          "postprocess_warnings": [
+            "background removed via green chromakey (41% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 4,
+            "cohesion_score": 2,
+            "function_score": 5,
+            "reasonableness_score": 8,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The asset has visible dark outlines/contour lines around several elements, including the metallic parts of the cabinet, the door frame, the bottles, and the fruit inside the bottles. This violates the hard rule \"The asset MUST NOT have any outline, stroke, ink border, or contour line.\"",
+              "The asset deviates significantly from the family anchor's rendering style, material language, and overall design. The anchor is a sleek, modern, vibrant chiller, while the new asset is a heavy, industrial-looking safe with a muted color palette.",
+              "The design strongly resembles a safe rather than a chiller cabinet, contradicting the asset name \"WaterChiller_lv4\" and gameplay role \"Chiller Cabinet\".",
+              "The color palette is more muted and less vibrant than requested by the target art style (\"vibrant, stylized 3D rendering style,\" \"warm and inviting color palette with high saturation\").",
+              "The fruit inside the water bottles appears somewhat flat and less \"juicy\" or appealing compared to the target art style's description and the family anchor's contents."
+            ],
+            "fix_instructions": "Redesign the cabinet to look like a modern, sleek water chiller, matching the vibrant colors, smooth materials, and non-outlined style of the family anchor; strictly remove all outlines and dark contour lines from all elements, ensuring edges are defined solely by color and shading transitions.",
+            "verdict": "retry"
+          },
+          "score": 23,
+          "image_file": "history/WaterChiller_lv4/iter02_s23_critiqued.png"
+        },
+        {
+          "iter": 3,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 28.7,
+          "postprocess_warnings": [
+            "background removed via green chromakey (40% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 44,
+          "image_file": "history/WaterChiller_lv4/iter03_s44_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 3
+    },
+    "WaterChiller_lv5": {
+      "name": "WaterChiller_lv5",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 33.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (44% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The metallic trim color on the cabinet is copper/rose gold, while the family anchor uses silver/chrome for its trim."
+            ],
+            "fix_instructions": "Adjust the metallic trim color of the cabinet to match the silver/chrome aesthetic of the family anchor.",
+            "verdict": "pass"
+          },
+          "score": 42,
+          "image_file": "history/WaterChiller_lv5/iter01_s42_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [
+          "The metallic trim color on the cabinet is copper/rose gold, while the family anchor uses silver/chrome for its trim."
+        ],
+        "fix_instructions": "Adjust the metallic trim color of the cabinet to match the silver/chrome aesthetic of the family anchor.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "WaterChiller_lv6": {
+      "name": "WaterChiller_lv6",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 33.9,
+          "postprocess_warnings": [
+            "background removed via green chromakey (47% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 1,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "Bottle count does not match gameplay role; 12 bottles are shown inside the cabinet instead of the required 6."
+            ],
+            "fix_instructions": "Adjust the number of bottles inside the chiller cabinet to exactly 6, distributed appropriately across the shelves.",
+            "verdict": "retry"
+          },
+          "score": 32,
+          "image_file": "history/WaterChiller_lv6/iter01_s32_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 27.1,
+          "postprocess_warnings": [
+            "background removed via green chromakey (46% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 9,
+            "function_score": 9,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 40,
+          "image_file": "history/WaterChiller_lv6/iter02_s40_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 9,
+        "function_score": 9,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "WaterChiller_lv7": {
+      "name": "WaterChiller_lv7",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 25.2,
+          "postprocess_warnings": [
+            "background removed via green chromakey (40% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass"
+          },
+          "score": 43,
+          "image_file": "history/WaterChiller_lv7/iter01_s43_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "WaterChiller_lv8": {
+      "name": "WaterChiller_lv8",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 31.4,
+          "postprocess_warnings": [
+            "background removed via green chromakey (45% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 8,
+            "function_score": 8,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "The image shows 8 full bottles and 4 empty slots, implying a total capacity of 12 slots. The brief specifies 'remaining 8/11 bottles', indicating a slight mismatch in total capacity."
+            ],
+            "fix_instructions": "Adjust the bottle arrangement or total capacity to visually represent 8 bottles out of a maximum of 11, instead of 12.",
+            "verdict": "pass"
+          },
+          "score": 38,
+          "image_file": "history/WaterChiller_lv8/iter01_s38_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 9,
+        "cohesion_score": 8,
+        "function_score": 8,
+        "reasonableness_score": 9,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [
+          "The image shows 8 full bottles and 4 empty slots, implying a total capacity of 12 slots. The brief specifies 'remaining 8/11 bottles', indicating a slight mismatch in total capacity."
+        ],
+        "fix_instructions": "Adjust the bottle arrangement or total capacity to visually represent 8 bottles out of a maximum of 11, instead of 12.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 1
+    },
+    "WaterChiller_lv9": {
+      "name": "WaterChiller_lv9",
+      "status": "pass",
+      "iters": 2,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 35.9,
+          "postprocess_warnings": [
+            "background removed via green chromakey (39% of pixels)"
+          ],
+          "verdict": {
+            "style_score": 9,
+            "cohesion_score": 10,
+            "function_score": 4,
+            "reasonableness_score": 9,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [
+              "Bottle count mismatch: Image shows 10 bottles instead of the required 9 bottles for 'remaining 9/11 bottles'."
+            ],
+            "fix_instructions": "Adjust the image to clearly show exactly 9 bottles inside the chiller cabinet.",
+            "verdict": "retry"
+          },
+          "score": 36,
+          "image_file": "history/WaterChiller_lv9/iter01_s36_critiqued.png"
+        },
+        {
+          "iter": 2,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 37.5,
+          "postprocess_warnings": [
+            "background removed via green chromakey (44% of pixels), including 5% interior islands"
+          ],
+          "verdict": {
+            "style_score": 10,
+            "cohesion_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "cutout_ok": true,
+            "issues": [],
+            "fix_instructions": "None.",
+            "verdict": "pass"
+          },
+          "score": 44,
+          "image_file": "history/WaterChiller_lv9/iter02_s44_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "cohesion_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "cutout_ok": true,
+        "issues": [],
+        "fix_instructions": "None.",
+        "verdict": "pass"
+      },
+      "chosen_iter": 2
+    },
+    "board_bg": {
+      "name": "board_bg",
+      "status": "pass",
+      "iters": 1,
+      "attempts": [
+        {
+          "iter": 1,
+          "stage": "critique",
+          "ok": true,
+          "elapsed_sec": 24.9,
+          "postprocess_warnings": [],
+          "verdict": {
+            "style_score": 10,
+            "function_score": 10,
+            "reasonableness_score": 10,
+            "background_ok": true,
+            "issues": [],
+            "fix_instructions": "",
+            "verdict": "pass",
+            "cutout_ok": false
+          },
+          "score": 32,
+          "image_file": "history/board_bg/iter01_s32_critiqued.png"
+        }
+      ],
+      "verdict": {
+        "style_score": 10,
+        "function_score": 10,
+        "reasonableness_score": 10,
+        "background_ok": true,
+        "issues": [],
+        "fix_instructions": "",
+        "verdict": "pass",
+        "cutout_ok": false
+      },
+      "chosen_iter": 1
+    }
+  },
+  "target_assets": [
+    "LtBl",
+    "Soda0d",
+    "Soda90",
+    "TNT",
+    "TrPr"
+  ],
+  "cli": {
+    "source": "cli",
+    "invoked_at": "2026-07-03T07:10:56+00:00",
+    "command": "generate",
+    "run": "fruit_3dCartoonSimple",
+    "mode": "theme-swap",
+    "style": "3D Disney Cartoon Style, Simple design, Clean illustrations, Intuitive icon, highly recognizable",
+    "theme": "水果",
+    "family": "powerups",
+    "assets": null,
+    "style_image": null,
+    "reference_run": null,
+    "image_model": "gemini-3.1-flash-image",
+    "critic_model": "gemini-3.5-flash",
+    "max_iters": 3,
+    "dry_run": false,
+    "force": true,
+    "reference_image": false,
+    "expand_theme": true,
+    "refine_style": true,
+    "reproduce_command": "python scripts/ai_art_gen.py generate \\\n  --mode theme-swap \\\n  --style '3D Disney Cartoon Style, Simple design, Clean illustrations, Intuitive icon, highly recognizable' \\\n  --theme '水果' \\\n  --run fruit_3dCartoonSimple \\\n  --family powerups \\\n  --no-reference-image \\\n  --expand-theme \\\n  --force"
+  },
+  "style_resolved": "Use a vibrant, stylized 3D rendering style, akin to modern Disney animation, ensuring all fruit elements appear cohesive and part of the same visual universe. Render all sprites with soft, diffused studio lighting, employing gentle volumetric shading and subtle rim highlights to define form and provide a juicy, appealing finish. Maintain a warm and inviting color palette with high saturation, ensuring clean, smooth material finishes that are slightly glossy but never photorealistic or overly textured. Crucially, define all shapes and forms exclusively through sophisticated color transitions and smooth shading; strictly avoid any hard outlines, ink borders, or contour lines. Prioritize simple, robust shapes with rounded corners to ensure exceptional legibility and instant recognition even at small sizes (~70px), making them intuitive icons for match-3 gameplay.",
+  "style_plan": {
+    "input": "3D Disney Cartoon Style, Simple design, Clean illustrations, Intuitive icon, highly recognizable",
+    "summary": "A vibrant and clean 3D Disney Cartoon style defines all fruit elements, emphasizing highly recognizable forms through soft shading and inviting colors.",
+    "style_brief": "Use a vibrant, stylized 3D rendering style, akin to modern Disney animation, ensuring all fruit elements appear cohesive and part of the same visual universe. Render all sprites with soft, diffused studio lighting, employing gentle volumetric shading and subtle rim highlights to define form and provide a juicy, appealing finish. Maintain a warm and inviting color palette with high saturation, ensuring clean, smooth material finishes that are slightly glossy but never photorealistic or overly textured. Crucially, define all shapes and forms exclusively through sophisticated color transitions and smooth shading; strictly avoid any hard outlines, ink borders, or contour lines. Prioritize simple, robust shapes with rounded corners to ensure exceptional legibility and instant recognition even at small sizes (~70px), making them intuitive icons for match-3 gameplay.",
+    "rendering": "Stylized 3D render with soft, almost airbrushed shading, simulating a modern animated film aesthetic; avoid flat vector or overly realistic rendering.",
+    "line_and_shape": "Shapes must be simple, bold, and generously rounded, ensuring clear silhouettes; form is defined solely by smooth volumetric shading, with absolutely no outline strokes or ink borders.",
+    "color_and_lighting": "Utilize a warm, highly saturated, and vibrant color palette; lighting should be soft and even studio illumination with gentle highlights and shadows that define volume, possibly with subtle rim lighting for definition.",
+    "material_finish": "Clean, smooth, and slightly glossy surfaces, evoking a fresh, juicy fruit texture; avoid any rough, matte, or gritty textures, and prevent photoreal noise.",
+    "avoid": "Hard outlines, ink borders, contour lines, overly complex details, photorealistic textures, gritty surfaces, dark or desaturated colors, harsh lighting, and any text or watermarks on assets."
+  },
+  "theme_plan": {
+    "concept": "水果",
+    "style": "Use a vibrant, stylized 3D rendering style, akin to modern Disney animation, ensuring all fruit elements appear cohesive and part of the same visual universe. Render all sprites with soft, diffused studio lighting, employing gentle volumetric shading and subtle rim highlights to define form and provide a juicy, appealing finish. Maintain a warm and inviting color palette with high saturation, ensuring clean, smooth material finishes that are slightly glossy but never photorealistic or overly textured. Crucially, define all shapes and forms exclusively through sophisticated color transitions and smooth shading; strictly avoid any hard outlines, ink borders, or contour lines. Prioritize simple, robust shapes with rounded corners to ensure exceptional legibility and instant recognition even at small sizes (~70px), making them intuitive icons for match-3 gameplay.",
+    "summary": "A unified set of stylized 3D fruit elements, rendered with vibrant colors and soft, inviting lighting, designed for clear match-3 gameplay.",
+    "assignments": {
+      "Blu": "A plump, perfectly spherical blueberry, rendered with a deep, vibrant cerulean blue that subtly transitions to a lighter sky blue on its highlights and a rich indigo in the soft, volumetric shadows. Its smooth, slightly glossy surface is defined by these sophisticated color shifts and gentle rim highlights, ensuring its robust, rounded form is instantly recognizable without any hard outlines.",
+      "Grn": "A small, perfectly round lime, depicted with a bright, zesty lime green that smoothly transitions to a deeper emerald in its soft shadows and a luminous pale green on the areas catching the studio light. Its clean, smooth material finish and subtle, inviting sheen highlight its simple spherical silhouette, making it an intuitive icon defined purely by its vibrant color transitions and soft shading.",
+      "Pur": "A single, perfectly ripe purple grape, rendered with a rich, velvety amethyst hue that gently shifts to a brighter lilac where the soft light hits and deepens to a dark plum in the volumetric shadows. Its smooth, slightly translucent skin has a delicate, inviting sheen, emphasizing its simple, round form and vibrant color identity without any hard lines or complex textures.",
+      "Red": "A plump, heart-shaped strawberry, depicted with a warm, high-saturation crimson red, transitioning smoothly to a lighter, almost candy apple red on its brightest surfaces and a deeper burgundy in its soft, volumetric shadows. Its clean, smooth finish has a subtle, juicy gloss, defining its iconic, rounded form and robust silhouette purely through sophisticated color transitions and gentle rim highlights, ensuring exceptional legibility.",
+      "Yel": "A small, ovular lemon, rendered with a cheerful, sunny yellow that smoothly transitions to a slightly paler, creamy yellow on the highlights and a richer, goldenrod in the soft shadows. Its robust, simple shape is defined by these vibrant color transitions, with a clean, smooth, slightly glossy surface that catches the diffused studio light to emphasize its inviting, rounded form without any texture detail or outlines.",
+      "Barrel": "A robust, perfectly spherical, stylized coconut, husked and polished, rendered with warm, inviting brown tones that transition smoothly to creamy whites on its highlights and deep, soft cocoa in its volumetric shadows. Its clean, slightly glossy surface and solid, rounded form are defined purely by sophisticated color shifts and gentle rim highlights, making it an intuitive movable obstacle.",
+      "BeverageChiller_body": "The smooth, stylized interior and shelving of an open fruit juice display unit, crafted from warm, polished fruitwood. Its inviting surface is defined by subtle grain patterns and soft, diffused lighting, with gently rounded corners and smooth transitions, providing a clean backdrop for the beverage bottles.",
+      "BeverageChiller_bottle_blue": "A sleek, stylized, clear glass bottle, filled with vibrant, translucent blueberry nectar. Its simple, rounded silhouette and smooth, glossy surface are defined by the deep, cerulean blue of the liquid, which gently shifts to lighter sky blue highlights and rich indigo shadows, ensuring color identity without hard outlines.",
+      "BeverageChiller_bottle_green": "A sleek, stylized, clear glass bottle, filled with vibrant, translucent limeade. Its simple, rounded silhouette and smooth, glossy surface are defined by the zesty lime green of the liquid, which gently shifts to luminous pale green highlights and deeper emerald shadows, ensuring color identity without hard outlines.",
+      "BeverageChiller_bottle_red": "A sleek, stylized, clear glass bottle, filled with vibrant, translucent strawberry juice. Its simple, rounded silhouette and smooth, glossy surface are defined by the high-saturation crimson red of the liquid, which gently shifts to lighter candy apple red highlights and deeper burgundy shadows, ensuring color identity without hard outlines.",
+      "BeverageChiller_bottle_yellow": "A sleek, stylized, clear glass bottle, filled with vibrant, translucent lemon squash. Its simple, rounded silhouette and smooth, glossy surface are defined by the sunny yellow of the liquid, which gently shifts to creamy pale yellow highlights and richer goldenrod shadows, ensuring color identity without hard outlines.",
+      "BeverageChiller_closed": "A large, stylized, modern fruit juice dispenser cabinet with a sleek, rounded, and gently convex transparent display front, hinting at the colorful fruit drinks inside. Its body is rendered in warm, polished fruitwood tones with soft, diffused highlights, creating a cohesive, inviting, and robust 2x2 obstacle.",
+      "BeverageChiller_door": "A sleek, stylized transparent glass panel, forming the door of the fruit juice dispenser cabinet. It features smoothly rounded vertical edges and a soft, subtle reflection across its clean, glossy surface, rendered with sophisticated transparency and lighting transitions.",
+      "BeverageChiller_lv1": "The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding only one perfectly arranged, identical, stylized clear bottle filled with vibrant fruit juice. The cabinet and bottle maintain clean, smooth finishes and soft, inviting sheens.",
+      "BeverageChiller_lv2": "The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding two perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens.",
+      "BeverageChiller_lv3": "The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding three perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens.",
+      "BeverageChiller_lv4": "The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding four perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens.",
+      "BeverageChiller_lv5": "The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding five perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens.",
+      "Crt1": "A heavily damaged, rustic, stylized wooden fruit crate, rendered with warm, weathered fruitwood tones. It exhibits large, smooth, splintered cracks and rounded sections visibly chipped away, its robust form now revealing a mostly empty interior with only a few stylized, slightly squashed generic fruits remaining, all defined purely by color transitions and soft shading.",
+      "Crt2": "A visibly damaged, rustic, stylized wooden fruit crate, rendered with warm fruitwood tones. It features multiple distinct, smoothly rendered cracks and a small, rounded chunk missing from a wooden slat, revealing a deeper shadow within. The remaining stylized generic fruits appear more dislodged, purely defined by color transitions and soft shading.",
+      "Crt3": "A slightly damaged, rustic, stylized wooden fruit crate, rendered with warm fruitwood tones. A single, subtle, smoothly rendered crack appears on one of its wooden slats, defined purely by a darker color transition. It is still mostly full of stylized, vibrant, generic fruits, defined by soft shading and subtle highlights.",
+      "Crt4": "A robust, perfectly formed, rustic, stylized wooden fruit crate, rendered with warm, polished fruitwood tones that smoothly transition with soft highlights and shadows. It overflows with a vibrant, stylized pile of assorted, generic fruits, ensuring its clean, rounded form is instantly recognizable without any hard outlines.",
+      "Mud": "A thick, viscous, dark fruit compote spill, depicted as a smooth, undulating blob with soft, volumetric shading. Its surface is a deep, rich, slightly glossy purplish-brown, defined by subtle light reflections that suggest its sticky, sweet consistency and completely obscure the cell beneath.",
+      "Pool_lv1": "A stylized fruit press basin, made of warm, weathered fruitwood, appearing heavily damaged with widespread, smooth cracks and large, rounded sections chipped away from its rim and sides. Only a shallow amount of shimmering, translucent golden-orange fruit juice remains at the very bottom, defined by soft internal reflections and volumetric shading.",
+      "Pool_lv2": "A stylized fruit press basin, made of warm, fruitwood, showing several prominent, smoothly rendered cracks and a small, rounded chip on the rim. The shimmering, translucent golden-orange fruit juice is now significantly lower, approximately half-full, its surface defined by soft internal reflections and volumetric shading.",
+      "Pool_lv3": "A stylized fruit press basin, made of warm fruitwood, now visibly damaged with multiple smooth, short cracks appearing on its exterior. The shimmering, translucent golden-orange fruit juice is noticeably lower, exposing more of the clean basin interior, its surface defined by soft internal reflections and volumetric shading.",
+      "Pool_lv4": "A stylized fruit press basin, made of warm fruitwood, with a single, subtle, smoothly rendered crack starting to appear on its exterior. The shimmering, translucent golden-orange fruit juice has slightly receded, revealing a pristine inner rim of the basin, its surface defined by soft internal reflections and volumetric shading.",
+      "Pool_lv5": "A large, perfectly rounded, stylized fruit press basin made of warm, polished fruitwood, entirely filled to the brim with a shimmering, translucent golden-orange fruit juice. Its smooth, slightly glossy surface catches the soft studio light, and the juice is defined by sophisticated color gradients and soft internal reflections, with no visible damage.",
+      "Postmark_01": "A stylized, smoothly rendered circular imprint pattern of a generic fruit slice (e.g., orange or apple profile), defined by subtle variations in depth and soft shadow, rendered in a warm, inviting, high-saturation magenta 'stamp ink' hue without any hard outlines.",
+      "Postmark_02": "A stylized, smoothly rendered circular imprint pattern of a small cluster of generic berries or grapes, defined by subtle variations in depth and soft shadow, rendered in a warm, inviting, high-saturation magenta 'stamp ink' hue without any hard outlines.",
+      "Postmark_bundle": "A neatly tied bundle of stylized, fruit-themed recipe cards, featuring rounded corners and soft, smooth paper textures. They are bound together with a simple, natural fiber twine, rendered with subtle textural variations and soft, diffused highlights, creating a cohesive, charming prop.",
+      "Postmark_card": "A clean, stylized recipe card, featuring a subtly embossed image of a single, vibrant generic fruit (e.g., a lemon or blueberry) on one side. It is rendered with smooth, warm paper texture and soft, rounded corners, defined purely by color transitions and gentle shadows.",
+      "Postmark_goal": "A miniature, iconic representation of the stylized fruit-themed recipe card, clearly displaying its embossed generic fruit image. It is rendered with vibrant, high-saturation colors and simple, robust shapes, ensuring exceptional legibility as a small HUD objective icon.",
+      "Puddle_lv1": "A smaller, slightly faded, irregularly shaped but smoothly rounded spill of vibrant, translucent golden-orange fruit juice. It shows a faint 'drying' effect indicated by a slight shift in transparency and color saturation, yet still maintains its inviting sheen and soft depth transitions.",
+      "Puddle_lv2": "A small, irregularly shaped but smoothly rounded spill of vibrant, translucent golden-orange fruit juice. Its clean, glossy surface catches the soft studio light, creating subtle depth transitions and an inviting sheen, defined purely by sophisticated color gradients and soft volumetric shading.",
+      "Rope_lv1": "A loosely woven net crafted from stylized, gently curved vine tendrils, now showing one or two smooth, rounded breaks or stretched sections in its weave, purely defined by subtle color variations and smooth gaps. It drapes over the cell in a soft, earthy green-brown, indicating damage while maintaining its natural form.",
+      "Rope_lv2": "A robust, smoothly woven net crafted from stylized, gently curved vine tendrils, rendered in a warm, earthy green-brown. It gracefully drapes over the cell, its tendrils defined by subtle color transitions and soft shading, with no sharp edges, ensuring a cohesive and organic overlay.",
+      "SalmonCan": "A sturdy, perfectly sealed, stylized metal fruit preserve tin, rendered with a clean, smooth, slightly reflective metallic finish, adorned with a vibrant, simple illustration of generic fruit (e.g., berries or peaches) on its label. Its robust, rounded cylindrical form is defined purely by sophisticated color transitions and soft studio lighting, without any hard outlines.",
+      "SalmonCan_body": "The main cylindrical body of the stylized metal fruit preserve tin, its smooth, metallic surface now exposed from the top. It reveals a vibrant, glistening, chunky fruit preserve interior, rendered with rich, translucent fruit textures and soft internal light, defined by sophisticated color transitions and a clean, glossy finish.",
+      "SalmonCan_top1": "The rounded lid of the stylized metal fruit preserve tin, smoothly peeling back to a half-open position. Its metallic sheen and subtle curvature are defined by soft light and shadow, revealing a glimpse of the vibrant fruit preserve inside, all rendered without hard outlines.",
+      "SalmonCan_top2": "The rounded lid of the stylized metal fruit preserve tin, now fully peeled back and curled neatly to the side. Its smooth, metallic surface and gentle curve reflect the studio light, revealing the entire opening of the tin and its delicious, chunky fruit preserve contents, all defined by soft shading and sophisticated color transitions.",
+      "Stamp": "A robust, stylized wooden hand-press, perhaps with a decorative fruit carving on its rounded handle, rendered with warm, polished fruitwood tones that catch the diffused studio light. Its solid, rounded base is designed for stamping, with smooth transitions and subtle volumetric shading, making it a clear goal machine.",
+      "TrafficCone_lv1": "A robust, stylized pineapple, standing upright, with distinct, rounded 'damage' spots on its lower scales, appearing as smoother, slightly flattened or discolored areas. These are purely defined by subtle color transitions and soft depressions, hinting at impact while retaining its overall sturdy, conical shape.",
+      "TrafficCone_lv2": "A robust, perfectly upright stylized pineapple, rendered with a vibrant, high-saturation golden-yellow base that smoothly transitions to rich amber and earthy green tones for its simplified, rounded 'scales' and a soft green at its crown. Its sturdy, conical form is defined purely by elegant color shifts and soft volumetric shading, ensuring exceptional legibility as a movable obstacle.",
+      "WaterChiller_closed": "A large, stylized, modern fruit-infused water dispenser cabinet, with a sleek, rounded form and a prominent, smooth, transparent display panel on its front. Its cool-toned metallic or polished plastic exterior catches the diffused studio light, hinting at the refreshing bottles within, creating a cohesive and robust 2x2 obstacle.",
+      "WaterChiller_door": "A sleek, stylized transparent panel door, perfectly integrated into the fruit-infused water dispenser cabinet. It features smoothly rounded vertical edges and a soft, subtle reflection across its clean, glossy surface, rendered with sophisticated transparency and lighting transitions.",
+      "WaterChiller_lv1": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing only a single remaining, perfectly arranged, identical, stylized clear bottle filled with pristine, translucent fruit-infused water. The bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "WaterChiller_lv10": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing ten perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "WaterChiller_lv11": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing all eleven perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "WaterChiller_lv2": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing two perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "WaterChiller_lv3": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing three perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "WaterChiller_lv4": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing four perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "WaterChiller_lv5": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing five perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "WaterChiller_lv6": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing six perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "WaterChiller_lv7": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing seven perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "WaterChiller_lv8": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing eight perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "WaterChiller_lv9": "The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing nine perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen.",
+      "board_bg": "A beautifully rendered, serene, sun-drenched orchard scene, depicting gently rolling hills dotted with stylized fruit trees (e.g., apple, orange, or lemon trees) with full, rounded canopies. The foreground features soft, inviting green grass, all rendered with smooth, painterly transitions, warm inviting colors, and diffused volumetric lighting, creating a dreamy, cohesive backdrop without any harsh lines or excessive detail.",
+      "LtBl": "A pristine, perfectly spherical glass jar filled with a beautiful, swirling gradient of vibrant, layered multi-colored fruit jams in red, blue, yellow, and green. Its smooth, highly polished surface catches soft studio lighting with gentle rim highlights, emphasizing its rounded form and representing universal color-matching capability without any hard outlines.",
+      "Soda0d": "A sleek, horizontal double-ended citrus reamer carved from warm, polished fruitwood, pointing distinctly left and right. Its ends are capped with plump, juicy orange halves, creating a clear horizontal axis. Defined purely by soft volumetric shading and rich color transitions, its horizontal spindle shape intuitively suggests row clearance.",
+      "Soda90": "A sleek, vertical double-ended citrus reamer carved from warm, polished fruitwood, pointing distinctly up and down. Its ends are capped with plump, zesty lime halves, creating a clear vertical axis. Defined purely by soft volumetric shading and rich color transitions, its vertical spindle shape intuitively suggests column clearance.",
+      "TNT": "A heavy, robust, perfectly spherical pomegranate, rendered in high-saturation crimson red with soft, chunky, rounded segments that look tightly packed and bulging with juice. Its thick, smooth skin catches the diffused studio light with warm, golden-red highlights, creating an imposing, explosive silhouette defined entirely by volume and form.",
+      "TrPr": "A sleek, aerodynamic glider folded from a clean, vibrant green banana leaf. Its elegant, forward-pointing triangular form features gently rounded edges and a smooth, waxy finish, with subtle color transitions from deep emerald green to pale lime defining its wings and flight-ready shape."
+    },
+    "theme_direction": "LtBl=A pristine, perfectly spherical glass jar filled with a beautiful, swirling gradient of vibrant, layered multi-colored fruit jams in red, blue, yellow, and green. Its smooth, highly polished surface catches soft studio lighting with gentle rim highlights, emphasizing its rounded form and representing universal color-matching capability without any hard outlines., Soda0d=A sleek, horizontal double-ended citrus reamer carved from warm, polished fruitwood, pointing distinctly left and right. Its ends are capped with plump, juicy orange halves, creating a clear horizontal axis. Defined purely by soft volumetric shading and rich color transitions, its horizontal spindle shape intuitively suggests row clearance., Soda90=A sleek, vertical double-ended citrus reamer carved from warm, polished fruitwood, pointing distinctly up and down. Its ends are capped with plump, zesty lime halves, creating a clear vertical axis. Defined purely by soft volumetric shading and rich color transitions, its vertical spindle shape intuitively suggests column clearance., TNT=A heavy, robust, perfectly spherical pomegranate, rendered in high-saturation crimson red with soft, chunky, rounded segments that look tightly packed and bulging with juice. Its thick, smooth skin catches the diffused studio light with warm, golden-red highlights, creating an imposing, explosive silhouette defined entirely by volume and form., TrPr=A sleek, aerodynamic glider folded from a clean, vibrant green banana leaf. Its elegant, forward-pointing triangular form features gently rounded edges and a smooth, waxy finish, with subtle color transitions from deep emerald green to pale lime defining its wings and flight-ready shape., Barrel=A robust, perfectly spherical, stylized coconut, husked and polished, rendered with warm, inviting brown tones that transition smoothly to creamy whites on its highlights and deep, soft cocoa in its volumetric shadows. Its clean, slightly glossy surface and solid, rounded form are defined purely by sophisticated color shifts and gentle rim highlights, making it an intuitive movable obstacle., BeverageChiller_body=The smooth, stylized interior and shelving of an open fruit juice display unit, crafted from warm, polished fruitwood. Its inviting surface is defined by subtle grain patterns and soft, diffused lighting, with gently rounded corners and smooth transitions, providing a clean backdrop for the beverage bottles., BeverageChiller_bottle_blue=A sleek, stylized, clear glass bottle, filled with vibrant, translucent blueberry nectar. Its simple, rounded silhouette and smooth, glossy surface are defined by the deep, cerulean blue of the liquid, which gently shifts to lighter sky blue highlights and rich indigo shadows, ensuring color identity without hard outlines., BeverageChiller_bottle_green=A sleek, stylized, clear glass bottle, filled with vibrant, translucent limeade. Its simple, rounded silhouette and smooth, glossy surface are defined by the zesty lime green of the liquid, which gently shifts to luminous pale green highlights and deeper emerald shadows, ensuring color identity without hard outlines., BeverageChiller_bottle_red=A sleek, stylized, clear glass bottle, filled with vibrant, translucent strawberry juice. Its simple, rounded silhouette and smooth, glossy surface are defined by the high-saturation crimson red of the liquid, which gently shifts to lighter candy apple red highlights and deeper burgundy shadows, ensuring color identity without hard outlines., BeverageChiller_bottle_yellow=A sleek, stylized, clear glass bottle, filled with vibrant, translucent lemon squash. Its simple, rounded silhouette and smooth, glossy surface are defined by the sunny yellow of the liquid, which gently shifts to creamy pale yellow highlights and richer goldenrod shadows, ensuring color identity without hard outlines., BeverageChiller_closed=A large, stylized, modern fruit juice dispenser cabinet with a sleek, rounded, and gently convex transparent display front, hinting at the colorful fruit drinks inside. Its body is rendered in warm, polished fruitwood tones with soft, diffused highlights, creating a cohesive, inviting, and robust 2x2 obstacle., BeverageChiller_door=A sleek, stylized transparent glass panel, forming the door of the fruit juice dispenser cabinet. It features smoothly rounded vertical edges and a soft, subtle reflection across its clean, glossy surface, rendered with sophisticated transparency and lighting transitions., BeverageChiller_lv1=The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding only one perfectly arranged, identical, stylized clear bottle filled with vibrant fruit juice. The cabinet and bottle maintain clean, smooth finishes and soft, inviting sheens., BeverageChiller_lv2=The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding two perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens., BeverageChiller_lv3=The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding three perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens., BeverageChiller_lv4=The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding four perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens., BeverageChiller_lv5=The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding five perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens., Blu=A plump, perfectly spherical blueberry, rendered with a deep, vibrant cerulean blue that subtly transitions to a lighter sky blue on its highlights and a rich indigo in the soft, volumetric shadows. Its smooth, slightly glossy surface is defined by these sophisticated color shifts and gentle rim highlights, ensuring its robust, rounded form is instantly recognizable without any hard outlines., Crt1=A heavily damaged, rustic, stylized wooden fruit crate, rendered with warm, weathered fruitwood tones. It exhibits large, smooth, splintered cracks and rounded sections visibly chipped away, its robust form now revealing a mostly empty interior with only a few stylized, slightly squashed generic fruits remaining, all defined purely by color transitions and soft shading., Crt2=A visibly damaged, rustic, stylized wooden fruit crate, rendered with warm fruitwood tones. It features multiple distinct, smoothly rendered cracks and a small, rounded chunk missing from a wooden slat, revealing a deeper shadow within. The remaining stylized generic fruits appear more dislodged, purely defined by color transitions and soft shading., Crt3=A slightly damaged, rustic, stylized wooden fruit crate, rendered with warm fruitwood tones. A single, subtle, smoothly rendered crack appears on one of its wooden slats, defined purely by a darker color transition. It is still mostly full of stylized, vibrant, generic fruits, defined by soft shading and subtle highlights., Crt4=A robust, perfectly formed, rustic, stylized wooden fruit crate, rendered with warm, polished fruitwood tones that smoothly transition with soft highlights and shadows. It overflows with a vibrant, stylized pile of assorted, generic fruits, ensuring its clean, rounded form is instantly recognizable without any hard outlines., Grn=A small, perfectly round lime, depicted with a bright, zesty lime green that smoothly transitions to a deeper emerald in its soft shadows and a luminous pale green on the areas catching the studio light. Its clean, smooth material finish and subtle, inviting sheen highlight its simple spherical silhouette, making it an intuitive icon defined purely by its vibrant color transitions and soft shading., Mud=A thick, viscous, dark fruit compote spill, depicted as a smooth, undulating blob with soft, volumetric shading. Its surface is a deep, rich, slightly glossy purplish-brown, defined by subtle light reflections that suggest its sticky, sweet consistency and completely obscure the cell beneath., Pool_lv1=A stylized fruit press basin, made of warm, weathered fruitwood, appearing heavily damaged with widespread, smooth cracks and large, rounded sections chipped away from its rim and sides. Only a shallow amount of shimmering, translucent golden-orange fruit juice remains at the very bottom, defined by soft internal reflections and volumetric shading., Pool_lv2=A stylized fruit press basin, made of warm, fruitwood, showing several prominent, smoothly rendered cracks and a small, rounded chip on the rim. The shimmering, translucent golden-orange fruit juice is now significantly lower, approximately half-full, its surface defined by soft internal reflections and volumetric shading., Pool_lv3=A stylized fruit press basin, made of warm fruitwood, now visibly damaged with multiple smooth, short cracks appearing on its exterior. The shimmering, translucent golden-orange fruit juice is noticeably lower, exposing more of the clean basin interior, its surface defined by soft internal reflections and volumetric shading., Pool_lv4=A stylized fruit press basin, made of warm fruitwood, with a single, subtle, smoothly rendered crack starting to appear on its exterior. The shimmering, translucent golden-orange fruit juice has slightly receded, revealing a pristine inner rim of the basin, its surface defined by soft internal reflections and volumetric shading., Pool_lv5=A large, perfectly rounded, stylized fruit press basin made of warm, polished fruitwood, entirely filled to the brim with a shimmering, translucent golden-orange fruit juice. Its smooth, slightly glossy surface catches the soft studio light, and the juice is defined by sophisticated color gradients and soft internal reflections, with no visible damage., Postmark_01=A stylized, smoothly rendered circular imprint pattern of a generic fruit slice (e.g., orange or apple profile), defined by subtle variations in depth and soft shadow, rendered in a warm, inviting, high-saturation magenta 'stamp ink' hue without any hard outlines., Postmark_02=A stylized, smoothly rendered circular imprint pattern of a small cluster of generic berries or grapes, defined by subtle variations in depth and soft shadow, rendered in a warm, inviting, high-saturation magenta 'stamp ink' hue without any hard outlines., Postmark_bundle=A neatly tied bundle of stylized, fruit-themed recipe cards, featuring rounded corners and soft, smooth paper textures. They are bound together with a simple, natural fiber twine, rendered with subtle textural variations and soft, diffused highlights, creating a cohesive, charming prop., Postmark_card=A clean, stylized recipe card, featuring a subtly embossed image of a single, vibrant generic fruit (e.g., a lemon or blueberry) on one side. It is rendered with smooth, warm paper texture and soft, rounded corners, defined purely by color transitions and gentle shadows., Postmark_goal=A miniature, iconic representation of the stylized fruit-themed recipe card, clearly displaying its embossed generic fruit image. It is rendered with vibrant, high-saturation colors and simple, robust shapes, ensuring exceptional legibility as a small HUD objective icon., Puddle_lv1=A smaller, slightly faded, irregularly shaped but smoothly rounded spill of vibrant, translucent golden-orange fruit juice. It shows a faint 'drying' effect indicated by a slight shift in transparency and color saturation, yet still maintains its inviting sheen and soft depth transitions., Puddle_lv2=A small, irregularly shaped but smoothly rounded spill of vibrant, translucent golden-orange fruit juice. Its clean, glossy surface catches the soft studio light, creating subtle depth transitions and an inviting sheen, defined purely by sophisticated color gradients and soft volumetric shading., Pur=A single, perfectly ripe purple grape, rendered with a rich, velvety amethyst hue that gently shifts to a brighter lilac where the soft light hits and deepens to a dark plum in the volumetric shadows. Its smooth, slightly translucent skin has a delicate, inviting sheen, emphasizing its simple, round form and vibrant color identity without any hard lines or complex textures., Red=A plump, heart-shaped strawberry, depicted with a warm, high-saturation crimson red, transitioning smoothly to a lighter, almost candy apple red on its brightest surfaces and a deeper burgundy in its soft, volumetric shadows. Its clean, smooth finish has a subtle, juicy gloss, defining its iconic, rounded form and robust silhouette purely through sophisticated color transitions and gentle rim highlights, ensuring exceptional legibility., Rope_lv1=A loosely woven net crafted from stylized, gently curved vine tendrils, now showing one or two smooth, rounded breaks or stretched sections in its weave, purely defined by subtle color variations and smooth gaps. It drapes over the cell in a soft, earthy green-brown, indicating damage while maintaining its natural form., Rope_lv2=A robust, smoothly woven net crafted from stylized, gently curved vine tendrils, rendered in a warm, earthy green-brown. It gracefully drapes over the cell, its tendrils defined by subtle color transitions and soft shading, with no sharp edges, ensuring a cohesive and organic overlay., SalmonCan=A sturdy, perfectly sealed, stylized metal fruit preserve tin, rendered with a clean, smooth, slightly reflective metallic finish, adorned with a vibrant, simple illustration of generic fruit (e.g., berries or peaches) on its label. Its robust, rounded cylindrical form is defined purely by sophisticated color transitions and soft studio lighting, without any hard outlines., SalmonCan_body=The main cylindrical body of the stylized metal fruit preserve tin, its smooth, metallic surface now exposed from the top. It reveals a vibrant, glistening, chunky fruit preserve interior, rendered with rich, translucent fruit textures and soft internal light, defined by sophisticated color transitions and a clean, glossy finish., SalmonCan_top1=The rounded lid of the stylized metal fruit preserve tin, smoothly peeling back to a half-open position. Its metallic sheen and subtle curvature are defined by soft light and shadow, revealing a glimpse of the vibrant fruit preserve inside, all rendered without hard outlines., SalmonCan_top2=The rounded lid of the stylized metal fruit preserve tin, now fully peeled back and curled neatly to the side. Its smooth, metallic surface and gentle curve reflect the studio light, revealing the entire opening of the tin and its delicious, chunky fruit preserve contents, all defined by soft shading and sophisticated color transitions., Stamp=A robust, stylized wooden hand-press, perhaps with a decorative fruit carving on its rounded handle, rendered with warm, polished fruitwood tones that catch the diffused studio light. Its solid, rounded base is designed for stamping, with smooth transitions and subtle volumetric shading, making it a clear goal machine., TrafficCone_lv1=A robust, stylized pineapple, standing upright, with distinct, rounded 'damage' spots on its lower scales, appearing as smoother, slightly flattened or discolored areas. These are purely defined by subtle color transitions and soft depressions, hinting at impact while retaining its overall sturdy, conical shape., TrafficCone_lv2=A robust, perfectly upright stylized pineapple, rendered with a vibrant, high-saturation golden-yellow base that smoothly transitions to rich amber and earthy green tones for its simplified, rounded 'scales' and a soft green at its crown. Its sturdy, conical form is defined purely by elegant color shifts and soft volumetric shading, ensuring exceptional legibility as a movable obstacle., WaterChiller_closed=A large, stylized, modern fruit-infused water dispenser cabinet, with a sleek, rounded form and a prominent, smooth, transparent display panel on its front. Its cool-toned metallic or polished plastic exterior catches the diffused studio light, hinting at the refreshing bottles within, creating a cohesive and robust 2x2 obstacle., WaterChiller_door=A sleek, stylized transparent panel door, perfectly integrated into the fruit-infused water dispenser cabinet. It features smoothly rounded vertical edges and a soft, subtle reflection across its clean, glossy surface, rendered with sophisticated transparency and lighting transitions., WaterChiller_lv1=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing only a single remaining, perfectly arranged, identical, stylized clear bottle filled with pristine, translucent fruit-infused water. The bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv10=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing ten perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv11=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing all eleven perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv2=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing two perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv3=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing three perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv4=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing four perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv5=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing five perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv6=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing six perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv7=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing seven perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv8=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing eight perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv9=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing nine perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., Yel=A small, ovular lemon, rendered with a cheerful, sunny yellow that smoothly transitions to a slightly paler, creamy yellow on the highlights and a richer, goldenrod in the soft shadows. Its robust, simple shape is defined by these vibrant color transitions, with a clean, smooth, slightly glossy surface that catches the diffused studio light to emphasize its inviting, rounded form without any texture detail or outlines., board_bg=A beautifully rendered, serene, sun-drenched orchard scene, depicting gently rolling hills dotted with stylized fruit trees (e.g., apple, orange, or lemon trees) with full, rounded canopies. The foreground features soft, inviting green grass, all rendered with smooth, painterly transitions, warm inviting colors, and diffused volumetric lighting, creating a dreamy, cohesive backdrop without any harsh lines or excessive detail."
+  },
+  "theme_expanded": "LtBl=A pristine, perfectly spherical glass jar filled with a beautiful, swirling gradient of vibrant, layered multi-colored fruit jams in red, blue, yellow, and green. Its smooth, highly polished surface catches soft studio lighting with gentle rim highlights, emphasizing its rounded form and representing universal color-matching capability without any hard outlines., Soda0d=A sleek, horizontal double-ended citrus reamer carved from warm, polished fruitwood, pointing distinctly left and right. Its ends are capped with plump, juicy orange halves, creating a clear horizontal axis. Defined purely by soft volumetric shading and rich color transitions, its horizontal spindle shape intuitively suggests row clearance., Soda90=A sleek, vertical double-ended citrus reamer carved from warm, polished fruitwood, pointing distinctly up and down. Its ends are capped with plump, zesty lime halves, creating a clear vertical axis. Defined purely by soft volumetric shading and rich color transitions, its vertical spindle shape intuitively suggests column clearance., TNT=A heavy, robust, perfectly spherical pomegranate, rendered in high-saturation crimson red with soft, chunky, rounded segments that look tightly packed and bulging with juice. Its thick, smooth skin catches the diffused studio light with warm, golden-red highlights, creating an imposing, explosive silhouette defined entirely by volume and form., TrPr=A sleek, aerodynamic glider folded from a clean, vibrant green banana leaf. Its elegant, forward-pointing triangular form features gently rounded edges and a smooth, waxy finish, with subtle color transitions from deep emerald green to pale lime defining its wings and flight-ready shape., Barrel=A robust, perfectly spherical, stylized coconut, husked and polished, rendered with warm, inviting brown tones that transition smoothly to creamy whites on its highlights and deep, soft cocoa in its volumetric shadows. Its clean, slightly glossy surface and solid, rounded form are defined purely by sophisticated color shifts and gentle rim highlights, making it an intuitive movable obstacle., BeverageChiller_body=The smooth, stylized interior and shelving of an open fruit juice display unit, crafted from warm, polished fruitwood. Its inviting surface is defined by subtle grain patterns and soft, diffused lighting, with gently rounded corners and smooth transitions, providing a clean backdrop for the beverage bottles., BeverageChiller_bottle_blue=A sleek, stylized, clear glass bottle, filled with vibrant, translucent blueberry nectar. Its simple, rounded silhouette and smooth, glossy surface are defined by the deep, cerulean blue of the liquid, which gently shifts to lighter sky blue highlights and rich indigo shadows, ensuring color identity without hard outlines., BeverageChiller_bottle_green=A sleek, stylized, clear glass bottle, filled with vibrant, translucent limeade. Its simple, rounded silhouette and smooth, glossy surface are defined by the zesty lime green of the liquid, which gently shifts to luminous pale green highlights and deeper emerald shadows, ensuring color identity without hard outlines., BeverageChiller_bottle_red=A sleek, stylized, clear glass bottle, filled with vibrant, translucent strawberry juice. Its simple, rounded silhouette and smooth, glossy surface are defined by the high-saturation crimson red of the liquid, which gently shifts to lighter candy apple red highlights and deeper burgundy shadows, ensuring color identity without hard outlines., BeverageChiller_bottle_yellow=A sleek, stylized, clear glass bottle, filled with vibrant, translucent lemon squash. Its simple, rounded silhouette and smooth, glossy surface are defined by the sunny yellow of the liquid, which gently shifts to creamy pale yellow highlights and richer goldenrod shadows, ensuring color identity without hard outlines., BeverageChiller_closed=A large, stylized, modern fruit juice dispenser cabinet with a sleek, rounded, and gently convex transparent display front, hinting at the colorful fruit drinks inside. Its body is rendered in warm, polished fruitwood tones with soft, diffused highlights, creating a cohesive, inviting, and robust 2x2 obstacle., BeverageChiller_door=A sleek, stylized transparent glass panel, forming the door of the fruit juice dispenser cabinet. It features smoothly rounded vertical edges and a soft, subtle reflection across its clean, glossy surface, rendered with sophisticated transparency and lighting transitions., BeverageChiller_lv1=The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding only one perfectly arranged, identical, stylized clear bottle filled with vibrant fruit juice. The cabinet and bottle maintain clean, smooth finishes and soft, inviting sheens., BeverageChiller_lv2=The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding two perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens., BeverageChiller_lv3=The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding three perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens., BeverageChiller_lv4=The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding four perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens., BeverageChiller_lv5=The stylized open fruit juice display unit, crafted from warm, polished fruitwood, now visibly holding five perfectly arranged, identical, stylized clear bottles filled with vibrant fruit juice. The cabinet and bottles maintain clean, smooth finishes and soft, inviting sheens., Blu=A plump, perfectly spherical blueberry, rendered with a deep, vibrant cerulean blue that subtly transitions to a lighter sky blue on its highlights and a rich indigo in the soft, volumetric shadows. Its smooth, slightly glossy surface is defined by these sophisticated color shifts and gentle rim highlights, ensuring its robust, rounded form is instantly recognizable without any hard outlines., Crt1=A heavily damaged, rustic, stylized wooden fruit crate, rendered with warm, weathered fruitwood tones. It exhibits large, smooth, splintered cracks and rounded sections visibly chipped away, its robust form now revealing a mostly empty interior with only a few stylized, slightly squashed generic fruits remaining, all defined purely by color transitions and soft shading., Crt2=A visibly damaged, rustic, stylized wooden fruit crate, rendered with warm fruitwood tones. It features multiple distinct, smoothly rendered cracks and a small, rounded chunk missing from a wooden slat, revealing a deeper shadow within. The remaining stylized generic fruits appear more dislodged, purely defined by color transitions and soft shading., Crt3=A slightly damaged, rustic, stylized wooden fruit crate, rendered with warm fruitwood tones. A single, subtle, smoothly rendered crack appears on one of its wooden slats, defined purely by a darker color transition. It is still mostly full of stylized, vibrant, generic fruits, defined by soft shading and subtle highlights., Crt4=A robust, perfectly formed, rustic, stylized wooden fruit crate, rendered with warm, polished fruitwood tones that smoothly transition with soft highlights and shadows. It overflows with a vibrant, stylized pile of assorted, generic fruits, ensuring its clean, rounded form is instantly recognizable without any hard outlines., Grn=A small, perfectly round lime, depicted with a bright, zesty lime green that smoothly transitions to a deeper emerald in its soft shadows and a luminous pale green on the areas catching the studio light. Its clean, smooth material finish and subtle, inviting sheen highlight its simple spherical silhouette, making it an intuitive icon defined purely by its vibrant color transitions and soft shading., Mud=A thick, viscous, dark fruit compote spill, depicted as a smooth, undulating blob with soft, volumetric shading. Its surface is a deep, rich, slightly glossy purplish-brown, defined by subtle light reflections that suggest its sticky, sweet consistency and completely obscure the cell beneath., Pool_lv1=A stylized fruit press basin, made of warm, weathered fruitwood, appearing heavily damaged with widespread, smooth cracks and large, rounded sections chipped away from its rim and sides. Only a shallow amount of shimmering, translucent golden-orange fruit juice remains at the very bottom, defined by soft internal reflections and volumetric shading., Pool_lv2=A stylized fruit press basin, made of warm, fruitwood, showing several prominent, smoothly rendered cracks and a small, rounded chip on the rim. The shimmering, translucent golden-orange fruit juice is now significantly lower, approximately half-full, its surface defined by soft internal reflections and volumetric shading., Pool_lv3=A stylized fruit press basin, made of warm fruitwood, now visibly damaged with multiple smooth, short cracks appearing on its exterior. The shimmering, translucent golden-orange fruit juice is noticeably lower, exposing more of the clean basin interior, its surface defined by soft internal reflections and volumetric shading., Pool_lv4=A stylized fruit press basin, made of warm fruitwood, with a single, subtle, smoothly rendered crack starting to appear on its exterior. The shimmering, translucent golden-orange fruit juice has slightly receded, revealing a pristine inner rim of the basin, its surface defined by soft internal reflections and volumetric shading., Pool_lv5=A large, perfectly rounded, stylized fruit press basin made of warm, polished fruitwood, entirely filled to the brim with a shimmering, translucent golden-orange fruit juice. Its smooth, slightly glossy surface catches the soft studio light, and the juice is defined by sophisticated color gradients and soft internal reflections, with no visible damage., Postmark_01=A stylized, smoothly rendered circular imprint pattern of a generic fruit slice (e.g., orange or apple profile), defined by subtle variations in depth and soft shadow, rendered in a warm, inviting, high-saturation magenta 'stamp ink' hue without any hard outlines., Postmark_02=A stylized, smoothly rendered circular imprint pattern of a small cluster of generic berries or grapes, defined by subtle variations in depth and soft shadow, rendered in a warm, inviting, high-saturation magenta 'stamp ink' hue without any hard outlines., Postmark_bundle=A neatly tied bundle of stylized, fruit-themed recipe cards, featuring rounded corners and soft, smooth paper textures. They are bound together with a simple, natural fiber twine, rendered with subtle textural variations and soft, diffused highlights, creating a cohesive, charming prop., Postmark_card=A clean, stylized recipe card, featuring a subtly embossed image of a single, vibrant generic fruit (e.g., a lemon or blueberry) on one side. It is rendered with smooth, warm paper texture and soft, rounded corners, defined purely by color transitions and gentle shadows., Postmark_goal=A miniature, iconic representation of the stylized fruit-themed recipe card, clearly displaying its embossed generic fruit image. It is rendered with vibrant, high-saturation colors and simple, robust shapes, ensuring exceptional legibility as a small HUD objective icon., Puddle_lv1=A smaller, slightly faded, irregularly shaped but smoothly rounded spill of vibrant, translucent golden-orange fruit juice. It shows a faint 'drying' effect indicated by a slight shift in transparency and color saturation, yet still maintains its inviting sheen and soft depth transitions., Puddle_lv2=A small, irregularly shaped but smoothly rounded spill of vibrant, translucent golden-orange fruit juice. Its clean, glossy surface catches the soft studio light, creating subtle depth transitions and an inviting sheen, defined purely by sophisticated color gradients and soft volumetric shading., Pur=A single, perfectly ripe purple grape, rendered with a rich, velvety amethyst hue that gently shifts to a brighter lilac where the soft light hits and deepens to a dark plum in the volumetric shadows. Its smooth, slightly translucent skin has a delicate, inviting sheen, emphasizing its simple, round form and vibrant color identity without any hard lines or complex textures., Red=A plump, heart-shaped strawberry, depicted with a warm, high-saturation crimson red, transitioning smoothly to a lighter, almost candy apple red on its brightest surfaces and a deeper burgundy in its soft, volumetric shadows. Its clean, smooth finish has a subtle, juicy gloss, defining its iconic, rounded form and robust silhouette purely through sophisticated color transitions and gentle rim highlights, ensuring exceptional legibility., Rope_lv1=A loosely woven net crafted from stylized, gently curved vine tendrils, now showing one or two smooth, rounded breaks or stretched sections in its weave, purely defined by subtle color variations and smooth gaps. It drapes over the cell in a soft, earthy green-brown, indicating damage while maintaining its natural form., Rope_lv2=A robust, smoothly woven net crafted from stylized, gently curved vine tendrils, rendered in a warm, earthy green-brown. It gracefully drapes over the cell, its tendrils defined by subtle color transitions and soft shading, with no sharp edges, ensuring a cohesive and organic overlay., SalmonCan=A sturdy, perfectly sealed, stylized metal fruit preserve tin, rendered with a clean, smooth, slightly reflective metallic finish, adorned with a vibrant, simple illustration of generic fruit (e.g., berries or peaches) on its label. Its robust, rounded cylindrical form is defined purely by sophisticated color transitions and soft studio lighting, without any hard outlines., SalmonCan_body=The main cylindrical body of the stylized metal fruit preserve tin, its smooth, metallic surface now exposed from the top. It reveals a vibrant, glistening, chunky fruit preserve interior, rendered with rich, translucent fruit textures and soft internal light, defined by sophisticated color transitions and a clean, glossy finish., SalmonCan_top1=The rounded lid of the stylized metal fruit preserve tin, smoothly peeling back to a half-open position. Its metallic sheen and subtle curvature are defined by soft light and shadow, revealing a glimpse of the vibrant fruit preserve inside, all rendered without hard outlines., SalmonCan_top2=The rounded lid of the stylized metal fruit preserve tin, now fully peeled back and curled neatly to the side. Its smooth, metallic surface and gentle curve reflect the studio light, revealing the entire opening of the tin and its delicious, chunky fruit preserve contents, all defined by soft shading and sophisticated color transitions., Stamp=A robust, stylized wooden hand-press, perhaps with a decorative fruit carving on its rounded handle, rendered with warm, polished fruitwood tones that catch the diffused studio light. Its solid, rounded base is designed for stamping, with smooth transitions and subtle volumetric shading, making it a clear goal machine., TrafficCone_lv1=A robust, stylized pineapple, standing upright, with distinct, rounded 'damage' spots on its lower scales, appearing as smoother, slightly flattened or discolored areas. These are purely defined by subtle color transitions and soft depressions, hinting at impact while retaining its overall sturdy, conical shape., TrafficCone_lv2=A robust, perfectly upright stylized pineapple, rendered with a vibrant, high-saturation golden-yellow base that smoothly transitions to rich amber and earthy green tones for its simplified, rounded 'scales' and a soft green at its crown. Its sturdy, conical form is defined purely by elegant color shifts and soft volumetric shading, ensuring exceptional legibility as a movable obstacle., WaterChiller_closed=A large, stylized, modern fruit-infused water dispenser cabinet, with a sleek, rounded form and a prominent, smooth, transparent display panel on its front. Its cool-toned metallic or polished plastic exterior catches the diffused studio light, hinting at the refreshing bottles within, creating a cohesive and robust 2x2 obstacle., WaterChiller_door=A sleek, stylized transparent panel door, perfectly integrated into the fruit-infused water dispenser cabinet. It features smoothly rounded vertical edges and a soft, subtle reflection across its clean, glossy surface, rendered with sophisticated transparency and lighting transitions., WaterChiller_lv1=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing only a single remaining, perfectly arranged, identical, stylized clear bottle filled with pristine, translucent fruit-infused water. The bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv10=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing ten perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv11=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing all eleven perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv2=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing two perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv3=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing three perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv4=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing four perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv5=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing five perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv6=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing six perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv7=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing seven perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv8=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing eight perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., WaterChiller_lv9=The stylized fruit-infused water dispenser cabinet, now with its sleek door open, revealing nine perfectly arranged, identical, stylized clear bottles filled with pristine, translucent fruit-infused water. Each bottle boasts a clean, smooth finish and a subtle, inviting sheen., Yel=A small, ovular lemon, rendered with a cheerful, sunny yellow that smoothly transitions to a slightly paler, creamy yellow on the highlights and a richer, goldenrod in the soft shadows. Its robust, simple shape is defined by these vibrant color transitions, with a clean, smooth, slightly glossy surface that catches the diffused studio light to emphasize its inviting, rounded form without any texture detail or outlines., board_bg=A beautifully rendered, serene, sun-drenched orchard scene, depicting gently rolling hills dotted with stylized fruit trees (e.g., apple, orange, or lemon trees) with full, rounded canopies. The foreground features soft, inviting green grass, all rendered with smooth, painterly transitions, warm inviting colors, and diffused volumetric lighting, creating a dreamy, cohesive backdrop without any harsh lines or excessive detail."
+}

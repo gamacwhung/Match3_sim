@@ -27,10 +27,13 @@ const NAMED_TEXTURES: Array[String] = ["board_bg"]
 
 # Web 端 live 貼圖最大邊長(避免大圖吃光 WASM/GPU 記憶體)。攤位畫面小，256 就很夠，
 # 換皮一次載 60+ 張，太大會 GPU OOM 整個瀏覽器當掉。
-const LIVE_MAX_DIM_ELEMENTS: int = 512  # 原圖就是 512;之前降到 256 在全螢幕/大畫面會糊
+const LIVE_MAX_DIM_ELEMENTS: int = 1024  # 道具原圖最高 1024;讓大顯示器全螢幕時保有清晰度(元素原圖 512 → 維持)
 const LIVE_MAX_DIM_NAMED: Dictionary = {"board_bg": 1024}
 
 var theme_revision: int = 0
+# 具名主題 sprite 的「資產版本號」(來自 live_sprites/revision.txt)。
+# 同版本 → 網址不變 → 瀏覽器可快取;換圖後 bump revision.txt → 網址變 → 強制重抓最新圖。
+var _asset_ver: String = ""
 # 目前套用的換皮主題:空字串 = 預設 candy(flat live_sprites/);否則 = live_sprites/themes/<name>/。
 var current_theme: String = ""
 # themes.json 內容(切換 UI 用):[{name,label,default?}, ...]
@@ -57,11 +60,17 @@ func reload() -> void:
 			current_theme = url_theme
 		if available_themes.is_empty():
 			await _load_themes_index()
+		await _load_asset_version()  # 讀 revision.txt 當 sprite 快取版本號
 		# 有選主題(current_theme)或 URL ?live=1 都要套 live 覆蓋
 		if current_theme != "" or _live_requested():
 			await _apply_live_overrides()
-		# 通知開機 splash:packed(或 live)美術就緒,可以收掉進度條
+		# 先讓全場 re-skin 成正確主題、並真的畫出一幀,才通知 splash 收掉進度條 →
+		# 否則會「先收 loading、盤面還是 packed 糖果」閃一下糖果再變主題。
+		theme_ready.emit()
+		await get_tree().process_frame
+		await get_tree().process_frame
 		JavaScriptBridge.eval("window._artThemeReady=true;", true)
+		return
 	theme_ready.emit()
 
 
@@ -163,7 +172,7 @@ func _apply_live_overrides() -> void:
 		var results := {}
 		for nm in batch:
 			var max_dim: int = int(LIVE_MAX_DIM_NAMED.get(nm, LIVE_MAX_DIM_ELEMENTS))
-			var url := "%s%s.png?v=%d" % [base_url, nm, theme_revision]
+			var url := "%s%s.png%s" % [base_url, nm, _bust()]
 			var http := HTTPRequest.new()
 			add_child(http)
 			http.accept_gzip = false
@@ -178,7 +187,7 @@ func _apply_live_overrides() -> void:
 				remaining[0] -= 1
 				http.queue_free()
 		var guard := 0.0
-		while remaining[0] > 0 and guard < 15.0:
+		while remaining[0] > 0 and guard < 30.0:  # 放寬:高解析主題(如水果 1024)透過 tunnel 較慢,給足時間載完
 			await get_tree().process_frame
 			guard += get_process_delta_time()
 		for nm in results:
@@ -202,7 +211,7 @@ func _fetch_manifest(base_url: String) -> Array:
 	var http := HTTPRequest.new()
 	add_child(http)
 	http.accept_gzip = false  # GitHub Pages 會 gzip 回傳；Godot gzip 解壓失敗會卡在 _process 狂噴錯 → 關掉
-	var err := http.request("%smanifest.json?v=%d" % [base_url, theme_revision])
+	var err := http.request("%smanifest.json%s" % [base_url, _bust()])
 	if err != OK:
 		http.queue_free()
 		return NAMED_TEXTURES.duplicate()
@@ -270,6 +279,38 @@ func _live_base_url() -> String:
 	if current_theme != "":
 		return base + "themes/" + current_theme + "/"
 	return base
+
+
+# sprite 網址的 cache-bust 尾綴。
+#   具名主題(攤位固定,美術不會中途變)→ 空字串,網址穩定 → 瀏覽器可快取(靠 ETag/304 保新鮮),
+#                                          早上載過一次,之後 F5 near-instant。
+#   flat/live(?live=1,AI Art Lab 開發,美術會即時換)→ 帶開機時間破快取,永遠拿最新。
+func _bust() -> String:
+	if current_theme != "":
+		# 具名主題(攤位固定):用 revision.txt 的資產版本號 → 同版可快取,換圖 bump 版本才強制重抓。
+		# 拿不到版本(revision.txt 讀失敗)就退回開機時間(至少保證最新,只是不快取)。
+		return "?v=" + _asset_ver if _asset_ver != "" else "?v=%d" % theme_revision
+	# flat/live(?live=1,AI Art Lab 開發):開機時間破快取,永遠最新。
+	return "?v=%d" % theme_revision
+
+
+# 讀 live_sprites/revision.txt 當 sprite 快取版本號。revision.txt 本身一定要拿最新 → 用開機時間破快取。
+func _load_asset_version() -> void:
+	var base := _flat_base_url()
+	if base.is_empty():
+		return
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.accept_gzip = false
+	if http.request("%srevision.txt?nc=%d" % [base, theme_revision]) != OK:
+		http.queue_free()
+		return
+	var args = await http.request_completed
+	http.queue_free()
+	var code: int = args[1]
+	var body: PackedByteArray = args[3]
+	if code == 200 and not body.is_empty():
+		_asset_ver = body.get_string_from_utf8().strip_edges()
 
 
 func _fetch_texture(url: String, max_dim: int = 0) -> Texture2D:

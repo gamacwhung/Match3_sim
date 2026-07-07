@@ -148,6 +148,47 @@ $htmlContent = $htmlContent -replace '"index\.pck"', "`"index.pck?v=$ts`""
 $htmlContent = $htmlContent -replace '"index\.wasm"', "`"index.wasm?v=$ts`""
 Set-Content $indexHtml -Value $htmlContent -NoNewline
 
+# bump live_sprites 資產版本號 → 具名主題 sprite 網址(?v=)跟著換 → 瀏覽器強制重抓最新圖。
+# (換了主題 PNG 後只要重跑 export/publish,就不必叫每台瀏覽器硬重整了)
+$revFile = Join-Path $WebDir "live_sprites\revision.txt"
+if (Test-Path (Split-Path -Parent $revFile)) {
+    Set-Content -Path $revFile -Value "$ts" -NoNewline -Encoding ascii
+    Write-Host "[patch] live_sprites/revision.txt bump -> $ts" -ForegroundColor Green
+}
+
+# 注入 ArtTheme splash 等待：載到「正確風格」才收 loading，避免先閃預設風格再變風格
+# （Godot export 每次重生 index.html，這裡後處理重新注入 → 重匯出不會遺失）
+$htmlContent = Get-Content $indexHtml -Raw
+if ($htmlContent -notmatch '_artThemeReady') {
+    $splashPattern = "(?s)\}\)\.then\(\(\) => \{\s*setStatusMode\('hidden'\);\s*\}, displayFailureNotice\);"
+    $splashRepl = @"
+}).then(() => {
+				// 等 ArtTheme 就緒（套用完正確風格才收 loading，避免先閃預設風格）
+				const artStart = Date.now();
+				const pollArt = () => {
+					if (window._artThemeReady || Date.now() - artStart > 60000) {
+						setStatusMode('hidden');
+						return;
+					}
+					const p = window._artThemeProgress;
+					if (p && p.total > 0) {
+						statusProgress.value = p.current;
+						statusProgress.max = p.total;
+					}
+					setTimeout(pollArt, 100);
+				};
+				pollArt();
+			}, displayFailureNotice);
+"@
+    if ($htmlContent -match $splashPattern) {
+        $htmlContent = [regex]::Replace($htmlContent, $splashPattern, $splashRepl)
+        Set-Content $indexHtml -Value $htmlContent -NoNewline
+        Write-Host "[patch] index.html: ArtTheme splash 等待已注入" -ForegroundColor Green
+    } else {
+        Write-Host "[patch] 找不到 splash 收尾片段，略過（Godot shell 可能改版）" -ForegroundColor DarkYellow
+    }
+}
+
 Write-Host "==============================================================" -ForegroundColor Cyan
 Write-Host " Godot Web Publish" -ForegroundColor Cyan
 Write-Host "==============================================================" -ForegroundColor Cyan
