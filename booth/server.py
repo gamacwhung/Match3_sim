@@ -190,14 +190,17 @@ app = FastAPI(title="Match3 Booth Generator")
 
 @app.middleware("http")
 async def _cache_headers(request, call_next):
-    """快取策略:
-    - live_sprites 貼圖/manifest:用 ?v 版本號(revision.txt)控制 → 可長快取,換圖 bump 版本才重抓。
-    - 其餘(遊戲 pck/wasm/js/html、前端 html/js/css、API):一律 no-cache 重新驗證 →
-      重匯出/改前端後,F5 一定拿到新的,不會被瀏覽器/service worker heuristic 快取卡住(舊 pck 換不掉)。"""
+    """快取策略(公開網址 tunnel 慢,所以能快取的都要快取好):
+    - live_sprites 貼圖/manifest:?v 版本號(revision.txt)控制 → 長快取,換圖 bump 版本才重抓。
+    - Godot 引擎檔(index.wasm 36MB / index.js / 引擎圖):幾乎永遠不變 → 長快取,
+      訪客不用每次重載 36MB(這是公開網址最大的浪費)。
+    - 遊戲 pck / html / 前端 js/css / API:no-cache 重新驗證 → 改版/重匯出後 F5 一定拿到最新。"""
     resp = await call_next(request)
     p = request.url.path
     if "/live_sprites/" in p and (p.endswith(".png") or p.endswith(".json")):
         resp.headers["Cache-Control"] = "public, max-age=86400"
+    elif p.endswith(".wasm") or (p.startswith("/game/") and (p.endswith(".js") or p.endswith(".png"))):
+        resp.headers["Cache-Control"] = "public, max-age=604800"   # 引擎檔:7 天長快取
     else:
         resp.headers["Cache-Control"] = "no-cache, must-revalidate"
     return resp
