@@ -53,6 +53,7 @@ PROJECT_ID="$("$PY" -c "import json,sys;print(json.load(open(sys.argv[1]))['proj
 
 export GCP_PROJECT_ID="$PROJECT_ID"
 export GCP_CREDENTIALS_FILE="$CRED"
+export GCP_LOCATION="global"   # booth 用的 gemini-3.5-flash 只存在 global(us-central1 會 404),各 SDK 版本皆然
 export BOOTH_PORT="$PORT"
 export BOOTH_MODEL="$MODEL"
 

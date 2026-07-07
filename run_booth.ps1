@@ -42,6 +42,7 @@ if (-not $cred) {
 # 2) 設定 Vertex AI 認證 + 埠口 + 模型
 $env:GCP_PROJECT_ID = $projectId
 $env:GCP_CREDENTIALS_FILE = $cred
+$env:GCP_LOCATION = "global"   # booth 用的 gemini-3.5-flash 只存在 global(us-central1 會 404),各 SDK 版本皆然
 $env:BOOTH_PORT = "$Port"
 $env:BOOTH_MODEL = $Model
 

@@ -80,10 +80,13 @@ body {
 /* 沒有副標的區塊（如「難度」）：標題→pills 補上與有副標區塊一致的 10px 間距 */
 .sec-title + .pills { margin-top: 10px; }
 
-/* ── 左：控制台（過高就自己捲，不撐破版面）── */
+/* ── 左：控制台 ── 跟右邊一樣「標題列(head)在框外上方 + 面板框」 */
+.control-col { display: flex; flex-direction: column; min-height: 0; }
+.control-head { display: flex; align-items: center; margin-bottom: 8px; flex-shrink: 0; min-height: 38px; }
+/* 面板框（過高就自己捲，不撐破版面）*/
 .panel {
   background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
-  padding: 18px; align-self: start; max-height: 100%; overflow-y: auto;
+  padding: 18px; flex: 0 1 auto; min-height: 0; overflow-y: auto;
 }
 
 .pills { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -172,7 +175,7 @@ textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 
 /* ── 右：遊戲欄（flex column，遊戲填滿剩餘高度，數據條永遠看得見）── */
 .game-col { display: flex; flex-direction: column; min-height: 0; }
-.game-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
+.game-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; min-height: 38px; }
 .game-tools { display: flex; align-items: center; gap: 10px; }
 .tool-btn {
   background: var(--chip); color: var(--text); border: 1px solid var(--border);
