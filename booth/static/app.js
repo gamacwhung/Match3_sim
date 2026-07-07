@@ -32,6 +32,8 @@ let currentTheme = "";
 let currentLevel = null;
 let selShape = "";
 let selDiff = "";
+// 音效由「遊戲內」的音效鈕控制（iframe 內真手勢才能 resume 音訊 → 一定出聲），
+// 狀態記在同源 localStorage.booth_sound,換風格重載後遊戲端會自動還原。此處不再設網頁鈕。
 
 // ── 啟動 ──────────────────────────────────────────────────────────
 async function boot() {

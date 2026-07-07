@@ -312,17 +312,31 @@ func play_objective_fly(from_global: Vector2, family: String) -> void:
 	tw.chain().tween_callback(_pulse_objective.bind(family))
 
 
-func _objective_fly_target(family: String) -> Vector2:
+# widget 的 key 是 objective 的完整 tile_id(如 Crt2 / Puddle_lv3),但飛行回饋傳進來的是
+# family(Crt / Puddle)。先用 family 當 key 直接找;找不到就掃描 widget 存下的 "family" 欄位比對。
+# → 避免帶數字/_lv 後綴的目標飛到 fallback 的正上方(user:「有時非紙飛機飛錯地方」)。
+func _find_objective_widget(family: String) -> Dictionary:
 	if _objective_widgets.has(family):
-		var panel: Control = _objective_widgets[family]["panel"]
+		return _objective_widgets[family]
+	for k in _objective_widgets:
+		if str(_objective_widgets[k].get("family", "")) == family:
+			return _objective_widgets[k]
+	return {}
+
+
+func _objective_fly_target(family: String) -> Vector2:
+	var w: Dictionary = _find_objective_widget(family)
+	if not w.is_empty():
+		var panel: Control = w["panel"]
 		return panel.global_position + panel.size * 0.5
 	return Vector2(get_viewport().get_visible_rect().size.x * 0.5, 90)
 
 
 func _pulse_objective(family: String) -> void:
-	if not _objective_widgets.has(family):
+	var w: Dictionary = _find_objective_widget(family)
+	if w.is_empty():
 		return
-	var panel: Control = _objective_widgets[family]["panel"]
+	var panel: Control = w["panel"]
 	var tw = create_tween()
 	tw.tween_property(panel, "scale", Vector2(1.14, 1.14), 0.1).set_trans(Tween.TRANS_BACK)
 	tw.tween_property(panel, "scale", Vector2.ONE, 0.14)

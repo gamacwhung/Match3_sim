@@ -82,11 +82,17 @@ func _ready() -> void:
 	if _level_paths.is_empty():
 		push_error("DemoMain: 找不到 res://levels/*.json,請確認檔案已複製")
 		return
-	# 嘗試啟動 BGM(若 AudioManager 存在)
+	# 音效:Web/攤位預設「關」,由 booth 網頁的音效鈕用 ?mute=0 開啟。
+	# booth 每次換風格重載 iframe 時都會帶著這個參數 → 音效狀態跨換風格持續,不用一直開關。
 	if Engine.has_singleton("AudioManager") or has_node("/root/AudioManager"):
 		var audio = get_node_or_null("/root/AudioManager")
-		if audio and audio.has_method("start_bgm"):
-			audio.start_bgm()
+		if audio:
+			if OS.has_feature("web") and audio.has_method("set_muted"):
+				# 音效狀態記在瀏覽器 localStorage(booth_sound=1 開 / 0 或無 → 關,攤位預設關)。
+				# 換風格/重生關卡會重載 iframe → 從這裡還原上次遊戲內音效鈕的開關,不用每次重開。
+				var pref = JavaScriptBridge.eval("(function(){try{return window.localStorage.getItem('booth_sound');}catch(e){return null;}})()")
+				audio.set_muted(not (pref is String and pref == "1"))
+			# BGM 只在實際遊玩關卡時播(見 _bgm());待機/選單不播,避免待機畫面一直有音樂。
 
 	# 攤位模式偵測(?booth=1)：開機顯示待機畫面、不顯示官方 100 關選單
 	if OS.has_feature("web"):
@@ -136,6 +142,10 @@ func _ready() -> void:
 				}
 				if (event.data.type === 'load_level' && event.data.level_json) {
 					window._godotLevelJson = event.data.level_json;
+				}
+				if (event.data.type === 'set_mute') {
+					// 音效鈕即時切換：不重載遊戲，只切 Master bus 靜音
+					window._godotSetMute = event.data.muted ? '1' : '0';
 				}
 			});
 		""")
@@ -205,6 +215,13 @@ func _process(_delta: float) -> void:
 			if current_board and current_board.has_method("start_autoplay"):
 				current_board.start_autoplay(json2.data, 0.8)
 
+	# 音效鈕即時切換(booth 網頁 postMessage set_mute) → 只切 Master bus,不重載
+	var mute_cmd = JavaScriptBridge.eval("(function(){var v=window._godotSetMute;window._godotSetMute='';return (v===undefined||v===null)?'':v;})()")
+	if mute_cmd is String and mute_cmd != "":
+		var audio = get_node_or_null("/root/AudioManager")
+		if audio and audio.has_method("set_muted"):
+			audio.set_muted(mute_cmd == "1")
+
 	# AI 即時模式
 	var ai_mode_val = JavaScriptBridge.eval("window._godotAiMode || ''")
 	if ai_mode_val is String and ai_mode_val == "start":
@@ -215,6 +232,7 @@ func _process(_delta: float) -> void:
 
 func _show_idle_screen() -> void:
 	# 攤位待機畫面：乾淨、置中，提示玩家從左邊輸入生成關卡。
+	_bgm(false)  # 待機不播音樂
 	_clear_current()
 	if _idle_ui != null:
 		_idle_ui.queue_free()
@@ -513,12 +531,28 @@ func _cycle_theme(btn: Button) -> void:
 	btn.text = label if label != "" else "換風格"
 
 
+# BGM 開/關(只在實際遊玩關卡時播;待機/選單不播)。尊重靜音狀態 → 播放時若已靜音只是 bus 靜音。
+func _bgm(play: bool) -> void:
+	var am = get_node_or_null("/root/AudioManager")
+	if am == null:
+		return
+	if play:
+		if am.has_method("start_bgm"):
+			am.start_bgm()
+	elif am.has_method("stop_bgm"):
+		am.stop_bgm()
+
+
 func _toggle_audio(btn: Button) -> void:
 	var am = get_node_or_null("/root/AudioManager")
 	if am == null or not am.has_method("toggle_muted"):
 		return
 	var muted: bool = am.toggle_muted()
 	btn.text = "音效 關" if muted else "音效 開"
+	# 記住到瀏覽器 localStorage → 換風格/重生關卡重載 iframe 後沿用（不用每次重開）。
+	# 這顆在 iframe 內是「真實使用者手勢」→ 會 resume 被暫停的音訊 context → 一定出聲。
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("try{window.localStorage.setItem('booth_sound','%s');}catch(e){}" % ("0" if muted else "1"))
 
 
 func _toggle_ai_mode(btn: Button) -> void:
@@ -567,6 +601,7 @@ func _start_level_from_dict(data: Dictionary) -> void:
 	# 有真實關卡推進來 → 中止 attract 自動試玩
 	_in_attract = false
 	_cancel_attract_timer()
+	_bgm(true)  # 真正遊玩 → 播 BGM(若已靜音則只是 bus 靜音,狀態不變)
 	_custom_level_data = data.duplicate(true)  # 記住 → 重玩本關時重載這關，不掉回官方關
 	_clear_current()
 	var level_data = JsonLevelLoader.parse_level_dict(data)
@@ -613,6 +648,8 @@ func _start_level_from_dict(data: Dictionary) -> void:
 func _start_level(idx: int) -> void:
 	_custom_level_data = {}  # 進官方關卡 → 清掉自訂關卡記憶，重玩才不會重載舊自訂關
 	_clear_current()
+	if not _in_attract:
+		_bgm(true)  # attract(待機自動示範)維持安靜;一般遊玩才播 BGM
 	if _level_paths.is_empty():
 		return
 	_level_index = idx % _level_paths.size()
