@@ -32,6 +32,30 @@
 
 詳細 demo 流程看 **[`DEMO_SCRIPT.md`](DEMO_SCRIPT.md)** 。
 
+> `start_demo.ps1` 是 Windows 專用。攤位現場請改用下方的 **Booth** 啟動方式(跨平台)。
+
+---
+
+## 攤位 Demo(Booth)— 跨平台一鍵啟動
+
+攤位用的即時關卡生成器:**單一 FastAPI server(`booth/server.py`)同時 serve 前端 + Godot 遊戲**,不需要 Streamlit,也不用另外裝 Godot(用已匯出的 `godot_demo/web/`)。
+
+**macOS / Linux**
+```bash
+chmod +x run_booth.sh          # 只需第一次
+./run_booth.sh --port 8501     # 或任何埠口(開發測試常用 8800)
+```
+
+**Windows (PowerShell)**
+```powershell
+.\run_booth.ps1 -Port 8501
+```
+
+- 兩支腳本都會**自動偵測專案根目錄的 Vertex AI 服務帳戶 JSON**、設好認證再啟動;重跑同一條指令 = 安全重啟(會先清掉佔用該埠的舊 process)。
+- 啟動後開 `http://localhost:<port>/`。遊戲由同一支 server serve 在 `/game/`。
+- **完整步驟**(拿 JSON、安裝依賴、換模型、常見問題)見 **[`BOOTH_SETUP.md`](BOOTH_SETUP.md)**。
+- 開場前建議跑 `.\warm_cache.ps1` 預熱 Cloudflare 快取(對外公開網址用),讓訪客秒開。
+
 ---
 
 ## 三大模組
@@ -114,18 +138,25 @@ Match3_sim/
 
 ## 首次安裝
 
-```powershell
-# 1. Python deps
+> **跨平台**:`.ps1` 腳本給 Windows,`.sh` 腳本給 macOS / Linux。以下指令兩邊都列出。
+
+**macOS / Linux**
+```bash
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
-# 2. LLM API key
-# 編輯 config.py(已 gitignore),設定 ANTHROPIC_API_KEY / OPENAI_API_KEY
-# 或用環境變數
-
-# 3. (選用)Godot 美術版 — 詳見 godot_demo/README_DEMO.md
-#    - 安裝 Godot 4.6 + Web Export Templates
-#    - 用 Editor 開 godot_demo/ → Export → Web → 輸出到 godot_demo/web/
 ```
+
+**Windows (PowerShell)**
+```powershell
+python -m venv .venv; .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+接著:
+
+- **LLM / 美術 API key**:編輯 `config.py`(已 gitignore)設定 `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_API_KEY`;或用環境變數 / `.streamlit/secrets.toml`。
+  - 攤位 Booth 走 **Vertex AI**:把服務帳戶 JSON 放到專案根目錄即可(啟動腳本會自動偵測),見下方 Booth 段落。
+- **(選用)Godot 美術版**:安裝 Godot 4.6 + Web Export Templates,詳見 `godot_demo/README_DEMO.md`。
 
 ---
 
