@@ -2371,23 +2371,23 @@ func _shuffle_board() -> void:
 	var retry := 0
 	while retry < 30:
 		retry += 1
+		# 只收「原本有元素」的格子(元素 + 其位置);原本空的格子(即使非 blocked)保持空 →
+		# 洗牌只在有元素的格子之間互換,不會把元素換到原本的空位上(對齊 Python board.shuffle)。
 		var candies: Array = []
+		var positions: Array = []
 		for x in grid_width:
 			for y in grid_height:
-				if filler.get_candy_at(Vector2i(x, y)) != null:
-					candies.append(filler.get_candy_at(Vector2i(x, y)))
+				var candy = filler.get_candy_at(Vector2i(x, y))
+				if candy != null:
+					candies.append(candy)
+					positions.append(Vector2i(x, y))
 
 		candies.shuffle()
-		var idx = 0
-		for x in grid_width:
-			for y in grid_height:
-				if Vector2i(x, y) in blocked_cells:
-					continue
-				if idx < candies.size():
-					filler.set_candy_at(Vector2i(x, y), candies[idx])
-					candies[idx].grid_pos = Vector2i(x, y)
-					candies[idx].animate_to(filler.grid_to_world(Vector2i(x, y)), 0.3)
-					idx += 1
+		for i in candies.size():
+			var pos: Vector2i = positions[i]
+			filler.set_candy_at(pos, candies[i])
+			candies[i].grid_pos = pos
+			candies[i].animate_to(filler.grid_to_world(pos), 0.3)
 
 		await get_tree().create_timer(0.4).timeout
 

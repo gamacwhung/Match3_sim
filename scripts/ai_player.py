@@ -344,7 +344,11 @@ def _estimate_powerup_impact_at(board, r, c, pid, goals_required) -> float:
     elif pid == 'TNT':
         cells = [(r + dr, c + dc) for dr in (-1, 0, 1) for dc in (-1, 0, 1)]
     elif pid == 'TrPr':
+        # 紙飛機 = 原位十字 5 格 + 「飛到最高權重目標」再清 1 格(對齊遊戲 game_board 落點設計)。
+        # 只算原地十字會低估它 → 殘局最後的目標若不在旁邊被估 0、agent 就不啟動它去削步數。
         cells = [(r + dr, c + dc) for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1), (0, 0)]]
+        local = _count_obstacles_in_cells(board, cells, goals_required)
+        return local + _best_fly_target_value(board, cells, goals_required)
     elif pid == 'LtBl':
         color_counts: dict = {}
         for rr in range(rows):
@@ -365,6 +369,24 @@ def _estimate_powerup_impact_at(board, r, c, pid, goals_required) -> float:
         return 0
 
     return _count_obstacles_in_cells(board, cells, goals_required)
+
+
+def _best_fly_target_value(board, exclude, goals_required) -> float:
+    """紙飛機/螺旋槳會「飛到最高權重目標」再清 1 格 → 盤上只要還有目標障礙,啟動它就等於能清 1 個目標。
+    (排除已算進原位十字的格,避免重複計)"""
+    exclude_set = set(exclude)
+    has_any = False
+    for r in range(board.rows):
+        for c in range(board.cols):
+            if (r, c) in exclude_set:
+                continue
+            cell = board.get_cell(r, c)
+            for layer in (cell.middle, cell.bottom, cell.upper):
+                if layer is not None and is_obstacle(layer.tile_id):
+                    has_any = True
+                    if _is_goal_tile(layer.tile_id, goals_required):
+                        return WEIGHT_GOAL_OBSTACLE
+    return WEIGHT_OBSTACLE if has_any else 0.0
 
 
 def _evaluate_ltbl_element(board, ltbl_r, ltbl_c, element_tile, goals_required, is_endgame) -> float:

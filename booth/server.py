@@ -189,13 +189,17 @@ app = FastAPI(title="Match3 Booth Generator")
 
 
 @app.middleware("http")
-async def _cache_live_sprites(request, call_next):
-    """具名主題貼圖/manifest 網址已穩定(art_theme 對具名主題不再帶 ?v)→ 給長快取。
-    攤位早上把各主題載過一次後,之後同台瀏覽器 F5 直接吃快取、不再逐檔重新驗證。"""
+async def _cache_headers(request, call_next):
+    """快取策略:
+    - live_sprites 貼圖/manifest:用 ?v 版本號(revision.txt)控制 → 可長快取,換圖 bump 版本才重抓。
+    - 其餘(遊戲 pck/wasm/js/html、前端 html/js/css、API):一律 no-cache 重新驗證 →
+      重匯出/改前端後,F5 一定拿到新的,不會被瀏覽器/service worker heuristic 快取卡住(舊 pck 換不掉)。"""
     resp = await call_next(request)
     p = request.url.path
     if "/live_sprites/" in p and (p.endswith(".png") or p.endswith(".json")):
-        resp.headers["Cache-Control"] = "public, max-age=86400"  # 1 天;要更新主題就 hard-refresh
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+    else:
+        resp.headers["Cache-Control"] = "no-cache, must-revalidate"
     return resp
 
 

@@ -107,22 +107,10 @@ $("theme").addEventListener("change", (e) => {
   reloadGame();
 });
 
-// 回待機畫面（換下一位訪客）：清掉關卡、遊戲回 ?booth=1 待機、面板重置
+// 回待機畫面（換下一位訪客）：直接整頁重載，等同按 F5 →
+// 對話框文字、目標、形狀/難度選取、數據、遊戲全部乾淨歸零,不會漏掉任何一項。
 $("idle-btn").addEventListener("click", () => {
-  currentLevel = null;
-  reloadGame(); // gameSrc(null) → 無 level_lz → 待機畫面
-  $("st-board").textContent = "—";
-  $("st-steps").textContent = "—";
-  $("st-goals").textContent = "—";
-  $("st-winrate").textContent = "點我測";
-  $("st-winrate").style.color = "";
-  $("goals-line").hidden = true;
-  $("banner").hidden = true;
-  $("sim-report").hidden = true;
-  $("prompt-detail").hidden = true;
-  $("output-detail").hidden = true;
-  $("level-meta").hidden = true;
-  statusEl.innerHTML = "";
+  location.reload();
 });
 
 // 全螢幕遊玩（怕觀眾覺得畫面太小）— 整個遊戲框進全螢幕，退出鈕才疊得上去
