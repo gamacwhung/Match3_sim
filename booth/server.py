@@ -198,7 +198,7 @@ async def _cache_headers(request, call_next):
     resp = await call_next(request)
     p = request.url.path
     if "/live_sprites/" in p and (p.endswith(".png") or p.endswith(".json")):
-        resp.headers["Cache-Control"] = "public, max-age=86400"
+        resp.headers["Cache-Control"] = "public, max-age=604800"   # 主題貼圖:7 天長快取(?v 版本號控管,換圖 bump 才重抓)
     elif p.endswith(".wasm") or (p.startswith("/game/") and (p.endswith(".js") or p.endswith(".png"))):
         resp.headers["Cache-Control"] = "public, max-age=604800"   # 引擎檔:7 天長快取
     else:
