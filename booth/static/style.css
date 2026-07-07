@@ -193,9 +193,7 @@ textarea:focus { outline: 2px solid var(--g-blue); border-color: transparent; }
 /* 遊戲(撐滿高度,保持大) + 右側資訊欄(資訊放這,不會把遊戲擠小) */
 .game-body {
   flex: 1 1 auto; min-height: 0;
-  /* 遊戲畫面靠左(在「遊戲區」標題正下方)、資訊欄推到最右緣 →
-     資訊欄右緣與上面工具列/主題下拉選單的右緣對齊。 */
-  display: flex; gap: 16px; justify-content: space-between; align-items: stretch;
+  display: flex; gap: 16px; justify-content: flex-start; align-items: stretch;
 }
 .game-frame-wrap {
   position: relative;
